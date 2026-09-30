@@ -37,6 +37,34 @@ test.describe('v0.1 冒烟测试', () => {
     await expect(markers).toHaveCount(2)
   })
 
+  test('拖拽平移移动内容，且视图操作不入撤销历史', async ({ page }) => {
+    await page.goto('/')
+    await page.getByTestId('add-marker').click()
+
+    const before = await page.getByTestId('marker').boundingBox()
+    const canvas = await page.getByTestId('stage-canvas').boundingBox()
+    expect(before).not.toBeNull()
+    expect(canvas).not.toBeNull()
+
+    const startX = canvas!.x + canvas!.width / 2
+    const startY = canvas!.y + canvas!.height / 2
+    await page.mouse.move(startX, startY)
+    await page.mouse.down()
+    await page.mouse.move(startX - 100, startY - 60, { steps: 5 })
+    await page.mouse.up()
+
+    // 内容跟随指针移动
+    const after = await page.getByTestId('marker').boundingBox()
+    expect(after).not.toBeNull()
+    expect(after!.x - before!.x).toBeCloseTo(-100, 0)
+    expect(after!.y - before!.y).toBeCloseTo(-60, 0)
+
+    // 撤销栈里应只有一次"添加"操作：撤销后不可再撤销（证明平移未入历史）
+    await page.getByTestId('undo').click()
+    await expect(page.getByTestId('marker')).toHaveCount(0)
+    await expect(page.getByTestId('undo')).toBeDisabled()
+  })
+
   test('标记点与坐标系对齐（DOM 覆盖层与 Canvas 层坐标系一致）', async ({ page }) => {
     await page.goto('/')
     await page.getByTestId('add-marker').click()
