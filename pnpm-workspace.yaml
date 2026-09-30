@@ -1,0 +1,4 @@
+# 依赖构建脚本许可（pnpm 10+ 默认阻止未许可的构建脚本）
+# simple-git-hooks 的钩子安装由根 package.json 的 postinstall 执行，无需其自带安装脚本
+allowBuilds:
+  simple-git-hooks: false
