@@ -1,8 +1,65 @@
 <script lang="ts">
-  // v0.1 项目骨架占位：核心模块（坐标系、分层渲染、store）将在后续提交中接入
+  import { mount, onMount, unmount } from 'svelte'
+  import { createCanvasLayer } from '../render/canvas-layer'
+  import { createDomLayer } from '../render/dom-layer'
+  import { drawGrid } from '../render/grid-renderer'
+  import { createStore } from '../state/store'
+  import type { Point2 } from '../state/types'
+  import { attachInteractions, attachKeyboardShortcuts } from './interactions'
+  import MarkerLayer from './MarkerLayer.svelte'
+  import StatusBar from './StatusBar.svelte'
+  import Toolbar from './Toolbar.svelte'
+
+  const store = createStore()
+
+  let stageElement: HTMLDivElement
+  let canUndo = $state(false)
+  let canRedo = $state(false)
+  let cursor = $state<Point2 | null>(null)
+  let scale = $state(store.getView().scale)
+
+  onMount(() => {
+    // 分层渲染：Canvas 层（网格）+ DOM 覆盖层（标记点）
+    const canvasLayer = createCanvasLayer(stageElement, (ctx, size, dpr) => {
+      drawGrid(ctx, store.getView(), size, dpr)
+    })
+    const domLayer = createDomLayer(stageElement)
+
+    const markers = mount(MarkerLayer, {
+      target: domLayer.element,
+      props: { store },
+    })
+
+    const unsubscribe = store.subscribe((state) => {
+      canUndo = store.canUndo()
+      canRedo = store.canRedo()
+      scale = state.view.scale
+      canvasLayer.requestRender()
+    })
+
+    const unbindInteractions = attachInteractions({
+      container: stageElement,
+      store,
+      getSize: () => canvasLayer.getSize(),
+      onCursorMove: (position) => {
+        cursor = position
+      },
+    })
+    const unbindKeyboard = attachKeyboardShortcuts(store)
+
+    return () => {
+      unbindKeyboard()
+      unbindInteractions()
+      unsubscribe()
+      unmount(markers)
+      domLayer.destroy()
+      canvasLayer.destroy()
+    }
+  })
 </script>
 
-<main class="app-shell">
-  <h1>数学绘图工具（暂定名）</h1>
-  <p class="build-status">v0.1 项目骨架搭建中……</p>
-</main>
+<div class="app">
+  <Toolbar {store} {canUndo} {canRedo} />
+  <div class="stage" bind:this={stageElement}></div>
+  <StatusBar {cursor} {scale} />
+</div>
