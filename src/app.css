@@ -1,0 +1,39 @@
+:root {
+  --text: #1f2937;
+  --text-dim: #6b7280;
+  --bg: #ffffff;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+
+  --sans: system-ui, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  --mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  font-family: var(--sans);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: light;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+#app {
+  height: 100%;
+}
+
+.app-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.build-status {
+  color: var(--text-dim);
+}
