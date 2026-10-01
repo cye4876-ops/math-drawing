@@ -3,10 +3,12 @@ import type {
   Curve,
   CurveKind,
   DocState,
+  GraphObject,
   MarkerPoint,
   SceneObject,
   ViewTransform,
 } from './types'
+import type { GraphEdgeData, GraphNodeData } from '../graph/model'
 import { createView, sanitizeView } from '../core/transform'
 
 /** 撤销历史最大深度 */
@@ -160,6 +162,38 @@ export class AppStore {
   /** 删除标记点（入撤销历史） */
   removeMarker(id: string): void {
     this.commit((doc) => ({ objects: doc.objects.filter((object) => object.id !== id) }))
+  }
+
+  /** 文档中的图对象（v0.5） */
+  getGraphs(): GraphObject[] {
+    return this.doc.objects.filter((object): object is GraphObject => object.type === 'graph')
+  }
+
+  /** 添加图对象（顶点/边由调用方提供：DSL 解析、预置图族或画布编辑） */
+  addGraph(nodes: GraphNodeData[], edges: GraphEdgeData[], name = '图'): GraphObject {
+    const graph: GraphObject = {
+      id: crypto.randomUUID(),
+      type: 'graph',
+      name,
+      nodes,
+      edges,
+      visible: true,
+    }
+    this.commit((doc) => ({ objects: [...doc.objects, graph] }))
+    return graph
+  }
+
+  removeGraph(id: string): void {
+    this.commit((doc) => ({ objects: doc.objects.filter((object) => object.id !== id) }))
+  }
+
+  /** 更新图对象的顶点集（布局或拖动写回坐标时使用） */
+  updateGraphNodes(id: string, nodes: GraphNodeData[]): void {
+    this.commit((doc) => ({
+      objects: doc.objects.map((object) =>
+        object.id === id && object.type === 'graph' ? { ...object, nodes } : object,
+      ),
+    }))
   }
 
   /** 添加曲线：颜色默认按已有曲线数量从色环分配 */

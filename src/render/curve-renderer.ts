@@ -1,6 +1,8 @@
 import type { Curve, LineStyle, Point2, Size, ViewTransform } from '../state/types'
 import { createProjector, viewBounds } from '../core/transform'
 import { compile, parse } from '../expr'
+import { nearestPointOnPolylines } from '../math/numeric/nearest'
+import type { ElementRenderer } from './element-registry'
 import { sampleExplicit } from './samplers/adaptive'
 import { sampleImplicit } from './samplers/implicit'
 import { sampleParametric, samplePolar } from './samplers/parametric'
@@ -215,7 +217,7 @@ function strokeCurve(
 }
 
 /**
- * 绘制全部可见曲线（Canvas 层，网格之后调用）。
+ * 绘制全部可见曲线（向后兼容入口；内部逐条委托 drawCurveElement）。
  * 解析失败的曲线跳过（错误由 UI 列表展示）；采样结果按视图缓存。
  */
 export function drawCurves(
@@ -224,20 +226,48 @@ export function drawCurves(
   view: ViewTransform,
   size: Size,
 ): void {
-  // 清理已删除曲线的缓存
-  if (sampleCache.size > curves.length) {
-    const alive = new Set(curves.map((curve) => curve.id))
-    for (const id of sampleCache.keys()) {
-      if (!alive.has(id)) sampleCache.delete(id)
-    }
-  }
-
+  pruneSampleCache(new Set(curves.map((curve) => curve.id)))
   for (const curve of curves) {
-    if (!curve.visible) continue
-    const polyline = sampleCurve(curve, view, size)
-    if (!polyline) continue
-    strokeCurve(ctx, polyline, curve, view, size)
+    drawCurveElement(ctx, curve, view, size)
   }
+}
+
+/** 绘制单条曲线元素（注册制入口；采样缓存保证视图不变时零开销） */
+export function drawCurveElement(
+  ctx: CanvasRenderingContext2D,
+  curve: Curve,
+  view: ViewTransform,
+  size: Size,
+): void {
+  if (!curve.visible) return
+  const polyline = sampleCurve(curve, view, size)
+  if (!polyline) return
+  strokeCurve(ctx, polyline, curve, view, size)
+}
+
+/** 裁剪采样缓存：删除不再存活曲线的缓存条目 */
+export function pruneSampleCache(aliveIds: ReadonlySet<string>): void {
+  if (sampleCache.size === 0) return
+  for (const id of [...sampleCache.keys()]) {
+    if (!aliveIds.has(id)) sampleCache.delete(id)
+  }
+}
+
+/** 曲线元素渲染器（v0.5 元素注册制）：绘制委托 drawCurveElement；命中为屏幕空间最近点 */
+export const curveElementRenderer: ElementRenderer<Curve> = {
+  type: 'curve',
+  draw(ctx, curve, { view, size }) {
+    drawCurveElement(ctx, curve, view, size)
+  },
+  hitTest(curve, screen, { view, size }, maxDistancePx) {
+    if (!curve.visible) return null
+    const polyline = sampleCurve(curve, view, size)
+    if (!polyline) return null
+    const projector = createProjector(view, size)
+    const hit = nearestPointOnPolylines(polyline.segments, projector.project, screen, maxDistancePx)
+    if (!hit) return null
+    return { elementId: curve.id, part: 'curve', targetId: curve.id, distancePx: hit.distancePx }
+  },
 }
 
 /** 供测试/基准：对单条曲线采样一次（不绘制），返回该段折线与耗时信息 */

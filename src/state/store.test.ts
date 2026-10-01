@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HISTORY_LIMIT, colorForIndex, createStore, type AppStore } from './store'
 import { createView } from '../core/transform'
+import { createEdge, createNode } from '../graph/model'
 
 let store: AppStore
 
@@ -212,5 +213,37 @@ describe('store: 曲线管理', () => {
 
     store.undo()
     expect(store.getCurves()[0]?.expr).toBe('old')
+  })
+})
+
+describe('store: 图对象（v0.5）', () => {
+  it('addGraph / updateGraphNodes / removeGraph 入撤销历史', () => {
+    const a = createNode('A', 0, 0, '#000')
+    const b = createNode('B', 1, 0, '#000')
+    const graph = store.addGraph([a, b], [createEdge(a.id, b.id)], '测试图')
+    expect(store.getGraphs()).toHaveLength(1)
+    expect(graph.name).toBe('测试图')
+    expect(store.getGraphs()[0]!.nodes).toHaveLength(2)
+
+    store.updateGraphNodes(graph.id, [{ ...a, x: 5 }, b])
+    expect(store.getGraphs()[0]!.nodes[0]!.x).toBe(5)
+
+    store.removeGraph(graph.id)
+    expect(store.getGraphs()).toHaveLength(0)
+
+    store.undo()
+    expect(store.getGraphs()[0]!.nodes[0]!.x).toBe(5)
+    store.undo()
+    expect(store.getGraphs()[0]!.nodes[0]!.x).toBe(0)
+  })
+
+  it('图与曲线/标记点共存于同一文档', () => {
+    store.addCurve({ kind: 'explicit', expr: 'sin(x)' })
+    store.addMarker(0, 0)
+    const a = createNode('A', 0, 0, '#000')
+    store.addGraph([a], [])
+    expect(store.getCurves()).toHaveLength(1)
+    expect(store.getGraphs()).toHaveLength(1)
+    expect(store.getState().doc.objects).toHaveLength(3)
   })
 })

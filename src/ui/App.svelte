@@ -1,7 +1,8 @@
 <script lang="ts">
   import { mount, onMount, unmount } from 'svelte'
   import { createCanvasLayer, type CanvasLayer } from '../render/canvas-layer'
-  import { drawCurves } from '../render/curve-renderer'
+  import { createSceneRenderer } from '../render/scene'
+  import { graphObjectFromDsl } from '../graph/dsl-to-doc'
   import { createDomLayer } from '../render/dom-layer'
   import { drawGrid } from '../render/grid-renderer'
   import { createView } from '../core/transform'
@@ -107,6 +108,13 @@
     }
 
     // range 参数（精确视口）：在画布尺寸就绪后于 onMount 中应用
+    // range 参数（精确视口）：在画布尺寸就绪后于 onMount 中应用
+    const graphParam = readRawParam(location.search, 'graph')
+    if (graphParam) {
+      const { graph } = graphObjectFromDsl(graphParam)
+      if (graph) target.addGraph(graph.nodes, graph.edges, graph.name)
+    }
+
     const rangeParam = readRawParam(location.search, 'range')
     if (rangeParam) {
       const parts = rangeParam.split(',').map(Number)
@@ -137,12 +145,13 @@
   let coordType = $state(store.getView().coordType)
 
   onMount(() => {
-    // 分层渲染：Canvas 层（网格 + 曲线 + 工具覆盖层）+ DOM 覆盖层（标记点与面板）
+    // 分层渲染：Canvas 层（网格 + 场景元素 + 工具覆盖层）+ DOM 覆盖层（标记点与面板）
+    const scene = createSceneRenderer()
     let boundLayer: CanvasLayer | null = null
     const canvasLayer = createCanvasLayer(stageElement, (ctx, size, dpr) => {
       const state = store.getState()
       drawGrid(ctx, state.view, size, dpr)
-      drawCurves(ctx, store.getCurves(), state.view, size)
+      scene.draw(ctx, state.doc.objects, { view: state.view, size })
       registry.drawOverlay(ctx)
       if (registry.isAnimating()) boundLayer?.requestRender()
     })
@@ -155,13 +164,17 @@
       props: { store },
     })
 
-    const unsubscribe = store.subscribe((state) => {
+    const syncUi = (): void => {
       canUndo = store.canUndo()
       canRedo = store.canRedo()
-      scale = state.view.scaleX
-      coordType = state.view.coordType
+      const view = store.getView()
+      scale = view.scaleX
+      coordType = view.coordType
       canvasLayer.requestRender()
-    })
+    }
+    const unsubscribe = store.subscribe(syncUi)
+    // 订阅后立即同步一次（URL 预载等「订阅前已提交」的操作也要反映到 UI）
+    syncUi()
 
     // range 参数：拿到真实画布尺寸后换算精确视口（非等比，与 JSXGraph boundingBox 语义一致）
     if (pendingRange) {

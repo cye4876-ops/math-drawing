@@ -40,6 +40,14 @@ export interface GraphDoc {
   edges: GraphEdgeData[]
 }
 
+/** 场景中的图对象（v0.5）：GraphDoc + 文档身份；坐标即数学坐标 */
+export interface GraphObject extends GraphDoc {
+  id: string
+  type: 'graph'
+  name: string
+  visible: boolean
+}
+
 export const DEFAULT_NODE_SIZE = 14
 export const DEFAULT_EDGE_COLOR = '#9ca3af'
 
@@ -165,6 +173,11 @@ export function deserializeGraphDoc(text: string): GraphDoc {
   } catch {
     throw new Error('图数据不是合法 JSON')
   }
+  return normalizeGraphDoc(raw)
+}
+
+/** 校验并规范化图数据（供图对象解析复用；非法输入抛中文错误） */
+export function normalizeGraphDoc(raw: unknown): GraphDoc {
   if (typeof raw !== 'object' || raw === null) throw new Error('图数据必须是对象')
   const record = raw as Record<string, unknown>
   if (!Array.isArray(record['nodes']) || !Array.isArray(record['edges'])) {

@@ -1,5 +1,14 @@
-import type { Curve, CurveKind, DocState, LineStyle, SceneObject, ViewTransform } from './types'
+import type {
+  Curve,
+  CurveKind,
+  DocState,
+  GraphObject,
+  LineStyle,
+  SceneObject,
+  ViewTransform,
+} from './types'
 import { createView } from '../core/transform'
+import { normalizeGraphDoc } from '../graph/model'
 
 /** 文档 JSON 格式版本（v0.6 分享链接的基础） */
 export const DOC_FORMAT_VERSION = 1
@@ -75,6 +84,29 @@ function parseMarker(raw: Record<string, unknown>, position: number): SceneObjec
   return { id, type: 'marker', x, y }
 }
 
+/** 解析图对象（v0.5）：顶点/边经 normalizeGraphDoc 校验与默认值补齐 */
+function parseGraph(raw: Record<string, unknown>, position: number): GraphObject {
+  const id = raw['id']
+  if (typeof id !== 'string' || id === '')
+    throw new DocFormatError(`第 ${position} 个对象缺少合法 id`)
+  let graphDoc
+  try {
+    graphDoc = normalizeGraphDoc({ nodes: raw['nodes'], edges: raw['edges'] })
+  } catch (error) {
+    throw new DocFormatError(
+      `第 ${position} 个图对象无效：${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+  return {
+    id,
+    type: 'graph',
+    name: typeof raw['name'] === 'string' && raw['name'] !== '' ? raw['name'] : '图',
+    nodes: graphDoc.nodes,
+    edges: graphDoc.edges,
+    visible: typeof raw['visible'] === 'boolean' ? raw['visible'] : true,
+  }
+}
+
 function parseView(raw: unknown): ViewTransform {
   const base = createView()
   if (raw === null || typeof raw !== 'object') return base
@@ -129,6 +161,7 @@ export function deserializeDocument(json: string): { doc: DocState; view: ViewTr
     const raw = item as Record<string, unknown>
     if (raw['type'] === 'curve') objects.push(parseCurve(raw, index))
     else if (raw['type'] === 'marker') objects.push(parseMarker(raw, index))
+    else if (raw['type'] === 'graph') objects.push(parseGraph(raw, index))
     else throw new DocFormatError(`第 ${index} 个对象类型未知：${String(raw['type'])}`)
   })
 

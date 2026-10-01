@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DocFormatError, deserializeDocument, serializeDocument } from './serialize'
 import { createView } from '../core/transform'
+import { createEdge, createNode, type GraphObject } from '../graph/model'
 import type { Curve, DocState, MarkerPoint } from './types'
 
 const curve: Curve = {
@@ -84,5 +85,53 @@ describe('serialize: 校验与容错', () => {
     expect(view.scaleX).toBe(80)
     expect(view.equalAspect).toBe(true)
     expect(view.coordType).toBe('rect')
+  })
+})
+
+describe('serialize: 图对象（v0.5）', () => {
+  it('图对象序列化往返（含自环/重边/有向/权重）', () => {
+    const a = createNode('A', 0, 0, '#2563eb')
+    const b = createNode('B', 1, 1, '#dc2626')
+    const graph: GraphObject = {
+      id: 'g1',
+      type: 'graph',
+      name: '测试图',
+      visible: true,
+      nodes: [a, b],
+      edges: [
+        createEdge(a.id, b.id, { weight: 3 }),
+        createEdge(a.id, b.id, { directed: true }),
+        createEdge(a.id, a.id),
+      ],
+    }
+    const roundtrip = deserializeDocument(serializeDocument({ objects: [graph] }, createView()))
+    const back = roundtrip.doc.objects[0] as GraphObject
+    expect(back.type).toBe('graph')
+    expect(back.name).toBe('测试图')
+    expect(back.nodes).toEqual(graph.nodes)
+    expect(back.edges).toEqual(graph.edges)
+  })
+
+  it('图对象缺字段：name/visible 补默认；nodes 非法时报错', () => {
+    const raw = JSON.stringify({
+      version: 1,
+      objects: [{ id: 'g1', type: 'graph', nodes: [], edges: [] }],
+    })
+    const { doc } = deserializeDocument(raw)
+    const graph = doc.objects[0] as GraphObject
+    expect(graph.name).toBe('图')
+    expect(graph.visible).toBe(true)
+
+    const bad = JSON.stringify({
+      version: 1,
+      objects: [{ id: 'g1', type: 'graph', nodes: [{ id: 'n1' }], edges: [] }],
+    })
+    expect(() => deserializeDocument(bad)).toThrow('图对象无效')
+  })
+
+  it('旧版本文档（无图对象）正常加载', () => {
+    const raw = JSON.stringify({ version: 1, objects: [{ id: 'm1', type: 'marker', x: 1, y: 2 }] })
+    const { doc } = deserializeDocument(raw)
+    expect(doc.objects).toHaveLength(1)
   })
 })
