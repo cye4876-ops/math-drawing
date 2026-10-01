@@ -7,6 +7,7 @@
   import type { GraphObject } from '../graph/model'
   import type { SceneHighlight } from '../render/element-registry'
   import { computeProperties, type GraphProperties } from '../graph/properties'
+  import { bipartizationNumber, type BipartizationResult } from '../graph/bipartization'
   import { structuralKey } from '../graph/structural-key'
 
   let {
@@ -18,7 +19,9 @@
   } = $props()
 
   let properties = $state<GraphProperties | null>(null)
+  let bipartization = $state<BipartizationResult | null>(null)
   let highlightOn = $state(false)
+  let bipartHighlightOn = $state(false)
   let lastKey: string | null = null
 
   const structureKeyValue = $derived(graph ? structuralKey(graph) : '')
@@ -28,8 +31,10 @@
     if (key === lastKey) return
     lastKey = key
     highlightOn = false
+    bipartHighlightOn = false
     onHighlight(null)
     properties = graph ? computeProperties(graph) : null
+    bipartization = graph ? bipartizationNumber(graph) : null
   })
 
   function toggleEvidence(): void {
@@ -41,7 +46,25 @@
       return
     }
     highlightOn = true
+    bipartHighlightOn = false
     onHighlight({ nodes: evidence })
+  }
+
+  /** 高亮「删除后可得二部图」的边（琥珀）；与禁用子图高亮互斥 */
+  function toggleBipartHighlight(): void {
+    const result = bipartization
+    if (!graph || !result || result.edgeIds.length === 0) return
+    if (bipartHighlightOn) {
+      bipartHighlightOn = false
+      onHighlight(null)
+      return
+    }
+    bipartHighlightOn = true
+    highlightOn = false
+    const edges = graph.edges
+      .filter((edge) => result.edgeIds.includes(edge.id))
+      .map((edge) => ({ source: edge.source, target: edge.target }))
+    onHighlight({ edges })
   }
 </script>
 
@@ -71,6 +94,25 @@
           : '未完整判定'}
     </div>
     <div class="hint" data-testid="property-planar-reason">{properties.planar.reason}</div>
+    <div class="line" data-testid="property-bipartization">
+      二分化 b(G)：{bipartization === null
+        ? '—'
+        : bipartization.count === 0
+          ? '删除 0 条边（已是二分图）'
+          : `删除 ${bipartization.count} 条边可得二分图（${bipartization.exact ? '精确' : '近似'}）`}
+    </div>
+    {#if bipartization && bipartization.count > 0}
+      <div class="row">
+        <button
+          type="button"
+          data-testid="property-bipart-highlight"
+          class:active={bipartHighlightOn}
+          onclick={toggleBipartHighlight}
+        >
+          {bipartHighlightOn ? '取消高亮' : '高亮需删除的边'}
+        </button>
+      </div>
+    {/if}
     {#if properties.planar.evidence}
       <div class="row">
         <button

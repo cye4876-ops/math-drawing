@@ -62,4 +62,27 @@ test.describe('v0.5 禁图：平面性与图的性质', () => {
     await page.getByTestId('family-generate').click()
     await expect(page.getByTestId('property-planar')).toContainText('未发现冲突')
   })
+
+  test('二分化 b(G)：K5 删 4 条并可高亮；C5 删 1；C6 已是二分图', async ({ page }) => {
+    // K5：maxcut = 2×3 = 6 → b = 10 - 6 = 4
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent(K5))
+    await expect(page.getByTestId('property-bipartization')).toContainText('删除 4 条边可得二分图')
+    await expect(page.getByTestId('property-bipartization')).toContainText('精确')
+
+    expect(await countHighlightPixels(page)).toBeLessThan(20)
+    await page.getByTestId('property-bipart-highlight').click()
+    await expect.poll(() => countHighlightPixels(page)).toBeGreaterThan(30)
+    await page.getByTestId('property-bipart-highlight').click()
+    await expect.poll(() => countHighlightPixels(page)).toBeLessThan(20)
+
+    // C5：奇环 → b=1；C6：偶环 → b=0
+    const C5 = '1-2, 2-3, 3-4, 4-5, 5-1'
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent(C5))
+    await expect(page.getByTestId('property-bipartization')).toContainText('删除 1 条边可得二分图')
+
+    const C6 = '1-2, 2-3, 3-4, 4-5, 5-6, 6-1'
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent(C6))
+    await expect(page.getByTestId('property-bipartization')).toContainText('已是二分图')
+    await expect(page.getByTestId('property-bipart-highlight')).toHaveCount(0)
+  })
 })
