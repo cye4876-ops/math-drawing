@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test.describe('v0.5 图编辑工具', () => {
   test('全流程：点击建点 → 拖拽连边 → 拖动节点 → 逐步撤销', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/?mode=graph')
     await page.getByTestId('tool-graph').click()
     await expect(page.getByTestId('tool-readout-title')).toContainText('图编辑')
 
@@ -67,7 +67,7 @@ test.describe('v0.5 图编辑工具', () => {
   })
 
   test('有向边类型生效（导出 JSON 验证）', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/?mode=graph')
     await page.getByTestId('tool-graph').click()
     const box = await page.getByTestId('stage-canvas').boundingBox()
     expect(box).not.toBeNull()

@@ -29,6 +29,9 @@ export default defineConfig({
         'src/tools/**',
         'src/graph/**',
       ],
+      // worker 入口（self.onmessage 顶层副作用）无法在 node 环境单测，由 e2e 冒烟覆盖；
+      // 其内部逻辑（布局算法）在同目录 layouts.ts 中测试。
+      exclude: ['src/graph/layout-worker.ts'],
       reporter: ['text', 'html'],
       thresholds: {
         'src/expr/**': {

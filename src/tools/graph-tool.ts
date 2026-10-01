@@ -93,6 +93,7 @@ export function createGraphTool(): Tool {
   return {
     id: 'graph',
     name: '图编辑',
+    group: 'graph',
 
     activate(ctx) {
       mode = 'move'

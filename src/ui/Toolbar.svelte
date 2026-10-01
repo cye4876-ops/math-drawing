@@ -13,12 +13,16 @@
     canRedo,
     getStageSize,
     registry,
+    mode,
+    onModeChange,
   }: {
     store: AppStore
     canUndo: boolean
     canRedo: boolean
     getStageSize: () => Size
     registry: ToolRegistry
+    mode: 'plot' | 'graph'
+    onModeChange: (mode: 'plot' | 'graph') => void
   } = $props()
 
   let currentView = $state<ViewTransform | null>(null)
@@ -43,6 +47,11 @@
   let viewError = $state('')
   let ioError = $state('')
   let fileInput: HTMLInputElement | undefined = $state()
+
+  /** 当前模式下的工具（「选择」按钮两模式共有） */
+  const visibleTools = $derived(
+    registry.getTools().filter((tool) => (tool.group ?? 'plot') === mode),
+  )
 
   function toggleViewPanel(): void {
     showView = !showView
@@ -122,6 +131,25 @@
 </script>
 
 <div class="toolbar" role="toolbar" aria-label="工具条">
+  <div class="mode-switch" role="tablist" aria-label="界面模式">
+    <button
+      type="button"
+      role="tab"
+      data-testid="mode-plot"
+      aria-selected={mode === 'plot'}
+      class:active={mode === 'plot'}
+      onclick={() => onModeChange('plot')}>函数绘图</button
+    >
+    <button
+      type="button"
+      role="tab"
+      data-testid="mode-graph"
+      aria-selected={mode === 'graph'}
+      class:active={mode === 'graph'}
+      onclick={() => onModeChange('graph')}>图论绘图</button
+    >
+  </div>
+  <span class="divider"></span>
   <div class="tool-group" role="radiogroup" aria-label="分析工具">
     <button
       type="button"
@@ -130,7 +158,7 @@
       title="选择/平移（默认）"
       onclick={() => registry.activate(null)}>选择</button
     >
-    {#each registry.getTools() as tool (tool.id)}
+    {#each visibleTools as tool (tool.id)}
       <button
         type="button"
         data-testid={`tool-${tool.id}`}
@@ -243,6 +271,27 @@
   .toolbar button.active {
     border-color: var(--accent);
     color: var(--accent);
+  }
+
+  .mode-switch {
+    display: flex;
+    gap: 0;
+  }
+
+  .mode-switch button {
+    font-weight: 600;
+  }
+
+  .mode-switch button:first-child {
+    border-radius: 6px 0 0 6px;
+  }
+
+  .mode-switch button:last-child {
+    border-radius: 0 6px 6px 0;
+  }
+
+  .mode-switch button.active {
+    background: rgba(37, 99, 235, 0.08);
   }
 
   .tool-group {

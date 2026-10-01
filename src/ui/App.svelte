@@ -22,6 +22,7 @@
   } from '../tools'
   import { attachInteractions, attachKeyboardShortcuts } from './interactions'
   import CurveList from './CurveList.svelte'
+  import GraphPanel from './GraphPanel.svelte'
   import MarkerLayer from './MarkerLayer.svelte'
   import StatusBar from './StatusBar.svelte'
   import MarkerList from './MarkerList.svelte'
@@ -154,6 +155,22 @@
   // 预载必须在组件状态初始化之前执行（否则初始 UI 状态捕获不到）
   const pendingRange = preloadFromUrl(store)
 
+  /** 界面模式（工具条左上角切换）：plot = 函数绘图，graph = 图论绘图；?mode= / ?graph= 可指定 */
+  const initialMode: 'plot' | 'graph' =
+    typeof location !== 'undefined' &&
+    (readRawParam(location.search, 'mode') === 'graph' ||
+      readRawParam(location.search, 'graph') !== null)
+      ? 'graph'
+      : 'plot'
+  let mode = $state<'plot' | 'graph'>(initialMode)
+
+  function setMode(next: 'plot' | 'graph'): void {
+    if (mode === next) return
+    mode = next
+    // 切模式时取消激活工具（工具按钮列表会变化）
+    registry.activate(null)
+  }
+
   let scale = $state(store.getView().scaleX)
   let coordType = $state(store.getView().coordType)
 
@@ -245,13 +262,19 @@
     {canUndo}
     {canRedo}
     {registry}
+    {mode}
+    onModeChange={setMode}
     getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
   />
   <div class="main">
     <div class="stage" bind:this={stageElement}></div>
     <div class="side-column">
-      <CurveList {store} />
-      <MarkerList {store} />
+      {#if mode === 'plot'}
+        <CurveList {store} />
+        <MarkerList {store} />
+      {:else}
+        <GraphPanel {store} />
+      {/if}
       <ToolsPanel {registry} />
     </div>
   </div>
