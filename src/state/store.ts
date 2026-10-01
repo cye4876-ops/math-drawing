@@ -1,8 +1,73 @@
-import type { AppState, DocState, MarkerPoint, ViewTransform } from './types'
-import { DEFAULT_SCALE } from '../core/transform'
+import type {
+  AppState,
+  Curve,
+  CurveKind,
+  DocState,
+  MarkerPoint,
+  SceneObject,
+  ViewTransform,
+} from './types'
+import { createView } from '../core/transform'
 
 /** 撤销历史最大深度 */
 export const HISTORY_LIMIT = 100
+
+/** 曲线自动取色的色相间隔（黄金角，保证相邻曲线颜色可区分） */
+const COLOR_HUE_STEP = 137.508
+
+/** 按序号分配曲线颜色（色环，可被用户覆盖），输出 #rrggbb 以便颜色选择器使用 */
+export function colorForIndex(index: number): string {
+  const hue = (((index * COLOR_HUE_STEP) % 360) + 360) % 360
+  return hslToHex(hue, 0.7, 0.45)
+}
+
+/** HSL（h 角度、s/l 0..1）→ #rrggbb */
+function hslToHex(hDeg: number, s: number, l: number): string {
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const hp = (((hDeg % 360) + 360) % 360) / 60
+  const x = c * (1 - Math.abs((hp % 2) - 1))
+  let r = 0
+  let g = 0
+  let b = 0
+  if (hp < 1) {
+    r = c
+    g = x
+  } else if (hp < 2) {
+    r = x
+    g = c
+  } else if (hp < 3) {
+    g = c
+    b = x
+  } else if (hp < 4) {
+    g = x
+    b = c
+  } else if (hp < 5) {
+    r = x
+    b = c
+  } else {
+    r = c
+    b = x
+  }
+  const m = l - c / 2
+  const to255 = (v: number): string =>
+    Math.round((v + m) * 255)
+      .toString(16)
+      .padStart(2, '0')
+  return `#${to255(r)}${to255(g)}${to255(b)}`
+}
+
+export function isCurve(object: SceneObject): object is Curve {
+  return object.type === 'curve'
+}
+
+export interface AddCurveInput {
+  kind: CurveKind
+  expr: string
+  /** 仅 parametric：y(t) */
+  expr2?: string
+  name?: string
+  color?: string
+}
 
 type Listener = (state: AppState) => void
 
@@ -14,7 +79,7 @@ type Listener = (state: AppState) => void
  */
 export class AppStore {
   private doc: DocState = { objects: [] }
-  private view: ViewTransform = { centerX: 0, centerY: 0, scale: DEFAULT_SCALE }
+  private view: ViewTransform = createView()
   private undoStack: DocState[] = []
   private redoStack: DocState[] = []
   private readonly listeners = new Set<Listener>()
@@ -25,6 +90,10 @@ export class AppStore {
 
   getView(): ViewTransform {
     return this.view
+  }
+
+  getDoc(): DocState {
+    return this.doc
   }
 
   canUndo(): boolean {
@@ -40,6 +109,11 @@ export class AppStore {
     return () => {
       this.listeners.delete(listener)
     }
+  }
+
+  /** 文档中的全部曲线（按文档顺序） */
+  getCurves(): Curve[] {
+    return this.doc.objects.filter(isCurve)
   }
 
   /**
@@ -81,6 +155,72 @@ export class AppStore {
     const marker: MarkerPoint = { id: crypto.randomUUID(), type: 'marker', x, y }
     this.commit((doc) => ({ objects: [...doc.objects, marker] }))
     return marker
+  }
+
+  /** 添加曲线：颜色默认按已有曲线数量从色环分配 */
+  addCurve(input: AddCurveInput): Curve {
+    const curve: Curve = {
+      id: crypto.randomUUID(),
+      type: 'curve',
+      kind: input.kind,
+      name: input.name ?? input.expr,
+      expr: input.expr,
+      color: input.color ?? colorForIndex(this.getCurves().length),
+      lineStyle: 'solid',
+      quality: 3,
+      visible: true,
+    }
+    if (input.expr2 !== undefined) curve.expr2 = input.expr2
+    this.commit((doc) => ({ objects: [...doc.objects, curve] }))
+    return curve
+  }
+
+  /** 更新曲线属性（表达式/颜色/线型/精度/可见性/名称） */
+  updateCurve(id: string, patch: Partial<Omit<Curve, 'id' | 'type'>>): void {
+    this.commit((doc) => ({
+      objects: doc.objects.map((object) =>
+        object.type === 'curve' && object.id === id ? { ...object, ...patch } : object,
+      ),
+    }))
+  }
+
+  /** 删除曲线 */
+  removeCurve(id: string): void {
+    this.commit((doc) => ({
+      objects: doc.objects.filter((object) => !(object.type === 'curve' && object.id === id)),
+    }))
+  }
+
+  /** 在曲线之间上移/下移一位（delta = -1 上移，+1 下移；标记点相对位置不变） */
+  moveCurve(id: string, delta: -1 | 1): void {
+    const curves = this.getCurves()
+    const index = curves.findIndex((curve) => curve.id === id)
+    const target = index + delta
+    if (index < 0 || target < 0 || target >= curves.length) return
+    const reordered = [...curves]
+    const a = reordered[index] as Curve
+    const b = reordered[target] as Curve
+    reordered[index] = b
+    reordered[target] = a
+
+    // 把新顺序的曲线填回文档中曲线原来的位置（标记点保持原位）
+    this.commit((doc) => {
+      let cursor = 0
+      const objects = doc.objects.map((object) =>
+        object.type === 'curve' ? (reordered[cursor++] as Curve) : object,
+      )
+      return { objects }
+    })
+  }
+
+  /** 载入完整状态（JSON 导入等）；当前文档进入撤销历史，视图直接替换 */
+  loadState(doc: DocState, view?: ViewTransform): void {
+    this.undoStack.push(this.doc)
+    if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift()
+    this.redoStack = []
+    this.doc = doc
+    if (view) this.view = view
+    this.emit()
   }
 
   private emit(): void {
