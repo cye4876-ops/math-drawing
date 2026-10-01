@@ -4,6 +4,7 @@ import { createSceneRenderer, type SceneRenderer } from '../render/scene'
 import { mathToScreen } from '../core/transform'
 import { ToolRegistry, type ToolContext, type ToolPointerEvent } from './tool-registry'
 import { createGraphTool } from './graph-tool'
+import { getGraphSelection, setGraphSelection } from '../state/selection.svelte'
 
 const SIZE = { width: 800, height: 600 }
 
@@ -52,6 +53,7 @@ function pe(store: AppStore, x: number, y: number, button = 0): ToolPointerEvent
 let f: Fixture
 
 beforeEach(() => {
+  setGraphSelection(null)
   f = createFixture()
   f.registry.activate('graph')
 })
@@ -103,6 +105,70 @@ describe('tools/graph-tool: 建点（移动模式）', () => {
     // 未移动 → 不产生撤销步（撤销一次即移除建点）
     f.store.undo()
     expect(f.store.getGraphs()).toHaveLength(0)
+  })
+})
+
+describe('tools/graph-tool: 单击选中（图面板编辑入口）', () => {
+  const g = () => f.store.getGraphs()[0]!
+
+  it('单击节点（未拖动）→ 选中该节点', () => {
+    click(0, 0)
+    click(2, 0)
+    click(0, 0)
+
+    expect(getGraphSelection()).toEqual({
+      kind: 'node',
+      graphId: g().id,
+      nodeId: g().nodes[0]!.id,
+    })
+  })
+
+  it('拖动节点不触发选中，拖动后单击可选中', () => {
+    click(0, 0)
+    drag(0, 0, 1, 1)
+    expect(getGraphSelection()).toBeNull()
+
+    click(1, 1)
+    expect(getGraphSelection()).toEqual({
+      kind: 'node',
+      graphId: g().id,
+      nodeId: g().nodes[0]!.id,
+    })
+  })
+
+  it('单击边 → 选中该边', () => {
+    click(0, 0)
+    click(2, 0)
+    f.registry.getActive()!.onControl!('mode', 'connect', f.ctx)
+    drag(0, 0, 2, 0)
+    f.registry.getActive()!.onControl!('mode', 'move', f.ctx)
+
+    click(1, 0)
+    expect(getGraphSelection()).toEqual({
+      kind: 'edge',
+      graphId: g().id,
+      edgeId: g().edges[0]!.id,
+    })
+  })
+
+  it('点击空白 → 清除选中并新建顶点', () => {
+    click(0, 0)
+    click(0, 0)
+    expect(getGraphSelection()?.kind).toBe('node')
+
+    click(5, 5)
+    expect(getGraphSelection()).toBeNull()
+    expect(g().nodes).toHaveLength(2)
+  })
+
+  it('删除模式删除节点后清除选中', () => {
+    click(0, 0)
+    click(0, 0)
+    expect(getGraphSelection()?.kind).toBe('node')
+
+    f.registry.getActive()!.onControl!('mode', 'delete', f.ctx)
+    click(0, 0)
+    expect(getGraphSelection()).toBeNull()
   })
 })
 

@@ -8,6 +8,7 @@
  */
 import { mathToScreen } from '../core/transform'
 import { createEdge, createNode, paletteColor, type GraphObject } from '../graph/model'
+import { setGraphSelection } from '../state/selection.svelte'
 import type { DocState, Point2 } from '../state/types'
 import type { Tool, ToolContext, ToolControl } from './tool-registry'
 
@@ -41,11 +42,18 @@ interface ConnectState {
   screen: Point2
 }
 
+/** 移动模式下单击边的待确认状态（up 且未拖动 → 选中该边） */
+interface EdgeClickState {
+  graphId: string
+  edgeId: string
+}
+
 export function createGraphTool(): Tool {
   let mode: GraphMode = 'move'
   let directed = false
   let drag: DragState | null = null
   let connect: ConnectState | null = null
+  let edgeClick: EdgeClickState | null = null
 
   const graphById = (ctx: ToolContext, id: string): GraphObject | null =>
     ctx.store.getGraphs().find((graph) => graph.id === id) ?? null
@@ -85,6 +93,7 @@ export function createGraphTool(): Tool {
     } else {
       return false
     }
+    setGraphSelection(null)
     ctx.notify()
     ctx.requestRender()
     return true
@@ -100,6 +109,7 @@ export function createGraphTool(): Tool {
       directed = false
       drag = null
       connect = null
+      edgeClick = null
       ctx.notify()
     },
 
@@ -108,6 +118,7 @@ export function createGraphTool(): Tool {
       if (drag?.moved) ctx.store.commitPreview(drag.before)
       drag = null
       connect = null
+      edgeClick = null
     },
 
     onPointerDown(e, ctx) {
@@ -146,8 +157,15 @@ export function createGraphTool(): Tool {
         return true
       }
 
-      // 移动模式：点击空白 → 建点（无图时自动建图）
+      // 移动模式：命中边 → 单击选中（up 时确认；随后可在图面板赋权/删除）
+      if (hit && hit.part === 'edge') {
+        edgeClick = { graphId: hit.elementId, edgeId: hit.targetId }
+        return true
+      }
+
+      // 移动模式：点击空白 → 建点（无图时自动建图）；同时清除选中
       if (!hit) {
+        setGraphSelection(null)
         const graph = ctx.store.getGraphs()[0] ?? null
         const label = graph ? nextLabel(graph) : 'A'
         const node = createNode(
@@ -184,10 +202,21 @@ export function createGraphTool(): Tool {
 
     onPointerUp(e, ctx) {
       if (drag) {
-        if (drag.moved) ctx.store.commitPreview(drag.before)
+        if (drag.moved) {
+          ctx.store.commitPreview(drag.before)
+        } else {
+          // 未拖动 = 单击节点：选中（图面板打开编辑卡片）
+          setGraphSelection({ kind: 'node', graphId: drag.graphId, nodeId: drag.nodeId })
+        }
         drag = null
         ctx.notify()
         ctx.requestRender()
+        return true
+      }
+      if (edgeClick) {
+        setGraphSelection({ kind: 'edge', graphId: edgeClick.graphId, edgeId: edgeClick.edgeId })
+        edgeClick = null
+        ctx.notify()
         return true
       }
       if (connect) {

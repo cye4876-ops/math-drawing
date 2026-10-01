@@ -40,6 +40,8 @@ Petersen（3-正则、点传递）→ ρ=3、向量全 1；带权路径 A-B:3, B
 ## 矩阵 ↔ 图联动
 
 - 点击**非零格子** (i,j)：高亮画布上对应边（无向边方向不敏感；对角即自环）；再次点击或点击**零格**取消；
+- **Floyd 单步联动**：算法播放器运行 Floyd-Warshall 时，每步将当前中间点 k 写入共享焦点
+  （`matrix-focus`）→ 矩阵区把该顶点的**行与列**加浅琥珀底色（`focused`）；到末尾/重置自动清空；
 - 高亮为渲染层叠加（`SceneHighlight`，琥珀 `#f59e0b`），**不写入文档、不产生撤销步骤**；
 - 图结构变化（增删顶点/边、DSL 应用）时自动清除选择并重算谱；**拖动坐标不触发重算**（按结构签名缓存）。
 
@@ -53,20 +55,24 @@ Petersen（3-正则、点传递）→ ρ=3、向量全 1；带权路径 A-B:3, B
 | 空图 / 孤立点 | ρ=0；孤立点 Perron=[1]；单点自环 ρ=1 |
 | 慢收敛 | `converged=false` → UI 标记「近似」（仍为非负向量） |
 
-## 拉普拉斯矩阵（L = D − A）
+## 拉普拉斯矩阵（L = D − A）与拉普拉斯谱
 
 - 面板「矩阵与谱」区可在**邻接 / 拉普拉斯**视图间切换（`buildLaplacianMatrix`）；
 - L 对角线 = 加权度和、非对角 = −A_ij；**行和恒为 0**；对称（邻接阵对称时）半正定；
 - 连通图 L 恰有一个 0 特征值；K3 的 L 谱为 `[3, 3, 0]`（单元测试覆盖）；
+- **拉普拉斯视图另显示 L 的谱**（升序，按重数聚合）：**0 的重数 = 连通分量数**，
+  **λ₂（升序第二个特征值）= 代数连通度**（不连通图显示 0）；
+- 验证案例：P3 谱 `[0, 1, 3]`；K3 谱 `[0, 3, 3]`；不连通两条独立边 0 重数 = 2；
+  带权路径 A-B:2, B-C:3 谱 `[0, 5−√7, 5+√7]`（单元测试覆盖）；
 - 格点击联动对两种视图语义一致（非对角非零 ⇔ 有边）；
-- 谱半径与 Perron 向量始终基于**邻接矩阵**计算（拉普拉斯谱属于下一迭代的矩阵视图扩展）。
+- 谱半径与 Perron 向量始终基于**邻接矩阵**计算。
 
 ## 程序接口
 
 ```ts
 import { buildAdjacencyMatrix, jacobiEigenSymmetric, perronVector, computeSpectrum } from '../graph/spectral'
 
-const spectrum = computeSpectrum(graph)         // { adjacency, eigenvalues, spectralRadius, perron, ... }
+const spectrum = computeSpectrum(graph)         // { adjacency, eigenvalues, laplacianEigenvalues, spectralRadius, perron, ... }
 const { values, vectors } = jacobiEigenSymmetric(matrix)
 const { eigenvalue, vector, converged } = perronVector(graph)
 ```

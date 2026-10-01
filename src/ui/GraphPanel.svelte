@@ -15,6 +15,7 @@
   import AlgorithmPanel from './AlgorithmPanel.svelte'
   import EdgeListPanel from './EdgeListPanel.svelte'
   import PropertyPanel from './PropertyPanel.svelte'
+  import { getGraphSelection, setGraphSelection } from '../state/selection.svelte'
   import {
     DEFAULT_PARAMS,
     FAMILIES,
@@ -108,7 +109,7 @@
   const familyInfo = $derived<FamilyInfo | undefined>(
     FAMILIES.find((item) => item.kind === familyKind),
   )
-  /** 禁用条件：参数越界/非法组合时不充许生成（按钮置灰 + 提示） */
+  /** 禁用条件：参数越界/非法组合时不允许生成（按钮置灰 + 提示） */
   const familyError = $derived(
     validateFamilyParams(familyKind, {
       n: params.n,
@@ -117,6 +118,94 @@
       cols: params.cols,
     }),
   )
+
+  // ------- 选中元素（画布单击节点/边 → 卡片编辑：赋权 / 删除） -------
+  const selection = $derived(getGraphSelection())
+  const selectedNode = $derived(
+    selection?.kind === 'node' && graph?.id === selection.graphId
+      ? (graph.nodes.find((node) => node.id === selection.nodeId) ?? null)
+      : null,
+  )
+  const selectedEdge = $derived(
+    selection?.kind === 'edge' && graph?.id === selection.graphId
+      ? (graph.edges.find((edge) => edge.id === selection.edgeId) ?? null)
+      : null,
+  )
+  const selectedNodeDegree = $derived(
+    selectedNode && graph
+      ? graph.edges.filter(
+          (edge) => edge.source === selectedNode.id || edge.target === selectedNode.id,
+        ).length
+      : 0,
+  )
+
+  // 选中元素失效（被删除/换图）时自动清除
+  $effect(() => {
+    const current = selection
+    if (!current) return
+    const target = graph
+    if (!target || target.id !== current.graphId) {
+      setGraphSelection(null)
+      return
+    }
+    const valid =
+      current.kind === 'node'
+        ? target.nodes.some((node) => node.id === current.nodeId)
+        : target.edges.some((edge) => edge.id === current.edgeId)
+    if (!valid) setGraphSelection(null)
+  })
+
+  // 选中 → 画布琥珀高亮（与矩阵/算法高亮共用通道）
+  $effect(() => {
+    const node = selectedNode
+    const edge = selectedEdge
+    if (node) onHighlight({ nodes: [node.id] })
+    else if (edge) onHighlight({ edges: [{ source: edge.source, target: edge.target }] })
+    else onHighlight(null)
+  })
+
+  function labelFor(id: string): string {
+    return graph?.nodes.find((node) => node.id === id)?.label ?? id
+  }
+
+  function deleteSelectedNode(): void {
+    const current = firstGraph(store.getState())
+    const node = selectedNode
+    if (!current || !node) return
+    store.updateGraph(current.id, {
+      nodes: current.nodes.filter((item) => item.id !== node.id),
+      edges: current.edges.filter((edge) => edge.source !== node.id && edge.target !== node.id),
+    })
+    setGraphSelection(null)
+  }
+
+  function deleteSelectedEdge(): void {
+    const current = firstGraph(store.getState())
+    const edge = selectedEdge
+    if (!current || !edge) return
+    store.updateGraph(current.id, {
+      edges: current.edges.filter((item) => item.id !== edge.id),
+    })
+    setGraphSelection(null)
+  }
+
+  /** 提交选中边的权重（空 = 无权）；非法输入不提交 */
+  function commitSelectionWeight(raw: string): void {
+    const current = firstGraph(store.getState())
+    const edge = selectedEdge
+    if (!current || !edge) return
+    const trimmed = raw.trim()
+    const weight = trimmed === '' ? null : Number(trimmed)
+    if (trimmed !== '' && !Number.isFinite(weight)) return
+    if (weight === (edge.weight ?? null)) return
+    store.updateGraph(current.id, {
+      edges: current.edges.map((item) => (item.id === edge.id ? { ...item, weight } : item)),
+    })
+  }
+
+  function clearSelectionWeight(): void {
+    commitSelectionWeight('')
+  }
 
   // ------- 图族生成 -------
   function generateFamily(): void {
@@ -251,6 +340,64 @@
     <span>图</span>
     <span class="count" data-testid="graph-count">{graphs.length}</span>
   </div>
+
+  {#if selectedNode || selectedEdge}
+    <div class="section selection-card" data-testid="selection-card">
+      {#if selectedNode}
+        <div class="selection-title">
+          节点：<b data-testid="selection-label">{selectedNode.label}</b>
+          <span class="dim">（关联 {selectedNodeDegree} 条边）</span>
+        </div>
+        <div class="row">
+          <button type="button" data-testid="selection-delete" onclick={deleteSelectedNode}>
+            删除节点（连同关联边）
+          </button>
+          <button
+            type="button"
+            data-testid="selection-clear"
+            onclick={() => setGraphSelection(null)}>取消选择</button
+          >
+        </div>
+      {:else if selectedEdge}
+        <div class="selection-title">
+          边：<b data-testid="selection-label"
+            >{labelFor(selectedEdge.source)}
+            {selectedEdge.directed ? '→' : '—'}
+            {labelFor(selectedEdge.target)}</b
+          >
+        </div>
+        <div class="row">
+          <input
+            type="number"
+            step="any"
+            placeholder="权重（空=无权）"
+            data-testid="selection-weight"
+            value={selectedEdge.weight === null ? '' : String(selectedEdge.weight)}
+            onchange={(event) =>
+              commitSelectionWeight((event.currentTarget as HTMLInputElement).value)}
+            onkeydown={(event) => {
+              if (event.key === 'Enter') {
+                commitSelectionWeight((event.currentTarget as HTMLInputElement).value)
+              }
+            }}
+          />
+          <button type="button" data-testid="selection-clear-weight" onclick={clearSelectionWeight}
+            >清除权重</button
+          >
+        </div>
+        <div class="row">
+          <button type="button" data-testid="selection-delete" onclick={deleteSelectedEdge}>
+            删除边
+          </button>
+          <button
+            type="button"
+            data-testid="selection-clear"
+            onclick={() => setGraphSelection(null)}>取消选择</button
+          >
+        </div>
+      {/if}
+    </div>
+  {/if}
 
   <div class="section">
     <div class="section-title">图族</div>
@@ -422,6 +569,24 @@
     overflow-y: auto;
     flex: 1;
     min-height: 0;
+  }
+
+  .selection-card {
+    border-color: var(--accent);
+    background: rgba(37, 99, 235, 0.05);
+  }
+
+  .selection-title {
+    font-size: 13px;
+  }
+
+  .selection-card .dim {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .selection-card .row input {
+    width: 120px;
   }
 
   .panel-header {
