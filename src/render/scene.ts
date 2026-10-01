@@ -4,13 +4,23 @@
  * 曲线采样缓存按存活曲线裁剪（删除后释放）。
  */
 import type { Point2, SceneObject } from '../state/types'
-import { ElementRegistry, type ElementHit, type SceneViewport } from './element-registry'
+import {
+  ElementRegistry,
+  type ElementHit,
+  type SceneHighlight,
+  type SceneViewport,
+} from './element-registry'
 import { curveElementRenderer, pruneSampleCache } from './curve-renderer'
 import { graphElementRenderer } from './graph-renderer'
 
 export interface SceneRenderer {
   registry: ElementRegistry
-  draw(ctx: CanvasRenderingContext2D, objects: SceneObject[], viewport: SceneViewport): void
+  draw(
+    ctx: CanvasRenderingContext2D,
+    objects: SceneObject[],
+    viewport: SceneViewport,
+    highlight?: SceneHighlight,
+  ): void
   hitTest(
     objects: SceneObject[],
     screen: Point2,
@@ -27,13 +37,13 @@ export function createSceneRenderer(): SceneRenderer {
 
   return {
     registry,
-    draw(ctx, objects, viewport) {
+    draw(ctx, objects, viewport, highlight) {
       const aliveCurveIds = new Set<string>()
       for (const object of objects) {
         if (object.type === 'curve') aliveCurveIds.add(object.id)
       }
       pruneSampleCache(aliveCurveIds)
-      registry.draw(ctx, objects, viewport)
+      registry.draw(ctx, objects, viewport, highlight)
     },
     hitTest(objects, screen, viewport, maxDistancePx) {
       return registry.hitTest(objects, screen, viewport, maxDistancePx)

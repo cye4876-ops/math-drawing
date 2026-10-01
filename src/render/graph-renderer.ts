@@ -4,7 +4,7 @@
  */
 import type { GraphEdgeData, GraphNodeData, GraphObject, NodeShape } from '../graph/model'
 import type { Point2 } from '../state/types'
-import type { ElementRenderer } from './element-registry'
+import type { ElementRenderer, SceneHighlight } from './element-registry'
 import {
   arrowPoints,
   edgePath,
@@ -16,6 +16,23 @@ import {
 
 const LABEL_FONT = '12px system-ui, "Segoe UI", "Microsoft YaHei", sans-serif'
 const WEIGHT_FONT = '11px system-ui, "Segoe UI", "Microsoft YaHei", sans-serif'
+/** 矩阵↔图联动等高亮色（琥珀） */
+const HIGHLIGHT_COLOR = '#f59e0b'
+
+/** 边是否命中高亮集合（无向边方向不敏感） */
+function edgeHighlighted(edge: GraphEdgeData, highlight: SceneHighlight | undefined): boolean {
+  if (!highlight?.edges) return false
+  return highlight.edges.some(
+    (item) =>
+      (item.source === edge.source && item.target === edge.target) ||
+      (!edge.directed && item.source === edge.target && item.target === edge.source),
+  )
+}
+
+/** 节点是否命中高亮集合 */
+function nodeHighlighted(id: string, highlight: SceneHighlight | undefined): boolean {
+  return highlight?.nodes?.includes(id) ?? false
+}
 
 /** 权重显示：4 位有效数字 */
 function formatWeight(value: number): string {
@@ -71,7 +88,7 @@ function drawNodeLabel(ctx: CanvasRenderingContext2D, node: GraphNodeData, s: No
 
 export const graphElementRenderer: ElementRenderer<GraphObject> = {
   type: 'graph',
-  draw(ctx, graph, { view, size }) {
+  draw(ctx, graph, { view, size }, highlight) {
     if (!graph.visible) return
 
     const screens = new Map<string, NodeScreen>()
@@ -92,8 +109,10 @@ export const graphElementRenderer: ElementRenderer<GraphObject> = {
       const index = group.indexOf(edge)
       const path = edgePath(edge, from, to, index < 0 ? 0 : index, group.length)
 
-      ctx.strokeStyle = edge.color
-      ctx.lineWidth = 1.6
+      const highlighted = edgeHighlighted(edge, highlight)
+      const strokeColor = highlighted ? HIGHLIGHT_COLOR : edge.color
+      ctx.strokeStyle = strokeColor
+      ctx.lineWidth = highlighted ? 3.2 : 1.6
       ctx.lineJoin = 'round'
       ctx.setLineDash(edge.style === 'dashed' ? [6, 4] : [])
       tracePath(ctx, path)
@@ -105,7 +124,7 @@ export const graphElementRenderer: ElementRenderer<GraphObject> = {
         if (tip && prev) {
           const triangle = arrowPoints(tip, { x: tip.x - prev.x, y: tip.y - prev.y })
           ctx.setLineDash([])
-          ctx.fillStyle = edge.color
+          ctx.fillStyle = strokeColor
           ctx.beginPath()
           ctx.moveTo(triangle[0].x, triangle[0].y)
           ctx.lineTo(triangle[1].x, triangle[1].y)
@@ -136,11 +155,12 @@ export const graphElementRenderer: ElementRenderer<GraphObject> = {
     for (const node of graph.nodes) {
       const s = screens.get(node.id)
       if (!s) continue
+      const highlighted = nodeHighlighted(node.id, highlight)
       drawNodeShape(ctx, s, node.shape)
       ctx.fillStyle = node.color
       ctx.fill()
-      ctx.strokeStyle = '#ffffff'
-      ctx.lineWidth = 2
+      ctx.strokeStyle = highlighted ? HIGHLIGHT_COLOR : '#ffffff'
+      ctx.lineWidth = highlighted ? 3.5 : 2
       ctx.stroke()
       drawNodeLabel(ctx, node, s)
     }

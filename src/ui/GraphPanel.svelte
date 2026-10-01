@@ -10,6 +10,8 @@
   import type { AppStore } from '../state/store'
   import type { AppState } from '../state/types'
   import type { GraphObject } from '../graph/model'
+  import type { SceneHighlight } from '../render/element-registry'
+  import SpectrumPanel from './SpectrumPanel.svelte'
   import {
     DEFAULT_PARAMS,
     FAMILIES,
@@ -23,7 +25,14 @@
   import { layoutCircular, layoutGrid } from '../graph/layouts'
   import type { LayoutWorkerResponse } from '../graph/layout-worker'
 
-  let { store }: { store: AppStore } = $props()
+  let {
+    store,
+    onHighlight,
+  }: {
+    store: AppStore
+    /** 矩阵↔图联动高亮（转交 App 置入渲染层） */
+    onHighlight: (highlight: SceneHighlight | null) => void
+  } = $props()
 
   let appState = $state<AppState | null>(null)
   let dslText = $state('')
@@ -347,6 +356,10 @@
     <button type="button" data-testid="graph-delete" disabled={!graph} onclick={deleteGraph}>
       删除此图
     </button>
+  </div>
+
+  <div class="section">
+    <SpectrumPanel {graph} {onHighlight} />
   </div>
 </aside>
 

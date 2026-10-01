@@ -25,9 +25,21 @@ export interface ElementHit {
   distancePx: number
 }
 
+/** 渲染高亮（如矩阵↔图联动）：节点描边与边高亮 */
+export interface SceneHighlight {
+  nodes?: string[]
+  /** 边按图内节点 id；无向边方向不敏感 */
+  edges?: { source: string; target: string }[]
+}
+
 export interface ElementRenderer<E extends SceneObject> {
   type: E['type']
-  draw(ctx: CanvasRenderingContext2D, element: E, viewport: SceneViewport): void
+  draw(
+    ctx: CanvasRenderingContext2D,
+    element: E,
+    viewport: SceneViewport,
+    highlight?: SceneHighlight,
+  ): void
   /** 命中检测；距离超过 maxDistancePx 视为未命中（未注册 = 不可命中） */
   hitTest?(
     element: E,
@@ -52,11 +64,16 @@ export class ElementRegistry {
     return this.renderers.has(type)
   }
 
-  /** 按文档顺序绘制（未注册类型与 DOM 层元素跳过） */
-  draw(ctx: CanvasRenderingContext2D, objects: SceneObject[], viewport: SceneViewport): void {
+  /** 按文档顺序绘制（未注册类型与 DOM 层元素跳过）；highlight 供元素叠加高亮 */
+  draw(
+    ctx: CanvasRenderingContext2D,
+    objects: SceneObject[],
+    viewport: SceneViewport,
+    highlight?: SceneHighlight,
+  ): void {
     for (const object of objects) {
       if (object.type === 'marker') continue
-      this.renderers.get(object.type)?.draw(ctx, object, viewport)
+      this.renderers.get(object.type)?.draw(ctx, object, viewport, highlight)
     }
   }
 

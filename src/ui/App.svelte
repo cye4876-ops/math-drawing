@@ -28,6 +28,7 @@
   import MarkerList from './MarkerList.svelte'
   import Toolbar from './Toolbar.svelte'
   import ToolsPanel from './ToolsPanel.svelte'
+  import type { SceneHighlight } from '../render/element-registry'
 
   const store = createStore()
   let canvasLayerRef: CanvasLayer | null = null
@@ -151,6 +152,13 @@
   let canUndo = $state(false)
   let canRedo = $state(false)
   let cursor = $state<Point2 | null>(null)
+  /** 矩阵↔图联动高亮（非文档状态，仅渲染层叠加） */
+  let graphHighlight = $state<SceneHighlight | null>(null)
+
+  function handleGraphHighlight(next: SceneHighlight | null): void {
+    graphHighlight = next
+    canvasLayerRef?.requestRender()
+  }
 
   // 预载必须在组件状态初始化之前执行（否则初始 UI 状态捕获不到）
   const pendingRange = preloadFromUrl(store)
@@ -182,7 +190,7 @@
     const canvasLayer = createCanvasLayer(stageElement, (ctx, size, dpr) => {
       const state = store.getState()
       drawGrid(ctx, state.view, size, dpr)
-      scene.draw(ctx, state.doc.objects, { view: state.view, size })
+      scene.draw(ctx, state.doc.objects, { view: state.view, size }, graphHighlight ?? undefined)
       registry.drawOverlay(ctx)
       if (registry.isAnimating()) boundLayer?.requestRender()
     })
@@ -273,7 +281,7 @@
         <CurveList {store} />
         <MarkerList {store} />
       {:else}
-        <GraphPanel {store} />
+        <GraphPanel {store} onHighlight={handleGraphHighlight} />
       {/if}
       <ToolsPanel {registry} />
     </div>
