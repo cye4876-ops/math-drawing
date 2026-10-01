@@ -133,10 +133,9 @@ test.describe('v0.5 算法 UI 播放器（阶段 5b）', () => {
     await expect.poll(() => countTrailPixels(page)).toBeGreaterThan(10)
     const mid = await countTrailPixels(page)
 
-    // 到末尾：轨迹增长（三条树边齐全）
+    // 到末尾：轨迹增长（三条树边齐全；poll 等待渲染完成，修复 CI 上时序差异导致的波动）
     await page.getByTestId('algorithm-end').click()
-    const end = await countTrailPixels(page)
-    expect(end).toBeGreaterThan(mid)
+    await expect.poll(() => countTrailPixels(page)).toBeGreaterThan(mid)
 
     // 重置：轨迹清空
     await page.getByTestId('algorithm-reset').click()

@@ -128,6 +128,52 @@ test.describe('v0.6 导出与分享', () => {
     await expect(page.getByTestId('export-status')).toContainText('已导出 GIF')
   })
 
+  test('动画：黎曼和 n 递增 GIF', async ({ page }) => {
+    await page.goto('/?curves=sin(x)')
+    await page.getByTestId('export-open').click()
+    await page.getByTestId('export-tab-animation').click()
+    await page.getByTestId('export-animation-source').selectOption('riemann')
+    await page.getByTestId('export-riemann-a').fill('-2')
+    await page.getByTestId('export-riemann-b').fill('2')
+    await page.getByTestId('export-riemann-maxn').selectOption('8')
+    await page.getByTestId('export-animation-fps').selectOption('8')
+    await page.getByTestId('export-animation-width').fill('320')
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 30_000 }),
+      page.getByTestId('export-animation-run').click(),
+    ])
+    const buffer = await readFile((await download.path())!)
+    expect(buffer.subarray(0, 6).toString('latin1')).toBe('GIF89a')
+    await expect(page.getByTestId('export-status')).toContainText('已导出 GIF')
+    await expect(page.getByTestId('export-status')).toContainText('8 帧')
+  })
+
+  test('动画：泰勒逐阶 GIF；区间无效时提示且不下载', async ({ page }) => {
+    await page.goto('/?curves=sin(x)')
+    await page.getByTestId('export-open').click()
+    await page.getByTestId('export-tab-animation').click()
+    await page.getByTestId('export-animation-source').selectOption('taylor')
+    await page.getByTestId('export-taylor-order').selectOption('6')
+    await page.getByTestId('export-animation-fps').selectOption('8')
+    await page.getByTestId('export-animation-width').fill('320')
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 30_000 }),
+      page.getByTestId('export-animation-run').click(),
+    ])
+    const buffer = await readFile((await download.path())!)
+    expect(buffer.subarray(0, 6).toString('latin1')).toBe('GIF89a')
+    await expect(page.getByTestId('export-status')).toContainText('6 帧')
+
+    // 黎曼和区间无效 → 提示且无下载
+    await page.getByTestId('export-animation-source').selectOption('riemann')
+    await page.getByTestId('export-riemann-a').fill('3')
+    await page.getByTestId('export-riemann-b').fill('1')
+    await page.getByTestId('export-animation-run').click()
+    await expect(page.getByTestId('export-status')).toContainText('区间无效')
+  })
+
   test('范围选项：指定区域生效（SVG 输出包含区域裁剪）', async ({ page }) => {
     await page.goto('/?curves=sin(x)')
     await page.getByTestId('export-open').click()

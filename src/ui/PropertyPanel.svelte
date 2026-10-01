@@ -70,6 +70,14 @@
     highlightMode = 'cover'
     onHighlight({ nodes: vertices })
   }
+
+  /** 大整数展示：≤ 1e15 千分位；更大转科学计数 */
+  function formatCount(value: number | null): string {
+    if (value === null) return '—'
+    if (value < 1e15) return value.toLocaleString('zh-CN')
+    const [mantissa, exponent] = value.toExponential(2).split('e')
+    return `${mantissa}×10^${Number(exponent)}`
+  }
 </script>
 
 <div class="properties" data-testid="property-panel">
@@ -142,6 +150,15 @@
           ? 'τ = 0（无边）'
           : `τ = ${properties.vertexCover.size}`
         : `τ ≤ ${properties.vertexCover.size}（近似）`}
+    </div>
+    <div class="line" data-testid="property-spanning-trees">
+      生成树数：{properties.spanningTrees.skipped
+        ? '规模超限未计算'
+        : properties.spanningTrees.count !== null
+          ? `${formatCount(properties.spanningTrees.count)} 棵`
+          : properties.spanningTrees.approx !== null && properties.spanningTrees.approx > 0
+            ? `≈ ${formatCount(properties.spanningTrees.approx)} 棵（数值近似）`
+            : '0 棵'}
     </div>
     {#if properties.vertexCover.vertices.length > 0}
       <div class="row">

@@ -7,6 +7,7 @@ import { toGraphology, type GraphObject } from './model'
 import { isBipartite } from './algorithms/coloring'
 import { detectPlanarity, type PlanarityResult } from './planarity'
 import { chromaticNumber, type ChromaticResult } from './chromatic'
+import { countSpanningTrees, type SpanningTreeResult } from './spanning-tree'
 import { minimumVertexCover, type VertexCoverResult } from './vertex-cover'
 
 export interface GraphProperties {
@@ -23,6 +24,8 @@ export interface GraphProperties {
   chromatic: ChromaticResult
   /** 最小点覆盖 τ(G)（小图精确 / 大图 2-近似） */
   vertexCover: VertexCoverResult
+  /** 生成树计数（Kirchhoff；分离图 0；超限跳过） */
+  spanningTrees: SpanningTreeResult
 }
 
 export function computeProperties(graph: GraphObject): GraphProperties {
@@ -103,5 +106,6 @@ export function computeProperties(graph: GraphObject): GraphProperties {
     planar: detectPlanarity(graph),
     chromatic: chromaticNumber(graph),
     vertexCover: minimumVertexCover(graph),
+    spanningTrees: countSpanningTrees(graph),
   }
 }

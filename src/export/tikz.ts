@@ -11,11 +11,12 @@
  *   log(x)=ln(x)；log(x,b)=ln(x)/ln(b)；log2/log10 展开；pow → ^；mod(a,b) → mod(a,b)。
  * 已知限制：隐函数不导出（PGFPlots 无隐式绘图）；factorial/gamma/erf/gcd 等无对应函数，逐条跳过并注明。
  */
-import { parse } from '../expr'
+import { compile, parse } from '../expr'
 import type { Expr } from '../expr/ast'
 import { viewBounds } from '../core/transform'
+import { sampleImplicit } from '../render/samplers/implicit'
 import { objectsOfMode, resolveView, type ExportRange } from './frame'
-import type { Curve, DocState, GraphObject, Size, ViewTransform } from '../state/types'
+import type { Curve, DocState, GraphObject, Point2, Size, ViewTransform } from '../state/types'
 
 export interface TikzExportOptions {
   /** 数学范围基准（view/content/region 解析；显式曲线 domain 即其 x 范围） */
@@ -216,14 +217,28 @@ function lineStyleOptions(curve: Curve): string {
   return ''
 }
 
+/** 折线抽稀：相邻输出点距离小于 epsilon 时跳过（保留端点） */
+function thinSegment(points: Point2[], epsilon: number): Point2[] {
+  if (points.length <= 2) return [...points]
+  const out: Point2[] = [points[0]!]
+  for (let i = 1; i < points.length - 1; i++) {
+    const last = out[out.length - 1]!
+    const p = points[i]!
+    if (Math.hypot(p.x - last.x, p.y - last.y) >= epsilon) out.push(p)
+  }
+  out.push(points[points.length - 1]!)
+  return out
+}
+
 // ---------- 曲线 → \addplot ----------
 
 function curveAddplot(
   curve: Curve,
-  range: { xMin: number; xMax: number; tRange: [number, number] },
+  range: { xMin: number; xMax: number; yMin: number; yMax: number; tRange: [number, number] },
+  size: Size,
   samples: number,
   skipped: TikzSkipped[],
-): string | null {
+): string[] | null {
   if (!curve.visible) return null
   const color = hexToPgf(curve.color)
   const styleOpts = `color=${color}, line width=0.8pt, samples=${samples}${lineStyleOptions(curve)}`
@@ -251,7 +266,9 @@ function curveAddplot(
     case 'explicit': {
       const pgf = convertOrSkip(curve.expr, 'x')
       if (!pgf) return null
-      return `\\addplot[${styleOpts}, domain=${fmtNumber(range.xMin)}:${fmtNumber(range.xMax)}] {${pgf}};`
+      return [
+        `\\addplot[${styleOpts}, domain=${fmtNumber(range.xMin)}:${fmtNumber(range.xMax)}] {${pgf}};`,
+      ]
     }
     case 'parametric': {
       if (curve.expr2 === undefined) {
@@ -263,20 +280,61 @@ function curveAddplot(
       const fy = convertOrSkip(curve.expr2, 't')
       if (!fy) return null
       const [tMin, tMax] = range.tRange
-      return `\\addplot[${styleOpts}, parametric, domain=${fmtNumber(tMin)}:${fmtNumber(tMax)}] ({${fx}}, {${fy}});`
+      return [
+        `\\addplot[${styleOpts}, parametric, domain=${fmtNumber(tMin)}:${fmtNumber(tMax)}] ({${fx}}, {${fy}});`,
+      ]
     }
     case 'polar': {
       const fr = convertOrSkip(curve.expr, 'theta')
       if (!fr) return null
       const [tMin, tMax] = range.tRange
-      return `\\addplot[${styleOpts}, parametric, domain=${fmtNumber(tMin)}:${fmtNumber(tMax)}] ({(${fr})*cos(deg(x))}, {(${fr})*sin(deg(x))});`
+      return [
+        `\\addplot[${styleOpts}, parametric, domain=${fmtNumber(tMin)}:${fmtNumber(tMax)}] ({(${fr})*cos(deg(x))}, {(${fr})*sin(deg(x))});`,
+      ]
     }
-    case 'implicit':
-      skipped.push({
-        name: curve.name,
-        reason: 'PGFPlots 无隐式绘图（建议改用显式/参数化等价形式）',
+    case 'implicit': {
+      // PGFPlots 无隐式绘图：以 marching squares 采样（与屏幕几何一致）输出折线坐标列
+      let fn: ReturnType<typeof compile> | null = null
+      try {
+        fn = compile(parse(curve.expr))
+      } catch (error) {
+        skipped.push({
+          name: curve.name,
+          reason: `表达式解析失败：${error instanceof Error ? error.message : String(error)}`,
+        })
+        return null
+      }
+      const scope: Record<string, number> = { x: 0, y: 0 }
+      const F = (x: number, y: number): number => {
+        scope['x'] = x
+        scope['y'] = y
+        return fn!(scope)
+      }
+      const sampled = sampleImplicit(F, {
+        xMin: range.xMin,
+        xMax: range.xMax,
+        yMin: range.yMin,
+        yMax: range.yMax,
+        widthPx: size.width,
+        heightPx: size.height,
+        quality: 5,
       })
-      return null
+      const epsilon = Math.max(1e-9, (range.xMax - range.xMin) / 800)
+      const lines: string[] = []
+      for (const segment of sampled.segments) {
+        const points = thinSegment(segment, epsilon)
+        if (points.length < 2) continue
+        const coords = points.map((p) => `(${fmtNumber(p.x)}, ${fmtNumber(p.y)})`).join(' ')
+        lines.push(
+          `\\draw[color=${color}, line width=0.8pt${lineStyleOptions(curve)}] plot[smooth] coordinates {${coords}};`,
+        )
+      }
+      if (lines.length === 0) {
+        skipped.push({ name: curve.name, reason: '隐函数在给定范围内无可绘制分支' })
+        return null
+      }
+      return lines
+    }
     default:
       return null
   }
@@ -343,13 +401,20 @@ export function buildTikz(
       if (object.type !== 'curve') continue
       const addplot = curveAddplot(
         object,
-        { xMin: bounds.minX, xMax: bounds.maxX, tRange: [0, 2 * Math.PI] },
+        {
+          xMin: bounds.minX,
+          xMax: bounds.maxX,
+          yMin: bounds.minY,
+          yMax: bounds.maxY,
+          tRange: [0, 2 * Math.PI],
+        },
+        options.size,
         samples,
         skipped,
       )
       if (addplot) {
         plots.push(`    % 曲线：${object.name}`)
-        plots.push(`    ${addplot}`)
+        for (const line of addplot) plots.push(`    ${line}`)
       }
     }
     if (plots.length > 0) {

@@ -7,12 +7,13 @@
   import { exportPngBlob } from '../export/png'
   import { buildSvg } from '../export/svg'
   import { buildTikz } from '../export/tikz'
-  import { buildAlgorithmFrames, exportAnimation } from '../export/animation'
+  import { buildAnimationFrames, exportAnimation, type AnimationSource } from '../export/animation'
+  import type { RiemannMode } from '../math/numeric/riemann'
   import { buildShareUrl, SHARE_LENGTH_WARN } from '../export/url-state'
   import { downloadBlob, downloadText, timestampName } from '../export/download'
   import type { ExportRange } from '../export/frame'
   import type { AppStore } from '../state/store'
-  import type { GraphObject } from '../state/types'
+  import type { Curve, GraphObject } from '../state/types'
 
   let {
     store,
@@ -49,10 +50,21 @@
 
   // 动画
   let animationFormat = $state<'gif' | 'webm'>('gif')
+  let animationSource = $state<'algorithm' | 'riemann' | 'taylor'>('algorithm')
   let algorithmId = $state('bfs')
   let startLabel = $state('')
   let fps = $state(4)
   let animationWidth = $state(640)
+  // 黎曼和参数
+  let riemannCurveId = $state('')
+  let riemannA = $state(-5)
+  let riemannB = $state(5)
+  let riemannMode = $state<RiemannMode>('left')
+  let riemannMaxN = $state(16)
+  // 泰勒参数
+  let taylorCurveId = $state('')
+  let taylorX0 = $state(0)
+  let taylorMaxOrder = $state(8)
 
   // 分享
   let shareUrl = $state('')
@@ -61,6 +73,16 @@
     const item = store.getState().doc.objects.find((object) => object.type === 'graph')
     return (item as GraphObject | undefined) ?? null
   })
+
+  /** 可供动画导出的显函数曲线（plot 模式帧源） */
+  const explicitCurves = $derived.by(() =>
+    store
+      .getState()
+      .doc.objects.filter(
+        (object): object is Curve =>
+          object.type === 'curve' && object.kind === 'explicit' && object.visible,
+      ),
+  )
 
   function currentRange(): ExportRange {
     if (rangeKind === 'view') return { kind: 'view' }
@@ -130,24 +152,55 @@
     busy = true
     status = ''
     try {
-      if (!graph) {
-        status = '动画导出需要一张图：请先在图面板生成或输入图'
-        return
+      const doc = store.getDoc()
+      let source: AnimationSource
+      if (animationSource === 'algorithm') {
+        if (!graph) {
+          status = '图算法动画需要一张图：请先在图面板生成或输入图'
+          return
+        }
+        const startId = graph.nodes.find((node) => node.label === startLabel)?.id
+        source = { kind: 'algorithm', algorithmId, startId }
+      } else if (animationSource === 'riemann') {
+        const curveId = riemannCurveId || explicitCurves[0]?.id || ''
+        if (!curveId) {
+          status = '黎曼和动画需要一条显函数曲线'
+          return
+        }
+        if (!(riemannB > riemannA)) {
+          status = '区间无效：需满足 b > a'
+          return
+        }
+        source = {
+          kind: 'riemann',
+          curveId,
+          a: riemannA,
+          b: riemannB,
+          mode: riemannMode,
+          maxN: riemannMaxN,
+        }
+      } else {
+        const curveId = taylorCurveId || explicitCurves[0]?.id || ''
+        if (!curveId) {
+          status = '泰勒动画需要一条显函数曲线'
+          return
+        }
+        source = { kind: 'taylor', curveId, x0: taylorX0, maxOrder: taylorMaxOrder }
       }
-      const startId = graph.nodes.find((node) => node.label === startLabel)?.id
-      const frames = buildAlgorithmFrames(graph, { algorithmId, startId })
+      const frames = buildAnimationFrames(doc, source)
       if (frames.length === 0) {
-        status = '该算法没有可播放的步骤'
+        status = '没有可导出的帧（请检查算法/曲线/参数选择）'
         return
       }
       const stage = getStageSize()
       const width = Math.min(900, Math.max(200, Math.round(animationWidth)))
       const aspect = stage.width > 0 ? stage.height / stage.width : 0.66
       const size = { width, height: Math.round(width * aspect) }
-      const blob = await exportAnimation(store.getDoc(), store.getView(), frames, {
+      const blob = await exportAnimation(doc, store.getView(), frames, {
         fps,
         size,
         format: animationFormat,
+        mode: animationSource === 'algorithm' ? 'graph' : 'plot',
       })
       downloadBlob(blob, timestampName(animationFormat))
       status = `已导出 ${animationFormat.toUpperCase()}（${frames.length} 帧 · ${size.width}×${size.height} · ${(blob.size / 1024).toFixed(0)} KB）`
@@ -286,6 +339,12 @@
     >
   {:else if tab === 'animation'}
     <div class="row">
+      <span class="dim-label">来源</span>
+      <select data-testid="export-animation-source" bind:value={animationSource}>
+        <option value="algorithm">图算法演示</option>
+        <option value="riemann">黎曼和（n 递增）</option>
+        <option value="taylor">泰勒展开（逐阶）</option>
+      </select>
       <span class="dim-label">格式</span>
       <select data-testid="export-animation-format" bind:value={animationFormat}>
         <option value="gif">GIF</option>
@@ -299,21 +358,72 @@
         <option value={8}>8</option>
       </select>
     </div>
-    <div class="row">
-      <span class="dim-label">算法</span>
-      <select data-testid="export-animation-algorithm" bind:value={algorithmId}>
-        {#each ALGORITHMS as item (item.id)}
-          <option value={item.id}>{item.name}</option>
-        {/each}
-      </select>
-      <span class="dim-label">起点</span>
-      <select data-testid="export-animation-start" bind:value={startLabel}>
-        <option value="">（第一个顶点）</option>
-        {#each graph?.nodes ?? [] as node (node.id)}
-          <option value={node.label}>{node.label}</option>
-        {/each}
-      </select>
-    </div>
+    {#if animationSource === 'algorithm'}
+      <div class="row">
+        <span class="dim-label">算法</span>
+        <select data-testid="export-animation-algorithm" bind:value={algorithmId}>
+          {#each ALGORITHMS as item (item.id)}
+            <option value={item.id}>{item.name}</option>
+          {/each}
+        </select>
+        <span class="dim-label">起点</span>
+        <select data-testid="export-animation-start" bind:value={startLabel}>
+          <option value="">（第一个顶点）</option>
+          {#each graph?.nodes ?? [] as node (node.id)}
+            <option value={node.label}>{node.label}</option>
+          {/each}
+        </select>
+      </div>
+    {:else if animationSource === 'riemann'}
+      <div class="row">
+        <span class="dim-label">曲线</span>
+        <select data-testid="export-riemann-curve" bind:value={riemannCurveId}>
+          <option value="">（第一条显函数）</option>
+          {#each explicitCurves as item (item.id)}
+            <option value={item.id}>{item.name}</option>
+          {/each}
+        </select>
+        <span class="dim-label">区间</span>
+        <input type="number" step="any" data-testid="export-riemann-a" bind:value={riemannA} />
+        <span>~</span>
+        <input type="number" step="any" data-testid="export-riemann-b" bind:value={riemannB} />
+      </div>
+      <div class="row">
+        <span class="dim-label">模式</span>
+        <select data-testid="export-riemann-mode" bind:value={riemannMode}>
+          <option value="left">左端点</option>
+          <option value="right">右端点</option>
+          <option value="mid">中点</option>
+          <option value="trapezoid">梯形</option>
+        </select>
+        <span class="dim-label">最大 n</span>
+        <select data-testid="export-riemann-maxn" bind:value={riemannMaxN}>
+          <option value={8}>8</option>
+          <option value={16}>16</option>
+          <option value={24}>24</option>
+          <option value={36}>36</option>
+        </select>
+      </div>
+    {:else}
+      <div class="row">
+        <span class="dim-label">曲线</span>
+        <select data-testid="export-taylor-curve" bind:value={taylorCurveId}>
+          <option value="">（第一条显函数）</option>
+          {#each explicitCurves as item (item.id)}
+            <option value={item.id}>{item.name}</option>
+          {/each}
+        </select>
+        <span class="dim-label">中心 x₀</span>
+        <input type="number" step="any" data-testid="export-taylor-x0" bind:value={taylorX0} />
+        <span class="dim-label">最高阶</span>
+        <select data-testid="export-taylor-order" bind:value={taylorMaxOrder}>
+          <option value={6}>6</option>
+          <option value={8}>8</option>
+          <option value={12}>12</option>
+          <option value={15}>15</option>
+        </select>
+      </div>
+    {/if}
     <div class="row">
       <span class="dim-label">宽度</span>
       <input
@@ -326,14 +436,17 @@
       />
       <span class="hint">像素（GIF 建议 ≤ 640）</span>
     </div>
-    {#if !graph}
-      <div class="hint">当前没有图：动画源为图算法演示，请先在图面板生成一张图</div>
+    {#if animationSource === 'algorithm' && !graph}
+      <div class="hint">当前没有图：图算法动画请先在图面板生成一张图</div>
+    {/if}
+    {#if animationSource !== 'algorithm' && explicitCurves.length === 0}
+      <div class="hint">当前没有显函数曲线：请在曲线面板添加（如 sin(x)）</div>
     {/if}
     <button
       type="button"
       class="run"
       data-testid="export-animation-run"
-      disabled={busy || !graph}
+      disabled={busy || (animationSource === 'algorithm' ? !graph : explicitCurves.length === 0)}
       onclick={doAnimation}
     >
       {busy ? '导出中…' : `导出 ${animationFormat.toUpperCase()}`}

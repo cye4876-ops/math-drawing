@@ -150,6 +150,19 @@ describe.skipIf(!direct && !viaRunas)('export/tikz: 实际编译验证（需要�
     expect(compile(tex)).toBe(true)
   })
 
+  it('隐函数（折线坐标）与显函数混排文档编译通过', () => {
+    const doc: DocState = {
+      objects: [{ ...curve('x^2 + y^2 - 4'), kind: 'implicit' }, curve('0.5*x')],
+    }
+    const { tex, skipped } = buildTikz(doc, 'plot', view, {
+      range: { kind: 'view' },
+      size,
+      standalone: true,
+    })
+    expect(skipped).toEqual([])
+    expect(compile(tex)).toBe(true)
+  })
+
   it('图（有向边 + 权重 + 自环）文档编译通过', () => {
     const { graph } = graphObjectFromDsl('A->B:3, A-C, B-C:1.5, C->D, D-D')
     const tex = buildTikz({ objects: [graph!] }, 'graph', view, {

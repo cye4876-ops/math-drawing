@@ -89,7 +89,7 @@ describe('export/tikz: 文档生成', () => {
     expect(result.skipped).toEqual([])
   })
 
-  it('片段模式不含导言区；隐函数被跳过并注明原因', () => {
+  it('隐函数：以折线坐标列输出（plot coordinates），不再跳过', () => {
     const doc: DocState = {
       objects: [curve('x^2 + y^2 - 4', { kind: 'implicit' }), curve('x')],
     }
@@ -99,8 +99,23 @@ describe('export/tikz: 文档生成', () => {
       standalone: false,
     })
     expect(result.tex).not.toContain('\\documentclass')
+    expect(result.tex).toContain('plot[smooth] coordinates')
+    expect(result.tex).toContain('\\draw[color=')
+    expect(result.skipped).toEqual([])
+    // 圆应有较多坐标点（左上/右下象限多段）
+    const coords = (result.tex.match(/\(/g) ?? []).length
+    expect(coords).toBeGreaterThan(20)
+  })
+
+  it('隐函数在范围内无分支：跳过并注明', () => {
+    const doc: DocState = { objects: [curve('x^2 + y^2 + 100', { kind: 'implicit' })] }
+    const result = buildTikz(doc, 'plot', view, {
+      range: { kind: 'view' },
+      size: { width: 800, height: 600 },
+      standalone: false,
+    })
     expect(result.skipped).toHaveLength(1)
-    expect(result.skipped[0]!.reason).toContain('隐式')
+    expect(result.skipped[0]!.reason).toContain('无可绘制分支')
     expect(result.tex).toContain('% [跳过]')
   })
 
