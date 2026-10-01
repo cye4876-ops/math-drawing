@@ -94,15 +94,15 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
     test.skip(!(await webglAvailable(page)), 'WebGL 不可用')
     // 曲线：洛伦兹
     await page.getByTestId('space-add-kind').selectOption('curve')
-    await page.getByTestId('space-add-preset').selectOption('0')
+    await page.getByTestId('space-add-preset').selectOption('lorenz')
     await page.getByTestId('space-add').click()
     // 场：旋转场（旋度着色）
     await page.getByTestId('space-add-kind').selectOption('field')
-    await page.getByTestId('space-add-preset').selectOption('0')
+    await page.getByTestId('space-add-preset').selectOption('rotation')
     await page.getByTestId('space-add').click()
     // ODE
     await page.getByTestId('space-add-kind').selectOption('ode')
-    await page.getByTestId('space-add-preset').selectOption('0')
+    await page.getByTestId('space-add-preset').selectOption('exp')
     await page.getByTestId('space-add').click()
     await expect.poll(() => countScenePixels(page), { timeout: 20000 }).toBeGreaterThan(1000)
     await expect(page.getByTestId('space-object-0')).toBeVisible()
@@ -113,11 +113,59 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
   test('空间曲线参数编辑：表达式/步数可修改', async ({ page }) => {
     await page.goto('/?mode=space')
     await page.getByTestId('space-add-kind').selectOption('curve')
-    await page.getByTestId('space-add-preset').selectOption('1') // 螺旋线
+    await page.getByTestId('space-add-preset').selectOption('helix')
     await page.getByTestId('space-add').click()
     await page.getByTestId('space-curve-expr').fill('t/3')
     await page.getByTestId('space-curve-expr').blur()
     await expect(page.getByTestId('space-curve-expr')).toHaveValue('t/3')
+  })
+
+  test('参数化预设：平面/椭球系数滑块联动表达式，拖动一步撤销', async ({ page }) => {
+    await page.goto('/?mode=space')
+    // 平面：默认表达式与参数滑块
+    await page.getByTestId('space-add-preset').selectOption('plane')
+    await page.getByTestId('space-add').click()
+    await expect(page.getByTestId('space-expr')).toHaveValue('0.5*x + 0.3*y + 1')
+    const aSlider = page.getByTestId('space-param-a')
+    await expect(aSlider).toBeVisible()
+    await aSlider.evaluate((element) => {
+      const input = element as HTMLInputElement
+      input.value = '2'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await expect(page.getByTestId('space-expr')).toHaveValue('2*x + 0.3*y + 1')
+    // 一步撤销回到默认系数
+    await page.keyboard.press('Control+z')
+    await expect(page.getByTestId('space-expr')).toHaveValue('0.5*x + 0.3*y + 1')
+
+    // 椭球：半轴 c 调整联动 expr3 与名称
+    await page.getByTestId('space-add-preset').selectOption('ellipsoid')
+    await page.getByTestId('space-add').click()
+    await expect(page.getByTestId('space-expr')).toHaveValue('2*sin(u)*cos(v)')
+    await page.getByTestId('space-param-c').evaluate((element) => {
+      const input = element as HTMLInputElement
+      input.value = '3'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await expect(page.getByTestId('space-expr3')).toHaveValue('3*cos(u)')
+    await expect(page.getByTestId('space-object-0')).toContainText('c=3')
+  })
+
+  test('参数化预设：洛伦兹 σ/ρ/β 滑块存在且可调', async ({ page }) => {
+    await page.goto('/?mode=space')
+    await page.getByTestId('space-add-kind').selectOption('curve')
+    await page.getByTestId('space-add-preset').selectOption('lorenz')
+    await page.getByTestId('space-add').click()
+    await expect(page.getByTestId('space-param-sigma')).toBeVisible()
+    await page.getByTestId('space-param-rho').evaluate((element) => {
+      const input = element as HTMLInputElement
+      input.value = '40'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await expect(page.getByTestId('space-object-0')).toContainText('ρ=40')
   })
 
   test('截图导出：PNG 下载成功', async ({ page }) => {

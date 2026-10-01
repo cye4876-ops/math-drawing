@@ -84,6 +84,14 @@ export interface MarkerPoint {
 
 /** ---------- v0.8：3D 与场 ---------- */
 
+/** 参数化预设绑定：面板据此显示可调参数滑块；调整后重新生成表达式（而非手改文本） */
+export interface PresetBinding {
+  /** 预设 id（同一预设家族） */
+  presetId: string
+  /** 当前参数值表 */
+  params: Record<string, number>
+}
+
 /** 3D 曲面类型：显式 / 参数 / 隐式（MC）/ 旋转体 / 正多面体（three 内置几何） */
 export type Surface3DKind = 'explicit' | 'parametric' | 'implicit' | 'revolve' | 'polyhedron'
 
@@ -119,6 +127,8 @@ export interface Surface3D {
   /** 网格分辨率（每轴分段数） */
   resolution: number
   visible: boolean
+  /** 参数化预设绑定（存在时面板显示参数滑块） */
+  template?: PresetBinding
 }
 
 /** 3D 空间曲线：参数曲线或洛伦兹吸引子轨迹 */
@@ -138,6 +148,8 @@ export interface Curve3D {
   steps: number
   color: string
   visible: boolean
+  /** 参数化预设绑定（如洛伦兹的 σ/ρ/β） */
+  template?: PresetBinding
 }
 
 /** 向量场对象：3D 场或 z=0 平面上的 2D 场（方向场/相图） */
@@ -167,6 +179,8 @@ export interface Field3D {
   streamSeeds: number
   color: string
   visible: boolean
+  /** 参数化预设绑定（如捕食者-猎物的 α/β/γ/δ） */
+  template?: PresetBinding
 }
 
 /** 一阶 ODE 解曲线（v0.8，在 z=0 平面渲染）：y' = f(x, y)，欧拉/改进/RK4 同图对比 */

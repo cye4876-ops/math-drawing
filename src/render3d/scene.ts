@@ -399,7 +399,13 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
   function buildCurve3D(object: Curve3D): SceneItem | null {
     let points: Vec3[]
     if (object.kind === 'lorenz') {
-      points = lorenzTrajectory({ steps: Math.min(80_000, object.steps) })
+      const params = object.template?.params ?? {}
+      points = lorenzTrajectory({
+        sigma: params['sigma'],
+        rho: params['rho'],
+        beta: params['beta'],
+        steps: Math.min(80_000, object.steps),
+      })
     } else {
       const fx = compileExpr(object.expr, ['t'])
       const fy = compileExpr(object.expr2 ?? '', ['t'])

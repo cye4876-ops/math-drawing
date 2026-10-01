@@ -8,6 +8,7 @@ import type {
   GraphObject,
   LineStyle,
   Ode2D,
+  PresetBinding,
   SceneObject,
   Surface3D,
   Surface3DKind,
@@ -148,6 +149,22 @@ function numField(
   return result
 }
 
+/** 解析参数化预设绑定（v0.8.1）：presetId 必须为非空字符串；params 只保留有限数字 */
+function parsePresetBinding(raw: unknown): PresetBinding | undefined {
+  if (raw === null || typeof raw !== 'object') return undefined
+  const record = raw as Record<string, unknown>
+  const presetId = record['presetId']
+  if (typeof presetId !== 'string' || presetId === '') return undefined
+  const params: Record<string, number> = {}
+  const paramsRaw = record['params']
+  if (paramsRaw !== null && typeof paramsRaw === 'object') {
+    for (const [key, value] of Object.entries(paramsRaw as Record<string, unknown>)) {
+      if (typeof value === 'number' && Number.isFinite(value)) params[key] = value
+    }
+  }
+  return { presetId, params }
+}
+
 function parseSurface3D(raw: Record<string, unknown>, position: number): Surface3D {
   const id = raw['id']
   const kind = raw['kind']
@@ -177,6 +194,8 @@ function parseSurface3D(raw: Record<string, unknown>, position: number): Surface
   }
   if (typeof raw['expr2'] === 'string') surface.expr2 = raw['expr2']
   if (typeof raw['expr3'] === 'string') surface.expr3 = raw['expr3']
+  const surfaceTemplate = parsePresetBinding(raw['template'])
+  if (surfaceTemplate) surface.template = surfaceTemplate
   return surface
 }
 
@@ -203,6 +222,8 @@ function parseCurve3D(raw: Record<string, unknown>, position: number): Curve3D {
   }
   if (typeof raw['expr2'] === 'string') curve.expr2 = raw['expr2']
   if (typeof raw['expr3'] === 'string') curve.expr3 = raw['expr3']
+  const curveTemplate = parsePresetBinding(raw['template'])
+  if (curveTemplate) curve.template = curveTemplate
   return curve
 }
 
@@ -238,6 +259,8 @@ function parseField3D(raw: Record<string, unknown>, position: number): Field3D {
   }
   if (typeof raw['expr2'] === 'string') field.expr2 = raw['expr2']
   if (typeof raw['expr3'] === 'string') field.expr3 = raw['expr3']
+  const fieldTemplate = parsePresetBinding(raw['template'])
+  if (fieldTemplate) field.template = fieldTemplate
   return field
 }
 

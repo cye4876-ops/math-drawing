@@ -4,7 +4,16 @@
    * 切平面控制与读数（偏导来自符号求导）、导出（PNG / 旋转 GIF）。
    */
   import type { AppStore } from '../state/store'
-  import type { AppState, Curve3D, Field3D, Ode2D, SpaceObject, Surface3D } from '../state/types'
+  import type {
+    AppState,
+    Curve3D,
+    DocState,
+    Field3D,
+    Ode2D,
+    SceneObject,
+    SpaceObject,
+    Surface3D,
+  } from '../state/types'
   import { COLORMAP_NAMES, type ColormapName } from '../render3d/colormaps'
   import {
     CURVE3D_PRESETS,
@@ -15,6 +24,10 @@
     createField3D,
     createOde2D,
     createSurface3D,
+    getPresetDefinition,
+    presetBinding,
+    presetDefaults,
+    type PresetDefinition,
   } from '../render3d/objects'
   import { compileDerivative, compileExpr } from '../render3d/compile'
   import { tangentPlaneAt } from '../render3d/tangent'
@@ -70,30 +83,64 @@
 
   // ---------- 添加 ----------
   let addKind = $state<'surface' | 'curve' | 'field' | 'ode'>('surface')
-  let presetIndex = $state(0)
+  let presetId = $state('')
 
-  const presetLabels = $derived.by(() => {
-    if (addKind === 'surface') return SURFACE_PRESETS.map((preset) => preset.label)
-    if (addKind === 'curve') return CURVE3D_PRESETS.map((preset) => preset.label)
-    if (addKind === 'field') return FIELD3D_PRESETS.map((preset) => preset.label)
-    return ODE2D_PRESETS.map((preset) => preset.label)
+  const presetOptions = $derived.by((): { id: string; label: string }[] => {
+    if (addKind === 'surface')
+      return SURFACE_PRESETS.map((preset) => ({ id: preset.id, label: preset.label }))
+    if (addKind === 'curve')
+      return CURVE3D_PRESETS.map((preset) => ({ id: preset.id, label: preset.label }))
+    if (addKind === 'field')
+      return FIELD3D_PRESETS.map((preset) => ({ id: preset.id, label: preset.label }))
+    return ODE2D_PRESETS.map((preset) => ({ id: preset.id, label: preset.label }))
   })
 
+  /** 当前选中的预设 id（切换类别后回落该类第一个） */
+  const effectivePresetId = $derived(
+    presetOptions.some((option) => option.id === presetId)
+      ? presetId
+      : (presetOptions[0]?.id ?? ''),
+  )
+
   function addSelected(): void {
-    const index = Math.min(presetIndex, presetLabels.length - 1)
+    const id = effectivePresetId
     let created: SpaceObject | null = null
     if (addKind === 'surface') {
-      const preset = SURFACE_PRESETS[index]
-      if (preset) created = store.addSpaceObject(createSurface3D(preset.surface))
+      const preset = SURFACE_PRESETS.find((item) => item.id === id)
+      if (preset) {
+        const binding = presetBinding(preset)
+        created = store.addSpaceObject(
+          createSurface3D({
+            ...preset.surface(presetDefaults(preset.params)),
+            ...(binding ? { template: binding } : {}),
+          }),
+        )
+      }
     } else if (addKind === 'curve') {
-      const preset = CURVE3D_PRESETS[index]
-      if (preset) created = store.addSpaceObject(createCurve3D(preset.curve))
+      const preset = CURVE3D_PRESETS.find((item) => item.id === id)
+      if (preset) {
+        const binding = presetBinding(preset)
+        created = store.addSpaceObject(
+          createCurve3D({
+            ...preset.curve(presetDefaults(preset.params)),
+            ...(binding ? { template: binding } : {}),
+          }),
+        )
+      }
     } else if (addKind === 'field') {
-      const preset = FIELD3D_PRESETS[index]
-      if (preset) created = store.addSpaceObject(createField3D(preset.field))
+      const preset = FIELD3D_PRESETS.find((item) => item.id === id)
+      if (preset) {
+        const binding = presetBinding(preset)
+        created = store.addSpaceObject(
+          createField3D({
+            ...preset.field(presetDefaults(preset.params)),
+            ...(binding ? { template: binding } : {}),
+          }),
+        )
+      }
     } else {
-      const preset = ODE2D_PRESETS[index]
-      if (preset) created = store.addSpaceObject(createOde2D(preset.ode))
+      const preset = ODE2D_PRESETS.find((item) => item.id === id)
+      if (preset) created = store.addSpaceObject(createOde2D(preset.ode()))
     }
     if (created) selectedId = created.id
   }
@@ -104,6 +151,54 @@
 
   function numberValue(event: Event): number {
     return Number((event.currentTarget as HTMLInputElement).value)
+  }
+
+  // ---------- 预设参数滑块（拖动 preview，松手一步撤销） ----------
+  const selectedTemplate = $derived.by(() => {
+    const object = selected
+    if (!object || !('template' in object) || !object.template) return null
+    return object.template
+  })
+
+  const selectedDefinition = $derived.by(() => {
+    const object = selected
+    if (!object || !selectedTemplate) return null
+    return getPresetDefinition(object.type, selectedTemplate.presetId)
+  })
+
+  let paramBefore: DocState | null = null
+
+  function onParamInput(
+    objectId: string,
+    definition: PresetDefinition,
+    key: string,
+    value: number,
+  ): void {
+    const object = objects.find((item) => item.id === objectId)
+    if (!object || !('template' in object) || !object.template) return
+    if (paramBefore === null) paramBefore = store.getDoc()
+    const params = { ...object.template.params, [key]: value }
+    const generated = definition.generate(params)
+    const binding = { presetId: definition.id, params }
+    store.preview((doc) => ({
+      objects: doc.objects.map((current) =>
+        current.id === objectId
+          ? ({ ...current, ...generated, template: binding } as unknown as SceneObject)
+          : current,
+      ),
+    }))
+  }
+
+  /** 参数拖动结束：把拖动前快照追认为一步撤销 */
+  function onParamCommit(): void {
+    if (paramBefore !== null) {
+      store.commitPreview(paramBefore)
+      paramBefore = null
+    }
+  }
+
+  function formatParam(value: number): string {
+    return Number.isInteger(value) ? String(value) : value.toPrecision(4)
   }
 
   // ---------- 切平面读数（偏导 = 符号求导） ----------
@@ -150,7 +245,7 @@
         value={addKind}
         onchange={(event) => {
           addKind = (event.currentTarget as HTMLSelectElement).value as typeof addKind
-          presetIndex = 0
+          presetId = ''
         }}
       >
         <option value="surface">曲面</option>
@@ -160,12 +255,11 @@
       </select>
       <select
         data-testid="space-add-preset"
-        value={presetIndex}
-        onchange={(event) =>
-          (presetIndex = Number((event.currentTarget as HTMLSelectElement).value))}
+        value={effectivePresetId}
+        onchange={(event) => (presetId = (event.currentTarget as HTMLSelectElement).value)}
       >
-        {#each presetLabels as label, index (label)}
-          <option value={index}>{label}</option>
+        {#each presetOptions as option (option.id)}
+          <option value={option.id}>{option.label}</option>
         {/each}
       </select>
       <button type="button" data-testid="space-add" onclick={addSelected}>添加</button>
@@ -224,6 +318,33 @@
 
   {#if selected}
     <div class="section">
+      {#if selectedTemplate && selectedDefinition?.params && selectedDefinition.params.length > 0}
+        <div class="section-title">预设参数（{selectedDefinition.label}）</div>
+        {#each selectedDefinition.params as param (param.key)}
+          <div class="row">
+            <span class="dim">{param.label}</span>
+            <input
+              type="range"
+              min={param.min}
+              max={param.max}
+              step={param.step}
+              data-testid={`space-param-${param.key}`}
+              value={selectedTemplate.params[param.key] ?? param.default}
+              oninput={(event) =>
+                onParamInput(
+                  selected!.id,
+                  selectedDefinition!,
+                  param.key,
+                  Number((event.currentTarget as HTMLInputElement).value),
+                )}
+              onchange={onParamCommit}
+            />
+            <span class="value"
+              >{formatParam(selectedTemplate.params[param.key] ?? param.default)}</span
+            >
+          </div>
+        {/each}
+      {/if}
       <div class="section-title">参数</div>
       {#if selected.type === 'surface3d'}
         {@const surface = selected as Surface3D}
