@@ -107,19 +107,19 @@ describe('robustness: 性能基准（规格阈值）', () => {
     expect(best).toBeLessThan(0.1)
   })
 
-  /** 多轮取最优：去除本机负载/调度噪声（真实退化会是数倍级，仍能抓住） */
-  const bestOf3 = (fn: () => number): number => {
+  /** 多轮取最优：去除本机负载/调度噪声（并行测试文件会抢 CPU；真实退化会是数倍级，仍能抓住） */
+  const bestOfRounds = (fn: () => number): number => {
     let best = Infinity
-    for (let i = 0; i < 3; i++) best = Math.min(best, fn())
+    for (let i = 0; i < 6; i++) best = Math.min(best, fn())
     return best
   }
 
   perfIt('编译闭包单点求值 < 100 ns（2x + 1）', () => {
-    expect(bestOf3(() => benchCompiled('2x + 1'))).toBeLessThan(100)
+    expect(bestOfRounds(() => benchCompiled('2x + 1'))).toBeLessThan(100)
   })
 
   perfIt('编译闭包单点求值 < 100 ns（x*x + 2*x + 1）', () => {
-    expect(bestOf3(() => benchCompiled('x*x + 2*x + 1'))).toBeLessThan(100)
+    expect(bestOfRounds(() => benchCompiled('x*x + 2*x + 1'))).toBeLessThan(100)
   })
 
   it('编译闭包单点求值基准：x^2 + sin(x)（参考值，仅打印）', () => {

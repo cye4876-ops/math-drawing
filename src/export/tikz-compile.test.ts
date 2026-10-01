@@ -132,7 +132,7 @@ describe.skipIf(!direct && !viaRunas)('export/tikz: 实际编译验证（需要�
       standalone: true,
     })
     expect(compile(tex)).toBe(true)
-  })
+  }, 120_000)
 
   it('参数方程与极坐标文档编译通过', () => {
     const doc: DocState = {
@@ -148,7 +148,7 @@ describe.skipIf(!direct && !viaRunas)('export/tikz: 实际编译验证（需要�
       standalone: true,
     })
     expect(compile(tex)).toBe(true)
-  })
+  }, 120_000)
 
   it('隐函数（折线坐标）与显函数混排文档编译通过', () => {
     const doc: DocState = {
@@ -161,7 +161,7 @@ describe.skipIf(!direct && !viaRunas)('export/tikz: 实际编译验证（需要�
     })
     expect(skipped).toEqual([])
     expect(compile(tex)).toBe(true)
-  })
+  }, 120_000)
 
   it('图（有向边 + 权重 + 自环）文档编译通过', () => {
     const { graph } = graphObjectFromDsl('A->B:3, A-C, B-C:1.5, C->D, D-D')
@@ -171,7 +171,7 @@ describe.skipIf(!direct && !viaRunas)('export/tikz: 实际编译验证（需要�
       standalone: true,
     }).tex
     expect(compile(tex)).toBe(true)
-  })
+  }, 120_000)
 
   it('生成的代码可读：含注释与缩进、无坐标点列表', () => {
     const doc: DocState = { objects: [curve('sin(x)')] }

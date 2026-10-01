@@ -22,7 +22,7 @@
     onClose,
   }: {
     store: AppStore
-    mode: 'plot' | 'graph'
+    mode: 'plot' | 'graph' | 'stats'
     getStageSize: () => { width: number; height: number }
     onClose: () => void
   } = $props()
@@ -116,7 +116,7 @@
   function doSvg(): void {
     status = ''
     try {
-      const svg = buildSvg(store.getDoc(), mode, store.getView(), {
+      const svg = buildSvg(store.getDoc(), mode === 'graph' ? 'graph' : 'plot', store.getView(), {
         width: Math.max(100, Math.round(svgWidth)),
         height: Math.max(100, Math.round(svgHeight)),
         range: currentRange(),
@@ -132,12 +132,17 @@
   function doTikz(): void {
     status = ''
     try {
-      const result = buildTikz(store.getDoc(), mode, store.getView(), {
-        range: currentRange(),
-        size: getStageSize(),
-        standalone: tikzStandalone,
-        samples: tikzSamples,
-      })
+      const result = buildTikz(
+        store.getDoc(),
+        mode === 'graph' ? 'graph' : 'plot',
+        store.getView(),
+        {
+          range: currentRange(),
+          size: getStageSize(),
+          standalone: tikzStandalone,
+          samples: tikzSamples,
+        },
+      )
       downloadText(result.tex, timestampName('tex'), 'text/x-tex')
       status =
         result.skipped.length > 0
@@ -314,7 +319,16 @@
         透明背景
       </label>
     </div>
-    <button type="button" class="run" data-testid="export-svg-run" onclick={doSvg}>导出 SVG</button>
+    <button
+      type="button"
+      class="run"
+      data-testid="export-svg-run"
+      onclick={doSvg}
+      disabled={mode === 'stats'}>导出 SVG</button
+    >
+    {#if mode === 'stats'}
+      <div class="hint">统计图当前仅支持 PNG 导出（SVG/TikZ 面向曲线与图）</div>
+    {/if}
   {:else if tab === 'tikz'}
     <div class="row">
       <span class="dim-label">采样数</span>
@@ -334,9 +348,16 @@
     <div class="hint">
       函数曲线输出符号形式（如 \addplot &#123;sin(deg(x))&#125;;），图输出 \node / \draw
     </div>
-    <button type="button" class="run" data-testid="export-tikz-run" onclick={doTikz}
-      >导出 .tex</button
+    <button
+      type="button"
+      class="run"
+      data-testid="export-tikz-run"
+      onclick={doTikz}
+      disabled={mode === 'stats'}>导出 .tex</button
     >
+    {#if mode === 'stats'}
+      <div class="hint">统计图当前仅支持 PNG 导出（SVG/TikZ 面向曲线与图）</div>
+    {/if}
   {:else if tab === 'animation'}
     <div class="row">
       <span class="dim-label">来源</span>

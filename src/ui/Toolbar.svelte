@@ -22,8 +22,8 @@
     canRedo: boolean
     getStageSize: () => Size
     registry: ToolRegistry
-    mode: 'plot' | 'graph'
-    onModeChange: (mode: 'plot' | 'graph') => void
+    mode: 'plot' | 'graph' | 'stats'
+    onModeChange: (mode: 'plot' | 'graph' | 'stats') => void
   } = $props()
 
   let currentView = $state<ViewTransform | null>(null)
@@ -149,6 +149,14 @@
       aria-selected={mode === 'graph'}
       class:active={mode === 'graph'}
       onclick={() => onModeChange('graph')}>图论绘图</button
+    >
+    <button
+      type="button"
+      role="tab"
+      data-testid="mode-stats"
+      aria-selected={mode === 'stats'}
+      class:active={mode === 'stats'}
+      onclick={() => onModeChange('stats')}>统计与数据</button
     >
   </div>
   <span class="divider"></span>

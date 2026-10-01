@@ -81,7 +81,7 @@ export interface Tool {
   id: string
   name: string
   /** 所属界面模式（工具条按模式过滤）；缺省 = 函数绘图 */
-  group?: 'plot' | 'graph'
+  group?: 'plot' | 'graph' | 'stats'
   /** 激活：只做准备与内部状态初始化（不得注册全局监听） */
   activate?(ctx: ToolContext): void
   /** 取消激活：清理内部状态（必须对称清理 activate 中的一切） */

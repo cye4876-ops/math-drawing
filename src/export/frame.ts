@@ -18,10 +18,12 @@ export type ExportRange =
 const exportScene = createSceneRenderer()
 
 /** 按模式过滤画布对象（与 App 的可见性规则一致） */
-export function objectsOfMode(doc: DocState, mode: 'plot' | 'graph'): SceneObject[] {
-  return doc.objects.filter((object) =>
-    mode === 'graph' ? object.type === 'graph' : object.type !== 'graph',
-  )
+export function objectsOfMode(doc: DocState, mode: 'plot' | 'graph' | 'stats'): SceneObject[] {
+  return doc.objects.filter((object) => {
+    if (mode === 'graph') return object.type === 'graph'
+    if (mode === 'stats') return object.type === 'dataset'
+    return object.type !== 'graph' && object.type !== 'dataset'
+  })
 }
 
 /**
@@ -97,13 +99,13 @@ export interface FrameRenderOptions {
 export function renderFrame(
   ctx: CanvasRenderingContext2D,
   doc: DocState,
-  mode: 'plot' | 'graph',
+  mode: 'plot' | 'graph' | 'stats',
   view: ViewTransform,
   size: Size,
   options: FrameRenderOptions,
 ): void {
   const objects = objectsOfMode(doc, mode)
-  if (mode === 'plot' && options.withGrid) drawGrid(ctx, view, size, 1)
+  if (mode !== 'graph' && options.withGrid) drawGrid(ctx, view, size, 1)
   exportScene.draw(ctx, objects, { view, size }, options.highlight)
   drawMarkers(ctx, objects, view, size)
 }

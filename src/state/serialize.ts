@@ -1,6 +1,7 @@
 import type {
   Curve,
   CurveKind,
+  Dataset,
   DocState,
   GraphObject,
   LineStyle,
@@ -9,6 +10,7 @@ import type {
 } from './types'
 import { createView } from '../core/transform'
 import { normalizeGraphDoc } from '../graph/model'
+import { normalizeDataset } from '../stats/model'
 
 /** 文档 JSON 格式版本（v0.6 分享链接的基础） */
 export const DOC_FORMAT_VERSION = 1
@@ -107,6 +109,17 @@ function parseGraph(raw: Record<string, unknown>, position: number): GraphObject
   }
 }
 
+/** 解析数据集对象（v0.7）：经 normalizeDataset 校验与默认值补齐 */
+function parseDataset(raw: Record<string, unknown>, position: number): Dataset {
+  try {
+    return normalizeDataset(raw)
+  } catch (error) {
+    throw new DocFormatError(
+      `第 ${position} 个数据集无效：${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+}
+
 function parseView(raw: unknown): ViewTransform {
   const base = createView()
   if (raw === null || typeof raw !== 'object') return base
@@ -162,6 +175,7 @@ export function deserializeDocument(json: string): { doc: DocState; view: ViewTr
     if (raw['type'] === 'curve') objects.push(parseCurve(raw, index))
     else if (raw['type'] === 'marker') objects.push(parseMarker(raw, index))
     else if (raw['type'] === 'graph') objects.push(parseGraph(raw, index))
+    else if (raw['type'] === 'dataset') objects.push(parseDataset(raw, index))
     else throw new DocFormatError(`第 ${index} 个对象类型未知：${String(raw['type'])}`)
   })
 

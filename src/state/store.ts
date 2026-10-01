@@ -2,6 +2,7 @@ import type {
   AppState,
   Curve,
   CurveKind,
+  Dataset,
   DocState,
   GraphObject,
   MarkerPoint,
@@ -254,6 +255,32 @@ export class AppStore {
   removeCurve(id: string): void {
     this.commit((doc) => ({
       objects: doc.objects.filter((object) => !(object.type === 'curve' && object.id === id)),
+    }))
+  }
+
+  /** 文档中的数据集（v0.7 统计与数据） */
+  getDatasets(): Dataset[] {
+    return this.doc.objects.filter((object): object is Dataset => object.type === 'dataset')
+  }
+
+  /** 添加数据集（CSV 导入/生成；数据为独立图层） */
+  addDataset(dataset: Dataset): Dataset {
+    this.commit((doc) => ({ objects: [...doc.objects, dataset] }))
+    return dataset
+  }
+
+  /** 更新数据集（数据/图表配置；一次提交 = 一个撤销步） */
+  updateDataset(id: string, patch: Partial<Omit<Dataset, 'id' | 'type'>>): void {
+    this.commit((doc) => ({
+      objects: doc.objects.map((object) =>
+        object.type === 'dataset' && object.id === id ? { ...object, ...patch } : object,
+      ),
+    }))
+  }
+
+  removeDataset(id: string): void {
+    this.commit((doc) => ({
+      objects: doc.objects.filter((object) => !(object.type === 'dataset' && object.id === id)),
     }))
   }
 

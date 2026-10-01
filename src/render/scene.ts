@@ -12,6 +12,7 @@ import {
 } from './element-registry'
 import { curveElementRenderer, pruneSampleCache } from './curve-renderer'
 import { graphElementRenderer } from './graph-renderer'
+import { datasetElementRenderer } from '../stats/dataset-renderer'
 
 export interface SceneRenderer {
   registry: ElementRegistry
@@ -34,6 +35,7 @@ export function createSceneRenderer(): SceneRenderer {
   const registry = new ElementRegistry()
     .register(curveElementRenderer)
     .register(graphElementRenderer)
+    .register(datasetElementRenderer)
 
   return {
     registry,

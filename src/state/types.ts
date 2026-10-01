@@ -1,6 +1,8 @@
 import type { GraphObject } from '../graph/model'
+import type { Dataset } from '../stats/model'
 
 export type { GraphObject }
+export type { Dataset }
 
 /** 数学平面上的二维点 */
 export interface Point2 {
@@ -80,7 +82,7 @@ export interface MarkerPoint {
   y: number
 }
 
-export type SceneObject = MarkerPoint | Curve | GraphObject
+export type SceneObject = MarkerPoint | Curve | GraphObject | Dataset
 
 /** 文档状态：进入撤销历史的部分 */
 export interface DocState {

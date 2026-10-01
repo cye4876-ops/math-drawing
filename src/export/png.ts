@@ -19,7 +19,7 @@ export interface PngExportOptions {
 /** 离屏渲染 PNG 画布（尺寸单位为导出像素；绘制按 CSS 尺寸 + scale 变换） */
 export function renderPngCanvas(
   doc: DocState,
-  mode: 'plot' | 'graph',
+  mode: 'plot' | 'graph' | 'stats',
   baseView: ViewTransform,
   size: Size,
   options: PngExportOptions,
@@ -48,7 +48,7 @@ export function renderPngCanvas(
 /** 导出 PNG Blob（编码失败会 reject） */
 export function exportPngBlob(
   doc: DocState,
-  mode: 'plot' | 'graph',
+  mode: 'plot' | 'graph' | 'stats',
   baseView: ViewTransform,
   size: Size,
   options: PngExportOptions,

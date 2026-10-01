@@ -12,6 +12,7 @@
   import {
     ToolRegistry,
     createGraphTool,
+    createStatsProbeTool,
     createIntegralTool,
     createIntersectionTool,
     createRiemannTool,
@@ -23,6 +24,7 @@
   import { attachInteractions, attachKeyboardShortcuts } from './interactions'
   import CurveList from './CurveList.svelte'
   import GraphPanel from './GraphPanel.svelte'
+  import StatsPanel from './StatsPanel.svelte'
   import MarkerLayer from './MarkerLayer.svelte'
   import StatusBar from './StatusBar.svelte'
   import MarkerList from './MarkerList.svelte'
@@ -63,6 +65,7 @@
     .register(createRiemannTool())
     .register(createTaylorTool())
     .register(createGraphTool())
+    .register(createStatsProbeTool())
 
   /**
    * URL 预载（自动化测试与基准截图用）：
@@ -90,7 +93,7 @@
     return null
   }
 
-  let sharedPreloadMode: 'plot' | 'graph' | null = null
+  let sharedPreloadMode: 'plot' | 'graph' | 'stats' | null = null
 
   function preloadFromUrl(target: AppStore): ViewRangeInput | null {
     if (typeof location === 'undefined') return null
@@ -182,38 +185,44 @@
   // 预载必须在组件状态初始化之前执行（否则初始 UI 状态捕获不到）
   const pendingRange = preloadFromUrl(store)
 
-  /** 界面模式（工具条左上角切换）：plot = 函数绘图，graph = 图论绘图；?mode= / ?graph= 可指定 */
-  const initialMode: 'plot' | 'graph' =
-    sharedPreloadMode ??
-    (typeof location !== 'undefined' &&
-    (readRawParam(location.search, 'mode') === 'graph' ||
-      readRawParam(location.search, 'graph') !== null)
-      ? 'graph'
-      : 'plot')
-  let mode = $state<'plot' | 'graph'>(initialMode)
+  /** 界面模式（工具条左上角切换）：plot / graph / stats；?mode= 可指定 */
+  function initialModeFromUrl(): 'plot' | 'graph' | 'stats' {
+    if (typeof location === 'undefined') return 'plot'
+    const modeParam = readRawParam(location.search, 'mode')
+    if (modeParam === 'graph') return 'graph'
+    if (modeParam === 'stats') return 'stats'
+    if (modeParam === null && readRawParam(location.search, 'graph') !== null) return 'graph'
+    return 'plot'
+  }
+  const initialMode: 'plot' | 'graph' | 'stats' = sharedPreloadMode ?? initialModeFromUrl()
+
+  let mode = $state<'plot' | 'graph' | 'stats'>(initialMode)
 
   /**
-   * 两种模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
+   * 三种模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
    * 页面初始视图归属于初始模式；未访问过的模式回落到标准默认视图。
    */
-  const savedViews: { plot: ViewTransform | null; graph: ViewTransform | null } = {
+  const savedViews: Record<'plot' | 'graph' | 'stats', ViewTransform | null> = {
     plot: initialMode === 'plot' ? { ...store.getView() } : null,
     graph: initialMode === 'graph' ? { ...store.getView() } : null,
+    stats: initialMode === 'stats' ? { ...store.getView() } : null,
   }
 
-  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图 */
+  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集 */
   function visibleObjectsOf(state: { doc: { objects: SceneObject[] } }): SceneObject[] {
-    return state.doc.objects.filter((object) =>
-      mode === 'graph' ? object.type === 'graph' : object.type !== 'graph',
-    )
+    return state.doc.objects.filter((object) => {
+      if (mode === 'graph') return object.type === 'graph'
+      if (mode === 'stats') return object.type === 'dataset'
+      return object.type !== 'graph' && object.type !== 'dataset'
+    })
   }
 
-  function setMode(next: 'plot' | 'graph'): void {
+  function setMode(next: 'plot' | 'graph' | 'stats'): void {
     if (mode === next) return
     savedViews[mode] = store.getView()
     mode = next
-    // 切模式时重置工具（按钮列表随模式变化）：图论模式默认激活「图编辑」（点击即可选中/建点），函数模式取消激活
-    registry.activate(next === 'graph' ? 'graph' : null)
+    // 切模式时重置工具（按钮列表随模式变化）：图→图编辑，统计→探针，函数→取消
+    registry.activate(next === 'graph' ? 'graph' : next === 'stats' ? 'stats-probe' : null)
     graphHighlight = null
     const saved = savedViews[next] ?? createView(0, 0, 80)
     // setView 总是触发订阅：视图恢复 + 重绘 + MarkerLayer 可见性刷新
@@ -233,8 +242,8 @@
       const state = store.getState()
       // 统一清屏（图论模式不绘制网格背景，必须显式清除上一帧，否则残留旧像素）
       ctx.clearRect(0, 0, size.width, size.height)
-      // 网格与坐标轴仅函数绘图模式（图论模式隐藏）
-      if (mode === 'plot') drawGrid(ctx, state.view, size, dpr)
+      // 网格与坐标轴仅函数绘图/统计模式（图论模式隐藏）
+      if (mode !== 'graph') drawGrid(ctx, state.view, size, dpr)
       scene.draw(
         ctx,
         visibleObjectsOf(state),
@@ -302,8 +311,9 @@
       },
     })
 
-    // 图论模式（含 ?graph= / ?mode=graph 预载）：默认激活「图编辑」——打开即可点击选中/建点
+    // 图论/统计模式（含 ?mode= 预载）：默认激活对应工具——打开即可交互
     if (initialMode === 'graph') registry.activate('graph')
+    else if (initialMode === 'stats') registry.activate('stats-probe')
 
     return () => {
       unbindKeyboard()
@@ -333,8 +343,14 @@
       {#if mode === 'plot'}
         <CurveList {store} />
         <MarkerList {store} />
-      {:else}
+      {:else if mode === 'graph'}
         <GraphPanel {store} onHighlight={handleGraphHighlight} />
+      {:else}
+        <StatsPanel
+          {store}
+          getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
+          requestRender={() => canvasLayerRef?.requestRender()}
+        />
       {/if}
       <ToolsPanel {registry} />
     </div>
