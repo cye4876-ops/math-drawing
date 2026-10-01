@@ -18,6 +18,7 @@
     FAMILIES,
     createFamily,
     specToDoc,
+    validateFamilyParams,
     type FamilyInfo,
     type FamilyKind,
   } from '../graph/families'
@@ -105,9 +106,19 @@
   const familyInfo = $derived<FamilyInfo | undefined>(
     FAMILIES.find((item) => item.kind === familyKind),
   )
+  /** 禁用条件：参数越界/非法组合时不充许生成（按钮置灰 + 提示） */
+  const familyError = $derived(
+    validateFamilyParams(familyKind, {
+      n: params.n,
+      m: params.m,
+      rows: params.rows,
+      cols: params.cols,
+    }),
+  )
 
   // ------- 图族生成 -------
   function generateFamily(): void {
+    if (familyError !== null) return
     const spec = createFamily(familyKind, {
       n: params.n,
       m: params.m,
@@ -293,7 +304,15 @@
       </div>
     {/if}
     <div class="row">
-      <button type="button" data-testid="family-generate" onclick={generateFamily}>生成</button>
+      <button
+        type="button"
+        data-testid="family-generate"
+        disabled={familyError !== null}
+        onclick={generateFamily}>生成</button
+      >
+      {#if familyError}
+        <div class="error" data-testid="family-error">{familyError}</div>
+      {/if}
     </div>
   </div>
 

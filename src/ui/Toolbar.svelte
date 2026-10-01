@@ -170,37 +170,41 @@
   </div>
   <span class="divider"></span>
   <button type="button" data-testid="view-settings" onclick={toggleViewPanel}>视图设置</button>
-  <button
-    type="button"
-    data-testid="toggle-equal"
-    aria-pressed={currentView?.equalAspect ?? true}
-    class:active={currentView?.equalAspect ?? true}
-    title="等比模式：锁定 x/y 比例（圆看起来是圆）"
-    onclick={() => store.setView(withEqualAspect(store.getView(), !store.getView().equalAspect))}
-  >
-    等比{currentView?.equalAspect ? ' ✓' : ''}
-  </button>
-  <label class="select-label">
-    坐标
-    <select
-      data-testid="select-coord"
-      value={currentView?.coordType ?? 'rect'}
-      onchange={(e) => setCoordType((e.currentTarget as HTMLSelectElement).value)}
+  {#if mode === 'plot'}
+    <!-- 坐标相关控件仅函数绘图模式（图论模式隐藏） -->
+    <button
+      type="button"
+      data-testid="toggle-equal"
+      aria-pressed={currentView?.equalAspect ?? true}
+      class:active={currentView?.equalAspect ?? true}
+      title="等比模式：锁定 x/y 比例（圆看起来是圆）"
+      onclick={() => store.setView(withEqualAspect(store.getView(), !store.getView().equalAspect))}
     >
-      <option value="rect">直角</option>
-      <option value="polar">极坐标网格</option>
-      <option value="log">对数</option>
-    </select>
-  </label>
-  <button
-    type="button"
-    data-testid="toggle-axis"
-    aria-pressed={currentView?.axisVisible ?? true}
-    class:active={currentView?.axisVisible ?? true}
-    onclick={() => store.setView({ ...store.getView(), axisVisible: !store.getView().axisVisible })}
-  >
-    坐标轴
-  </button>
+      等比{currentView?.equalAspect ? ' ✓' : ''}
+    </button>
+    <label class="select-label">
+      坐标
+      <select
+        data-testid="select-coord"
+        value={currentView?.coordType ?? 'rect'}
+        onchange={(e) => setCoordType((e.currentTarget as HTMLSelectElement).value)}
+      >
+        <option value="rect">直角</option>
+        <option value="polar">极坐标网格</option>
+        <option value="log">对数</option>
+      </select>
+    </label>
+    <button
+      type="button"
+      data-testid="toggle-axis"
+      aria-pressed={currentView?.axisVisible ?? true}
+      class:active={currentView?.axisVisible ?? true}
+      onclick={() =>
+        store.setView({ ...store.getView(), axisVisible: !store.getView().axisVisible })}
+    >
+      坐标轴
+    </button>
+  {/if}
 
   {#if showView}
     <div class="view-panel" data-testid="view-panel">
@@ -245,7 +249,9 @@
 
   <span class="divider"></span>
 
-  <button type="button" data-testid="add-marker" onclick={addMarker}>添加标记点</button>
+  {#if mode === 'plot'}
+    <button type="button" data-testid="add-marker" onclick={addMarker}>添加标记点</button>
+  {/if}
   <button
     type="button"
     data-testid="undo"

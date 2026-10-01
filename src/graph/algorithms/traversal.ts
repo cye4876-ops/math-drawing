@@ -50,7 +50,13 @@ export function* bfsSteps(
       parent[v] = u
       distance[v] = (distance[u] ?? 0) + 1
       queue.push(v)
-      yield { kind: 'push', node: v, note: `${view.label(v)} 入队（距离 ${distance[v]}）` }
+      yield {
+        kind: 'push',
+        node: v,
+        // 携带发现边（树边）：播放器据此累积标记「走过的边」
+        edge: { source: u, target: v },
+        note: `${view.label(v)} 入队（距离 ${distance[v]}）`,
+      }
     }
   }
   yield {
@@ -103,7 +109,13 @@ export function* dfsSteps(
       parent[v] = u
       distance[v] = (distance[u] ?? 0) + 1
       stack.push(v)
-      yield { kind: 'push', node: v, note: `${view.label(v)} 入栈（深度 ${distance[v]}）` }
+      yield {
+        kind: 'push',
+        node: v,
+        // 携带发现边（树边）：播放器据此累积标记「走过的边」
+        edge: { source: u, target: v },
+        note: `${view.label(v)} 入栈（深度 ${distance[v]}）`,
+      }
     }
   }
   yield {

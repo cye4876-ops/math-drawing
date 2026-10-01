@@ -1,4 +1,10 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+/** 解析状态栏缩放读数（px/单位） */
+async function readScale(page: Page): Promise<number> {
+  const text = await page.getByTestId('scale-readout').textContent()
+  return Number(text?.match(/([\d.]+)/)?.[1] ?? 0)
+}
 
 test.describe('v0.5 双模式界面与图面板（阶段 4）', () => {
   test('默认函数绘图模式：曲线面板可见、图编辑按钮与图面板隐藏', async ({ page }) => {
@@ -107,5 +113,62 @@ test.describe('v0.5 双模式界面与图面板（阶段 4）', () => {
     await expect(page.getByTestId('graph-stats')).toContainText('顶点 2')
     await page.getByTestId('graph-delete').click()
     await expect(page.getByTestId('graph-stats')).toContainText('暂无图')
+  })
+
+  test('两种模式视图独立：缩放互不影响（各自保存/恢复）', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('1-2, 2-3'))
+    const box = await page.getByTestId('stage-canvas').boundingBox()
+    expect(box).not.toBeNull()
+
+    // 图论模式：滚轮放大
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+    await page.mouse.wheel(0, -400)
+    await expect.poll(() => readScale(page)).toBeGreaterThan(100)
+    const graphScale = await readScale(page)
+
+    // 切到函数绘图：独立视图（默认 80）
+    await page.getByTestId('mode-plot').click()
+    await expect.poll(() => readScale(page)).toBeCloseTo(80, 5)
+
+    // 切回图论：恢复之前的缩放
+    await page.getByTestId('mode-graph').click()
+    await expect.poll(() => readScale(page)).toBeCloseTo(graphScale, 5)
+  })
+
+  test('图论模式隐藏坐标相关控件（坐标/坐标轴/等比/添加标记点）', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('1-2'))
+    await expect(page.getByTestId('toggle-axis')).toHaveCount(0)
+    await expect(page.getByTestId('select-coord')).toHaveCount(0)
+    await expect(page.getByTestId('toggle-equal')).toHaveCount(0)
+    await expect(page.getByTestId('add-marker')).toHaveCount(0)
+    // 切回函数绘图：控件恢复
+    await page.getByTestId('mode-plot').click()
+    await expect(page.getByTestId('toggle-axis')).toBeVisible()
+    await expect(page.getByTestId('select-coord')).toBeVisible()
+  })
+
+  test('新图族：轮图与八面体生成；越界参数禁用生成并提示', async ({ page }) => {
+    await page.goto('/?mode=graph')
+    await page.getByTestId('family-select').selectOption('wheel')
+    await page.getByTestId('family-param-n').fill('6')
+    await page.getByTestId('family-generate').click()
+    await expect(page.getByTestId('graph-stats')).toContainText('顶点 7')
+    await expect(page.getByTestId('graph-stats')).toContainText('边 12')
+
+    await page.getByTestId('family-select').selectOption('octahedron')
+    await page.getByTestId('family-generate').click()
+    await expect(page.getByTestId('graph-stats')).toContainText('顶点 6')
+    await expect(page.getByTestId('graph-stats')).toContainText('边 12')
+
+    // 越界（轮图 n=2 < 3）：禁用生成 + 提示
+    await page.getByTestId('family-select').selectOption('wheel')
+    await page.getByTestId('family-param-n').fill('2')
+    await expect(page.getByTestId('family-error')).toBeVisible()
+    await expect(page.getByTestId('family-generate')).toBeDisabled()
+
+    // 修正后恢复可用
+    await page.getByTestId('family-param-n').fill('5')
+    await expect(page.getByTestId('family-generate')).toBeEnabled()
+    await expect(page.getByTestId('family-error')).toHaveCount(0)
   })
 })

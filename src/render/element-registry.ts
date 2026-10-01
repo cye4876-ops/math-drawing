@@ -25,11 +25,15 @@ export interface ElementHit {
   distancePx: number
 }
 
-/** 渲染高亮（如矩阵↔图联动）：节点描边与边高亮 */
+/** 渲染高亮（如矩阵↔图联动、算法步骤）：当前步骤 + 累积轨迹两档样式 */
 export interface SceneHighlight {
   nodes?: string[]
   /** 边按图内节点 id；无向边方向不敏感 */
   edges?: { source: string; target: string }[]
+  /** 累积轨迹节点（已访问/已到达，次级强调） */
+  trailNodes?: string[]
+  /** 累积轨迹边（已走过/已选中，次级强调；无向边方向不敏感） */
+  trailEdges?: { source: string; target: string }[]
 }
 
 export interface ElementRenderer<E extends SceneObject> {

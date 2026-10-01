@@ -8,7 +8,7 @@
   import { createView } from '../core/transform'
   import { type ViewRangeInput, exactView } from '../render/viewport'
   import { createStore, type AppStore } from '../state/store'
-  import type { Point2 } from '../state/types'
+  import type { Point2, SceneObject, ViewTransform } from '../state/types'
   import {
     ToolRegistry,
     createGraphTool,
@@ -45,7 +45,7 @@
       const size = canvasLayerRef?.getSize()
       if (!sceneRef || !size || size.width <= 0) return null
       return sceneRef.hitTest(
-        store.getState().doc.objects,
+        visibleObjectsOf(store.getState()),
         screen,
         { view: store.getView(), size },
         maxDistancePx,
@@ -172,11 +172,33 @@
       : 'plot'
   let mode = $state<'plot' | 'graph'>(initialMode)
 
+  /**
+   * 两种模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
+   * 页面初始视图归属于初始模式；未访问过的模式回落到标准默认视图。
+   */
+  const savedViews: { plot: ViewTransform | null; graph: ViewTransform | null } = {
+    plot: initialMode === 'plot' ? { ...store.getView() } : null,
+    graph: initialMode === 'graph' ? { ...store.getView() } : null,
+  }
+
+  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图 */
+  function visibleObjectsOf(state: { doc: { objects: SceneObject[] } }): SceneObject[] {
+    return state.doc.objects.filter((object) =>
+      mode === 'graph' ? object.type === 'graph' : object.type !== 'graph',
+    )
+  }
+
   function setMode(next: 'plot' | 'graph'): void {
     if (mode === next) return
+    savedViews[mode] = store.getView()
     mode = next
-    // 切模式时取消激活工具（工具按钮列表会变化）
+    // 切模式时取消激活工具（工具按钮列表会变化），并清除图高亮（仅图论联动使用）
     registry.activate(null)
+    graphHighlight = null
+    const saved = savedViews[next] ?? createView(0, 0, 80)
+    // setView 总是触发订阅：视图恢复 + 重绘 + MarkerLayer 可见性刷新
+    store.setView({ ...saved })
+    canvasLayerRef?.requestRender()
   }
 
   let scale = $state(store.getView().scaleX)
@@ -189,8 +211,16 @@
     let boundLayer: CanvasLayer | null = null
     const canvasLayer = createCanvasLayer(stageElement, (ctx, size, dpr) => {
       const state = store.getState()
-      drawGrid(ctx, state.view, size, dpr)
-      scene.draw(ctx, state.doc.objects, { view: state.view, size }, graphHighlight ?? undefined)
+      // 统一清屏（图论模式不绘制网格背景，必须显式清除上一帧，否则残留旧像素）
+      ctx.clearRect(0, 0, size.width, size.height)
+      // 网格与坐标轴仅函数绘图模式（图论模式隐藏）
+      if (mode === 'plot') drawGrid(ctx, state.view, size, dpr)
+      scene.draw(
+        ctx,
+        visibleObjectsOf(state),
+        { view: state.view, size },
+        graphHighlight ?? undefined,
+      )
       registry.drawOverlay(ctx)
       if (registry.isAnimating()) boundLayer?.requestRender()
     })
@@ -200,7 +230,7 @@
 
     const markers = mount(MarkerLayer, {
       target: domLayer.element,
-      props: { store },
+      props: { store, getMode: () => mode },
     })
 
     const syncUi = (): void => {

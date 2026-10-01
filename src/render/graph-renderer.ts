@@ -16,8 +16,10 @@ import {
 
 const LABEL_FONT = '12px system-ui, "Segoe UI", "Microsoft YaHei", sans-serif'
 const WEIGHT_FONT = '11px system-ui, "Segoe UI", "Microsoft YaHei", sans-serif'
-/** 矩阵↔图联动等高亮色（琥珀） */
+/** 矩阵↔图联动等高亮色（琥珀：当前步骤/选中） */
 const HIGHLIGHT_COLOR = '#f59e0b'
+/** 累积轨迹色（玫红：已访问节点/已走过边；与节点调色板不撞色） */
+const TRAIL_COLOR = '#db2777'
 
 /** 边是否命中高亮集合（无向边方向不敏感） */
 function edgeHighlighted(edge: GraphEdgeData, highlight: SceneHighlight | undefined): boolean {
@@ -29,9 +31,24 @@ function edgeHighlighted(edge: GraphEdgeData, highlight: SceneHighlight | undefi
   )
 }
 
+/** 边是否命中累积轨迹（无向边方向不敏感） */
+function edgeInTrail(edge: GraphEdgeData, highlight: SceneHighlight | undefined): boolean {
+  if (!highlight?.trailEdges) return false
+  return highlight.trailEdges.some(
+    (item) =>
+      (item.source === edge.source && item.target === edge.target) ||
+      (!edge.directed && item.source === edge.target && item.target === edge.source),
+  )
+}
+
 /** 节点是否命中高亮集合 */
 function nodeHighlighted(id: string, highlight: SceneHighlight | undefined): boolean {
   return highlight?.nodes?.includes(id) ?? false
+}
+
+/** 节点是否命中累积轨迹 */
+function nodeInTrail(id: string, highlight: SceneHighlight | undefined): boolean {
+  return highlight?.trailNodes?.includes(id) ?? false
 }
 
 /** 权重显示：4 位有效数字 */
@@ -110,9 +127,10 @@ export const graphElementRenderer: ElementRenderer<GraphObject> = {
       const path = edgePath(edge, from, to, index < 0 ? 0 : index, group.length)
 
       const highlighted = edgeHighlighted(edge, highlight)
-      const strokeColor = highlighted ? HIGHLIGHT_COLOR : edge.color
+      const inTrail = !highlighted && edgeInTrail(edge, highlight)
+      const strokeColor = highlighted ? HIGHLIGHT_COLOR : inTrail ? TRAIL_COLOR : edge.color
       ctx.strokeStyle = strokeColor
-      ctx.lineWidth = highlighted ? 3.2 : 1.6
+      ctx.lineWidth = highlighted ? 3.2 : inTrail ? 2.4 : 1.6
       ctx.lineJoin = 'round'
       ctx.setLineDash(edge.style === 'dashed' ? [6, 4] : [])
       tracePath(ctx, path)
@@ -156,11 +174,12 @@ export const graphElementRenderer: ElementRenderer<GraphObject> = {
       const s = screens.get(node.id)
       if (!s) continue
       const highlighted = nodeHighlighted(node.id, highlight)
+      const inTrail = !highlighted && nodeInTrail(node.id, highlight)
       drawNodeShape(ctx, s, node.shape)
       ctx.fillStyle = node.color
       ctx.fill()
-      ctx.strokeStyle = highlighted ? HIGHLIGHT_COLOR : '#ffffff'
-      ctx.lineWidth = highlighted ? 3.5 : 2
+      ctx.strokeStyle = highlighted ? HIGHLIGHT_COLOR : inTrail ? TRAIL_COLOR : '#ffffff'
+      ctx.lineWidth = highlighted ? 3.5 : inTrail ? 2.8 : 2
       ctx.stroke()
       drawNodeLabel(ctx, node, s)
     }

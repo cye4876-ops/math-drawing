@@ -18,6 +18,24 @@ async function countHighlightPixels(page: Page): Promise<number> {
   })
 }
 
+/** 统计累积轨迹玫红色（#db2777 = rgb(219,39,119)）像素数 */
+async function countTrailPixels(page: Page): Promise<number> {
+  return page.getByTestId('stage-canvas').evaluate((el) => {
+    const canvas = el as HTMLCanvasElement
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return -1
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+    let count = 0
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i] ?? 0
+      const g = data[i + 1] ?? 0
+      const b = data[i + 2] ?? 0
+      if (Math.abs(r - 219) < 35 && Math.abs(g - 39) < 35 && Math.abs(b - 119) < 35) count++
+    }
+    return count
+  })
+}
+
 test.describe('v0.5 算法 UI 播放器（阶段 5b）', () => {
   test('BFS：运行 → 首步高亮与 note → 单步 → 到末尾显示访问顺序', async ({ page }) => {
     await page.goto('/?mode=graph&graph=' + encodeURIComponent('1-2, 2-3, 3-1'))
@@ -86,5 +104,36 @@ test.describe('v0.5 算法 UI 播放器（阶段 5b）', () => {
     await expect(page.getByTestId('algorithm-progress')).toBeVisible()
     await page.getByTestId('graph-dsl').fill('1-2, 2-3, 3-4')
     await expect(page.getByTestId('algorithm-progress')).toHaveCount(0)
+  })
+
+  test('单步累积标记：BFS 走过的边逐步累积（玫红轨迹），重置清空', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('1-2, 2-3, 3-4'))
+    await page.getByTestId('algorithm-run').click()
+
+    // 步进到首条树边（push 携带发现边）出现
+    for (let i = 0; i < 5; i++) await page.getByTestId('algorithm-step').click()
+    await expect.poll(() => countTrailPixels(page)).toBeGreaterThan(10)
+    const mid = await countTrailPixels(page)
+
+    // 到末尾：轨迹增长（三条树边齐全）
+    await page.getByTestId('algorithm-end').click()
+    const end = await countTrailPixels(page)
+    expect(end).toBeGreaterThan(mid)
+
+    // 重置：轨迹清空
+    await page.getByTestId('algorithm-reset').click()
+    await expect.poll(() => countTrailPixels(page)).toBeLessThan(5)
+  })
+
+  test('Prim：选中边累积标记（生成树逐步长出）', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('A-B:1, B-C:2, A-C:3'))
+    await page.getByTestId('algorithm-select').selectOption('prim')
+    await page.getByTestId('algorithm-run').click()
+    const first = await countTrailPixels(page)
+    await page.getByTestId('algorithm-step').click()
+    await expect.poll(() => countTrailPixels(page)).toBeGreaterThan(first)
+    await page.getByTestId('algorithm-end').click()
+    const end = await countTrailPixels(page)
+    expect(end).toBeGreaterThan(first)
   })
 })

@@ -9,6 +9,7 @@ import type { GraphObject } from '../model'
 import { dsaturColoring, greedyColoring, isBipartite, verifyColoring } from './coloring'
 import { ALGORITHMS, reconstructPath, runAlgorithm } from './index'
 import { dijkstraSteps } from './shortest-path'
+import { computeTrail } from './trail'
 import type { AlgorithmFailure, ShortestPathResult, TraversalResult } from './types'
 
 function make(dsl: string): GraphObject {
@@ -276,5 +277,46 @@ describe('v0.5 算法：注册与统一入口', () => {
     const graph = make(PETERSEN)
     expect(runAlgorithm('bfs', graph).steps.length).toBeLessThan(200)
     expect(runAlgorithm('bellman-ford', graph).steps.length).toBeLessThan(1000)
+  })
+})
+
+describe('v0.5 算法：累积轨迹（computeTrail）', () => {
+  it('BFS：树边随 push 累积；轨迹随索引伸缩', () => {
+    const graph = make('1-2, 2-3')
+    const { steps } = runAlgorithm('bfs', graph)
+    expect(computeTrail(steps, -1)).toEqual({ nodes: [], edges: [] })
+    // 起点 push（无发现边）
+    const first = computeTrail(steps, 0)
+    expect(first.nodes).toHaveLength(1)
+    expect(first.edges).toHaveLength(0)
+    // 全流程：两条树边、三个节点
+    const all = computeTrail(steps, steps.length - 1)
+    expect(all.edges).toHaveLength(2)
+    expect(all.nodes).toHaveLength(3)
+    // 回退收缩（中途轨迹不超出最终轨迹）
+    const mid = computeTrail(steps, Math.floor(steps.length / 2))
+    expect(mid.edges.length).toBeLessThanOrEqual(all.edges.length)
+    expect(mid.nodes.length).toBeLessThanOrEqual(all.nodes.length)
+  })
+
+  it('Prim：选中边累积为生成树', () => {
+    const graph = make('A-B:1, B-C:2, A-C:3')
+    const { steps } = runAlgorithm('prim', graph)
+    const all = computeTrail(steps, steps.length - 1)
+    expect(all.edges).toHaveLength(2)
+    expect(all.nodes).toHaveLength(3)
+  })
+
+  it('Dijkstra：松弛边累积为最短路径树', () => {
+    const graph = make('A-B:1, B-C:1')
+    const { steps } = runAlgorithm('dijkstra', graph)
+    const all = computeTrail(steps, steps.length - 1)
+    expect(all.edges).toHaveLength(2)
+    expect(all.nodes).toHaveLength(3)
+  })
+
+  it('无步骤算法（着色）：轨迹为空', () => {
+    const { steps } = runAlgorithm('dsatur-color', make('1-2, 2-3, 3-1'))
+    expect(computeTrail(steps, 0)).toEqual({ nodes: [], edges: [] })
   })
 })

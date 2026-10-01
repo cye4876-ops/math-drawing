@@ -16,6 +16,7 @@
     type AlgorithmResult,
   } from '../graph/algorithms'
   import type { AlgorithmStep } from '../graph/algorithms/types'
+  import { computeTrail } from '../graph/algorithms/trail'
   import { structuralKey } from '../graph/structural-key'
 
   let {
@@ -59,7 +60,7 @@
     }
   }
 
-  // 当前步骤变化 → 画布高亮联动
+  // 当前步骤变化 → 画布高亮联动（当前步骤琥珀 + 累积轨迹玫红）
   $effect(() => {
     const step = currentStep
     if (!step) {
@@ -68,7 +69,13 @@
     }
     const nodes = step.node ? [step.node] : []
     const edges = step.edge ? [{ source: step.edge.source, target: step.edge.target }] : []
-    onHighlight(nodes.length > 0 || edges.length > 0 ? { nodes, edges } : null)
+    const trail = computeTrail(steps, index)
+    onHighlight({
+      nodes,
+      edges,
+      trailNodes: trail.nodes,
+      trailEdges: trail.edges,
+    })
   })
 
   // 结构变化 → 重置运行（拖动坐标不触发）

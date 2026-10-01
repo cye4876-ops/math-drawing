@@ -19,7 +19,7 @@ async function countNodePixels(page: Page): Promise<number> {
   })
 }
 
-/** 统计曲线红（#c32222）像素数 */
+/** 统计曲线红（#c32222 = rgb(195,34,34)）像素数（严格阈值，避开节点调色板的 #dc2626 红） */
 async function countRedPixels(page: Page): Promise<number> {
   return page.getByTestId('stage-canvas').evaluate((el) => {
     const canvas = el as HTMLCanvasElement
@@ -31,7 +31,7 @@ async function countRedPixels(page: Page): Promise<number> {
       const r = data[i] ?? 0
       const g = data[i + 1] ?? 0
       const b = data[i + 2] ?? 0
-      if (r > 150 && g < 100 && b < 100) count++
+      if (Math.abs(r - 195) < 10 && Math.abs(g - 34) < 10 && Math.abs(b - 34) < 10) count++
     }
     return count
   })
@@ -64,10 +64,16 @@ test.describe('v0.5 图渲染（元素注册制）', () => {
     expect(graph!.edges.map((edge) => edge.weight)).toContain(3)
   })
 
-  test('图与函数曲线同画布共存、互不干扰', async ({ page }) => {
+  test('模式互斥显示：图模式下不显示曲线；函数模式下不显示图', async ({ page }) => {
     await page.goto('/?curves=sin(x)&graph=' + encodeURIComponent('A-B, C->A'))
+    // ?graph= 自动进入图论模式：节点显示、曲线隐藏
     await expect.poll(() => countNodePixels(page)).toBeGreaterThan(500)
-    expect(await countRedPixels(page)).toBeGreaterThan(50)
+    expect(await countRedPixels(page)).toBeLessThan(20)
+
+    // 切到函数绘图：曲线显示、图隐藏
+    await page.getByTestId('mode-plot').click()
+    await expect.poll(() => countRedPixels(page)).toBeGreaterThan(50)
+    expect(await countNodePixels(page)).toBeLessThan(50)
   })
 
   test('撤销可移除图对象（图编辑入撤销历史）', async ({ page }) => {

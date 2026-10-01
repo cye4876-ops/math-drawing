@@ -3,7 +3,14 @@
   import type { AppStore } from '../state/store'
   import type { AppState, MarkerPoint, Size } from '../state/types'
 
-  let { store }: { store: AppStore } = $props()
+  let {
+    store,
+    getMode,
+  }: {
+    store: AppStore
+    /** 当前界面模式：标记点仅在函数绘图模式显示（图论模式隐藏） */
+    getMode: () => 'plot' | 'graph'
+  } = $props()
 
   let appState = $state<AppState | null>(null)
   let host = $state<HTMLDivElement | null>(null)
@@ -33,6 +40,7 @@
   const markers = $derived.by(() => {
     const state = appState
     if (!state) return []
+    if (getMode() !== 'plot') return []
     return state.doc.objects
       .filter((object): object is MarkerPoint => object.type === 'marker')
       .map((object) => {

@@ -13,7 +13,20 @@ import {
 } from './model'
 
 export type FamilyKind =
-  'complete' | 'complete-bipartite' | 'cycle' | 'path' | 'tree' | 'petersen' | 'hypercube' | 'grid'
+  | 'complete'
+  | 'complete-bipartite'
+  | 'cycle'
+  | 'path'
+  | 'tree'
+  | 'petersen'
+  | 'hypercube'
+  | 'grid'
+  | 'star'
+  | 'wheel'
+  | 'ladder'
+  | 'prism'
+  | 'windmill'
+  | 'octahedron'
 
 export interface FamilyEdge {
   source: string
@@ -32,24 +45,85 @@ export interface FamilyParams {
   cols?: number
 }
 
+/** 图族参数键 */
+export type FamilyParamKey = keyof FamilyParams
+
 /** 图族清单（UI 下拉使用）：参数名列表为空 = 无参数 */
 export interface FamilyInfo {
   kind: FamilyKind
   name: string
   /** 需要的参数（顺序与默认值见 DEFAULT_PARAMS） */
-  params: ('n' | 'm' | 'rows' | 'cols')[]
+  params: FamilyParamKey[]
+  /** 参数允许范围（UI 禁用条件校验；缺省 1~64） */
+  bounds?: Partial<Record<FamilyParamKey, { min: number; max: number }>>
 }
 
 export const FAMILIES: FamilyInfo[] = [
-  { kind: 'complete', name: '完全图 K_n', params: ['n'] },
-  { kind: 'complete-bipartite', name: '二分图 K_m,n', params: ['m', 'n'] },
-  { kind: 'cycle', name: '环 C_n', params: ['n'] },
-  { kind: 'path', name: '路 P_n', params: ['n'] },
-  { kind: 'tree', name: '完全二叉树（n 个节点）', params: ['n'] },
+  { kind: 'complete', name: '完全图 K_n', params: ['n'], bounds: { n: { min: 2, max: 64 } } },
+  {
+    kind: 'complete-bipartite',
+    name: '二分图 K_m,n',
+    params: ['m', 'n'],
+    bounds: { m: { min: 1, max: 32 }, n: { min: 1, max: 32 } },
+  },
+  { kind: 'cycle', name: '环 C_n', params: ['n'], bounds: { n: { min: 3, max: 64 } } },
+  { kind: 'path', name: '路 P_n', params: ['n'], bounds: { n: { min: 1, max: 64 } } },
+  {
+    kind: 'tree',
+    name: '完全二叉树（n 个节点）',
+    params: ['n'],
+    bounds: { n: { min: 1, max: 64 } },
+  },
   { kind: 'petersen', name: 'Petersen 图', params: [] },
-  { kind: 'hypercube', name: '超立方体 Q_k', params: ['n'] },
-  { kind: 'grid', name: '网格 rows×cols', params: ['rows', 'cols'] },
+  { kind: 'hypercube', name: '超立方体 Q_k', params: ['n'], bounds: { n: { min: 1, max: 6 } } },
+  {
+    kind: 'grid',
+    name: '网格 rows×cols',
+    params: ['rows', 'cols'],
+    bounds: { rows: { min: 1, max: 20 }, cols: { min: 1, max: 20 } },
+  },
+  { kind: 'star', name: '星图 K_1,n', params: ['n'], bounds: { n: { min: 1, max: 64 } } },
+  { kind: 'wheel', name: '轮图 W_n', params: ['n'], bounds: { n: { min: 3, max: 64 } } },
+  { kind: 'ladder', name: '梯子图（2×n）', params: ['n'], bounds: { n: { min: 2, max: 32 } } },
+  { kind: 'prism', name: '棱柱图（n-棱柱）', params: ['n'], bounds: { n: { min: 3, max: 32 } } },
+  {
+    kind: 'windmill',
+    name: '风车图（n 个三角形）',
+    params: ['n'],
+    bounds: { n: { min: 2, max: 32 } },
+  },
+  { kind: 'octahedron', name: '八面体图', params: [] },
 ]
+
+/**
+ * 参数禁用条件校验（UI 在越界/非法组合时禁用生成并提示）：
+ * 返回错误提示；合法返回 null。
+ */
+export function validateFamilyParams(kind: FamilyKind, params: FamilyParams): string | null {
+  const info = FAMILIES.find((item) => item.kind === kind)
+  if (!info) return '未知图族'
+  for (const key of info.params) {
+    const bounds = info.bounds?.[key] ?? { min: 1, max: 64 }
+    const value = params[key]
+    if (value === undefined || !Number.isFinite(value)) return `参数 ${key} 必须是数字`
+    const rounded = Math.round(value)
+    if (rounded < bounds.min || rounded > bounds.max) {
+      return `参数 ${key} 需在 ${bounds.min} ~ ${bounds.max} 之间`
+    }
+  }
+  // 组合限制（防止误输入生成超大图）
+  if (kind === 'grid') {
+    const rows = Math.round(params.rows ?? DEFAULT_PARAMS.rows)
+    const cols = Math.round(params.cols ?? DEFAULT_PARAMS.cols)
+    if (rows * cols > 200) return `顶点数 rows×cols 不可超过 200（当前 ${rows * cols}）`
+  }
+  if (kind === 'complete-bipartite') {
+    const m = Math.round(params.m ?? DEFAULT_PARAMS.m)
+    const n = Math.round(params.n ?? DEFAULT_PARAMS.n)
+    if (m * n > 400) return `边数 m×n 不可超过 400（当前 ${m * n}）`
+  }
+  return null
+}
 
 export const DEFAULT_PARAMS: Required<FamilyParams> = { n: 5, m: 3, rows: 3, cols: 4 }
 
@@ -139,8 +213,8 @@ export function createFamily(kind: FamilyKind, params: FamilyParams = {}): Famil
       break
     }
     case 'grid': {
-      const rows = clampInt(params.rows, DEFAULT_PARAMS.rows, 1, 12)
-      const cols = clampInt(params.cols, DEFAULT_PARAMS.cols, 1, 12)
+      const rows = clampInt(params.rows, DEFAULT_PARAMS.rows, 1, 20)
+      const cols = clampInt(params.cols, DEFAULT_PARAMS.cols, 1, 20)
       for (let r = 1; r <= rows; r++) {
         for (let c = 1; c <= cols; c++) labels.push(`${r}x${c}`)
       }
@@ -149,6 +223,70 @@ export function createFamily(kind: FamilyKind, params: FamilyParams = {}): Famil
           if (c < cols) edges.push({ source: `${r}x${c}`, target: `${r}x${c + 1}` })
           if (r < rows) edges.push({ source: `${r}x${c}`, target: `${r + 1}x${c}` })
         }
+      }
+      break
+    }
+    case 'star': {
+      // 中心 1 + n 个叶子
+      const n = clampInt(params.n, DEFAULT_PARAMS.n, 1, 64)
+      labels.push(...numberLabels(n + 1))
+      for (let i = 2; i <= n + 1; i++) edges.push({ source: '1', target: String(i) })
+      break
+    }
+    case 'wheel': {
+      // 环 1..n + 中心 n+1（辐条）
+      const n = clampInt(params.n, DEFAULT_PARAMS.n, 3, 64)
+      labels.push(...numberLabels(n + 1))
+      for (let i = 1; i <= n; i++) {
+        edges.push({ source: String(i), target: String((i % n) + 1) })
+        edges.push({ source: String(i), target: String(n + 1) })
+      }
+      break
+    }
+    case 'ladder': {
+      // 2×n：上排 1..n、下排 n+1..2n；横档 + 竖档
+      const n = clampInt(params.n, DEFAULT_PARAMS.n, 2, 32)
+      labels.push(...numberLabels(2 * n))
+      for (let i = 1; i < n; i++) {
+        edges.push({ source: String(i), target: String(i + 1) })
+        edges.push({ source: String(n + i), target: String(n + i + 1) })
+      }
+      for (let i = 1; i <= n; i++) edges.push({ source: String(i), target: String(n + i) })
+      break
+    }
+    case 'prism': {
+      // 上下两个 n-环 + 辐条（梯子图的环形版）：2n 点、3n 边、每点度 3
+      const n = clampInt(params.n, DEFAULT_PARAMS.n, 3, 32)
+      labels.push(...numberLabels(2 * n))
+      for (let i = 1; i <= n; i++) {
+        edges.push({ source: String(i), target: String((i % n) + 1) })
+        edges.push({ source: String(n + i), target: String(n + (i % n) + 1) })
+        edges.push({ source: String(i), target: String(n + i) })
+      }
+      break
+    }
+    case 'windmill': {
+      // 中心 1 + n 个共享中心的三角形：2n+1 点、3n 边
+      const n = clampInt(params.n, DEFAULT_PARAMS.n, 2, 32)
+      labels.push(...numberLabels(2 * n + 1))
+      for (let i = 1; i <= n; i++) {
+        const a = String(2 * i)
+        const b = String(2 * i + 1)
+        edges.push({ source: '1', target: a })
+        edges.push({ source: '1', target: b })
+        edges.push({ source: a, target: b })
+      }
+      break
+    }
+    case 'octahedron': {
+      // 八面体 = K_{2,2,2}：顶 1、底 2、腰环 3-4-5-6；6 点 12 边、每点度 4
+      labels.push(...numberLabels(6))
+      for (const waist of ['3', '4', '5', '6']) {
+        edges.push({ source: '1', target: waist })
+        edges.push({ source: '2', target: waist })
+      }
+      for (let i = 3; i <= 6; i++) {
+        edges.push({ source: String(i), target: String(i === 6 ? 3 : i + 1) })
       }
       break
     }
