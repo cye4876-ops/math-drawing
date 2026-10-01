@@ -151,6 +151,57 @@ describe('tools/tangent: 切线', () => {
     expect(handled).toBe(false)
     expect(readoutOf(f).rows).toHaveLength(0)
   })
+
+  it('输入 x 坐标直接定位切点（支持 pi 等常量表达式）', () => {
+    const f = createFixture([createTangentTool()])
+    f.store.addCurve({ kind: 'explicit', expr: 'sin(x)' })
+    f.registry.activate('tangent')
+    const tool = f.registry.getActive()!
+
+    const controls = tool.getControls!(f.ctx)
+    expect(controls[0]).toMatchObject({ kind: 'text', id: 'x' })
+
+    tool.onControl!('x', 'pi/2', f.ctx)
+    const rows = readoutOf(f).rows
+    expect(rows[1]!.value).toBe('(1.5708, 1)') // 切点 (π/2, sin(π/2))
+    expect(Number(rows[2]!.value)).toBeCloseTo(0, 4) // k = cos(π/2) = 0
+    expect(rows[3]!.value).toContain('+ 1') // 切线方程 y ≈ 1
+
+    // 非法输入：提示错误且保留上次有效切点
+    tool.onControl!('x', 'abc', f.ctx)
+    const readout = readoutOf(f)
+    expect(readout.note).toContain('无法解析')
+    expect(readout.rows[1]!.value).toContain('1.5708')
+  })
+
+  it('输入坐标但无曲线 / 点不在定义域时给出提示', () => {
+    const empty = createFixture([createTangentTool()])
+    empty.registry.activate('tangent')
+    empty.registry.getActive()!.onControl!('x', '1', empty.ctx)
+    expect(readoutOf(empty).note).toContain('没有可用的显函数曲线')
+
+    const f = createFixture([createTangentTool()])
+    f.store.addCurve({ kind: 'explicit', expr: 'log(x)' })
+    f.registry.activate('tangent')
+    const tool = f.registry.getActive()!
+    tool.onControl!('x', '-1', f.ctx)
+    expect(readoutOf(f).note).toContain('不在定义域')
+  })
+
+  it('对数坐标下切线仍绘制（越过 y≤0 的部分自动断开）', () => {
+    const f = createFixture([createTangentTool()])
+    f.store.addCurve({ kind: 'explicit', expr: 'log(x)' })
+    f.store.setView({ ...f.store.getView(), coordType: 'log' }) // 归一化后 center=(1,1)
+    f.registry.activate('tangent')
+    const tool = f.registry.getActive()!
+
+    tool.onControl!('x', '2', f.ctx) // 切点 (2, ln2)，y>0 在 log 下可投影
+    const canvas = mockCanvas()
+    tool.drawOverlay!(canvas, f.ctx)
+    expect(canvas.ops).toContain('moveTo')
+    expect(canvas.ops).toContain('lineTo') // 切线本体（y≤0 段断开，y>0 段绘制）
+    expect(canvas.ops).toContain('arc') // 切点标记
+  })
 })
 
 describe('tools/roots: 零点', () => {
@@ -322,5 +373,29 @@ describe('tools/taylor: 泰勒展开', () => {
     tool.drawOverlay!(canvas, f.ctx)
     expect(canvas.ops).toContain('fillText')
     expect(canvas.ops).toContain('stroke')
+  })
+
+  it('输入 x 坐标设置展开点（无需点击画布）', () => {
+    const f = createFixture([createTaylorTool()])
+    f.store.addCurve({ kind: 'explicit', expr: 'sin(x)' })
+    f.registry.activate('taylor')
+    const tool = f.registry.getActive()!
+
+    const controls = tool.getControls!(f.ctx)
+    expect(controls[0]).toMatchObject({ kind: 'text', id: 'x0', value: '' })
+
+    tool.onControl!('x0', '1', f.ctx)
+    let rows = readoutOf(f).rows
+    expect(rows[1]!.value).toBe('1') // 展开点
+    expect(rows[3]!.value).toContain('0.540302') // cos(1)
+    expect(rows[3]!.value).toContain('(x−1)')
+    // 输入回显
+    expect(tool.getControls!(f.ctx)[0]).toMatchObject({ value: '1' })
+
+    // 非法输入：提示且保留上次展开点
+    tool.onControl!('x0', '??', f.ctx)
+    expect(readoutOf(f).note).toContain('无法解析')
+    rows = readoutOf(f).rows
+    expect(rows[1]!.value).toBe('1')
   })
 })

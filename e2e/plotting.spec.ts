@@ -270,3 +270,49 @@ test.describe('v0.3 曲线绘制', () => {
     expect(result!.tenMs).toBeLessThan(33)
   })
 })
+
+test.describe('v0.4 坐标与输入增强', () => {
+  test('对数坐标：切换后中心归一化为 (1,1)、状态栏单位正确', async ({ page }) => {
+    await page.goto('/?curves=log(x)')
+    await page.getByLabel('坐标').selectOption('log')
+    await expect(page.getByTestId('scale-readout')).toContainText('px/十倍程')
+
+    // 回归：切换后视图中心必须在合理的量级（曾因 center=0 → log10(0) 跑到 1e-300）
+    const box = await page.getByTestId('stage-canvas').boundingBox()
+    expect(box).not.toBeNull()
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+    await expect
+      .poll(async () => {
+        const text = await page.getByTestId('cursor-pos').textContent()
+        const match = text?.match(/\(([^,]+),\s*([^)]+)\)/)
+        return match ? [Number(match[1]), Number(match[2])] : null
+      })
+      .toEqual([1, 1])
+
+    // 切回直角：居中值保持（1,1），单位文案恢复
+    await page.getByLabel('坐标').selectOption('rect')
+    await expect(page.getByTestId('scale-readout')).toContainText('px/单位')
+  })
+
+  test('曲线输入快捷函数按钮：点击 sin() 插入后直接输入参数', async ({ page }) => {
+    await page.goto('/')
+    const input = page.getByTestId('curve-expr-input')
+    await input.click()
+
+    await page.getByTestId('fn-chip-sin').click()
+    await expect(input).toHaveValue('sin()')
+    // 光标应位于括号内：直接键入 x 即得 sin(x)
+    await page.keyboard.type('x')
+    await expect(input).toHaveValue('sin(x)')
+
+    await input.press('Enter')
+    await expect(page.getByTestId('curve-item')).toHaveCount(1)
+
+    // 清空后连续插入：^2 与 π 片段
+    await input.fill('')
+    await page.getByTestId('fn-chip-pow2').click()
+    await page.keyboard.type('x')
+    await page.getByTestId('fn-chip-pi').click()
+    await expect(input).toHaveValue('^2xpi')
+  })
+})

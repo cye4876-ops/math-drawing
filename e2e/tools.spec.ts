@@ -5,6 +5,24 @@ async function readoutValues(page: Page): Promise<string[]> {
   return page.getByTestId('tool-readout-value').allTextContents()
 }
 
+/** 统计画布上切线的青绿色（#0d9488 = rgb(13,148,136)）像素数 */
+async function countTealPixels(page: Page): Promise<number> {
+  return page.getByTestId('stage-canvas').evaluate((el) => {
+    const canvas = el as HTMLCanvasElement
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return -1
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+    let count = 0
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i] ?? 0
+      const g = data[i + 1] ?? 0
+      const b = data[i + 2] ?? 0
+      if (Math.abs(r - 13) < 40 && Math.abs(g - 148) < 50 && Math.abs(b - 136) < 50) count++
+    }
+    return count
+  })
+}
+
 /** 激活工具并等待读数面板出现 */
 async function activateTool(page: Page, tool: string): Promise<void> {
   await page.getByTestId(`tool-${tool}`).click()
@@ -200,5 +218,56 @@ test.describe('v0.4 交互分析工具', () => {
     await activateTool(page, 'roots')
     await expect(page.getByTestId('tool-readout-title')).toContainText('共 6 个')
     expect(errors).toEqual([])
+  })
+
+  test('切线：输入 x 坐标直接生成切线（支持 pi 常量表达式）', async ({ page }) => {
+    await page.goto('/?curves=sin(x)')
+    await activateTool(page, 'tangent')
+
+    const input = page.getByTestId('tool-control-x')
+    await input.fill('pi/2')
+    await input.press('Enter')
+
+    const values = await readoutValues(page)
+    // [曲线, 切点, 斜率 k, 切线方程]
+    expect(values[0]).toBe('sin(x)')
+    expect(values[1]).toBe('(1.5708, 1)')
+    expect(Number(values[2])).toBeCloseTo(0, 4) // cos(π/2) ≈ 0
+    expect(values[3]).toContain('y = ')
+
+    // 非法输入：面板提示且保留上次切点
+    await input.fill('abc')
+    await input.press('Enter')
+    await expect(page.getByTestId('tools-readout')).toContainText('无法解析')
+  })
+
+  test('泰勒：输入展开点坐标直接生成展开式', async ({ page }) => {
+    await page.goto('/?curves=sin(x)')
+    await activateTool(page, 'taylor')
+
+    const input = page.getByTestId('tool-control-x0')
+    await input.fill('1')
+    await input.press('Enter')
+
+    const values = await readoutValues(page)
+    // [曲线, 展开点, 阶数, 展开式, 最大偏差]
+    expect(values[1]).toBe('1')
+    expect(values[3]).toContain('0.540302') // cos(1)
+    expect(values[3]).toContain('(x−1)')
+  })
+
+  test('对数坐标下切线正常绘制（回归：越过 y≤0 断开而非整条消失）', async ({ page }) => {
+    await page.goto('/?curves=log(x)')
+    await page.getByLabel('坐标').selectOption('log')
+    await activateTool(page, 'tangent')
+
+    const input = page.getByTestId('tool-control-x')
+    await input.fill('2')
+    await input.press('Enter')
+    const values = await readoutValues(page)
+    expect(values[1]).toContain('(2,')
+
+    // 画布上应出现切线颜色像素（修复前 log 模式下整条不绘制）
+    await expect.poll(() => countTealPixels(page)).toBeGreaterThan(100)
   })
 })

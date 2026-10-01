@@ -2,8 +2,8 @@
  * 泰勒展开工具（v0.4）：展开点可点击/拖动，逐项叠加动画（n = 1,3,5,…,15），实时显示展开式。
  * 系数来自 v0.2 符号求导：c_k = f⁽ᵏ⁾(x₀)/k!。公式为纯文本（KaTeX 排版在 v0.6）。
  */
-import { createProjector } from '../core/transform'
-import { formatNum, getFs, type ExplicitCurveFs } from './helpers'
+import { createProjector, unitRangeSamples } from '../core/transform'
+import { formatNum, getFs, parseCoordinate, type ExplicitCurveFs } from './helpers'
 import { getDerivativeFn } from './curve-access'
 import type { Tool } from './tool-registry'
 
@@ -21,6 +21,10 @@ export function createTaylorTool(): Tool {
   let order = 1
   let playing = false
   let lastStep = 0
+  /** 坐标输入框内容（最近一次有效输入或点击位置） */
+  let inputText = ''
+  /** 输入错误提示，空串表示正常 */
+  let errorText = ''
   const cache = new Map<string, CoeffSet | null>()
 
   const coeffsFor = (fs: ExplicitCurveFs, point: number): CoeffSet | null => {
@@ -77,11 +81,14 @@ export function createTaylorTool(): Tool {
     activate(ctx) {
       playing = false
       lastStep = 0
+      errorText = ''
       ctx.notify()
     },
 
     deactivate() {
       playing = false
+      inputText = ''
+      errorText = ''
     },
 
     isAnimating() {
@@ -90,6 +97,8 @@ export function createTaylorTool(): Tool {
 
     onPointerDown(e, ctx) {
       x0 = e.math.x
+      inputText = formatNum(x0)
+      errorText = ''
       playing = false
       ctx.notify()
       ctx.requestRender()
@@ -99,6 +108,13 @@ export function createTaylorTool(): Tool {
     getControls(ctx) {
       void ctx
       return [
+        {
+          kind: 'text' as const,
+          id: 'x0',
+          label: '展开点 x₀',
+          value: inputText,
+          placeholder: '输入 x 坐标，如 0、pi/2',
+        },
         {
           kind: 'slider',
           id: 'order',
@@ -126,7 +142,17 @@ export function createTaylorTool(): Tool {
     },
 
     onControl(id, value, ctx) {
-      if (id === 'order' && typeof value === 'number') {
+      if (id === 'x0' && typeof value === 'string') {
+        inputText = value
+        const parsed = parseCoordinate(value)
+        if (parsed === null) {
+          errorText = '坐标无法解析：支持数字与常量表达式（如 1.5、pi/2）'
+        } else {
+          x0 = parsed
+          errorText = ''
+          playing = false
+        }
+      } else if (id === 'order' && typeof value === 'number') {
         order = Math.min(MAX_ORDER, Math.max(1, Math.round(value)))
         playing = false
       } else if (id === 'toggle') {
@@ -175,8 +201,7 @@ export function createTaylorTool(): Tool {
       const size = ctx.getSize()
       const projector = createProjector(view, size)
 
-      // 近似曲线
-      const steps = 320
+      // 近似曲线（对数坐标下按十倍程均匀采样，与屏幕空间一致）
       const xLeft = projector.screenToMathX(0)
       const xRight = projector.screenToMathX(size.width)
       c.save()
@@ -185,8 +210,7 @@ export function createTaylorTool(): Tool {
       c.setLineDash([7, 4])
       c.beginPath()
       let started = false
-      for (let i = 0; i <= steps; i++) {
-        const x = xLeft + ((xRight - xLeft) * i) / steps
+      for (const x of unitRangeSamples(view, xLeft, xRight, 320)) {
         const y = polyAt(set, n, x)
         if (!Number.isFinite(y)) {
           started = false
@@ -251,7 +275,7 @@ export function createTaylorTool(): Tool {
           { label: '展开式', value: formulaText(set, n) },
           { label: '可视范围最大偏差', value: formatNum(maxDeviation, 3) },
         ],
-        note: '点击画布移动展开点。公式为纯文本（KaTeX 排版在 v0.6）。',
+        note: errorText || '点击画布或输入 x 坐标移动展开点。公式为纯文本（KaTeX 排版在 v0.6）。',
       }
     },
   }

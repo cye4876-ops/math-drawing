@@ -49,6 +49,21 @@
           />
           <span class="value">{control.valueText}</span>
         </label>
+      {:else if control.kind === 'text'}
+        <label class="control text">
+          <span class="label">{control.label}</span>
+          <input
+            type="text"
+            data-testid={`tool-control-${control.id}`}
+            value={control.value}
+            placeholder={control.placeholder ?? ''}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur()
+            }}
+            onchange={(e) =>
+              registry.onControl(control.id, (e.currentTarget as HTMLInputElement).value)}
+          />
+        </label>
       {:else if control.kind === 'buttons'}
         <div class="control buttons">
           <span class="label">{control.label}</span>
@@ -140,6 +155,29 @@
 
   .slider input {
     flex: 1;
+  }
+
+  .text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .text input {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    font-size: 12px;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .text input:focus {
+    outline: none;
+    border-color: var(--accent);
   }
 
   .buttons .button-row,

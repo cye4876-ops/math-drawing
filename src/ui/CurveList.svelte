@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte'
   import type { AppStore } from '../state/store'
   import type { AppState, Curve, CurveKind, LineStyle } from '../state/types'
   import { parse } from '../expr'
@@ -70,6 +71,38 @@
     draftExpr = ''
   }
 
+  /** 常用函数快捷插入：在光标处插入片段；inside=true 时光标置于括号内 */
+  const FN_SNIPPETS: { key: string; label: string; text: string; inside: boolean }[] = [
+    { key: 'sin', label: 'sin()', text: 'sin()', inside: true },
+    { key: 'cos', label: 'cos()', text: 'cos()', inside: true },
+    { key: 'tan', label: 'tan()', text: 'tan()', inside: true },
+    { key: 'ln', label: 'ln()', text: 'ln()', inside: true },
+    { key: 'exp', label: 'exp()', text: 'exp()', inside: true },
+    { key: 'sqrt', label: '√', text: 'sqrt()', inside: true },
+    { key: 'abs', label: '|x|', text: 'abs()', inside: true },
+    { key: 'pow2', label: 'x²', text: '^2', inside: false },
+    { key: 'pi', label: 'π', text: 'pi', inside: false },
+  ]
+
+  let exprInput: HTMLInputElement | null = $state(null)
+  let expr2Input: HTMLInputElement | null = $state(null)
+
+  async function insertSnippet(text: string, inside: boolean): Promise<void> {
+    const target = document.activeElement === expr2Input ? expr2Input : exprInput
+    if (!target) return
+    const isSecond = target === expr2Input
+    const value = isSecond ? draftExpr2 : draftExpr
+    const start = target.selectionStart ?? value.length
+    const end = target.selectionEnd ?? start
+    const next = value.slice(0, start) + text + value.slice(end)
+    if (isSecond) draftExpr2 = next
+    else draftExpr = next
+    await tick()
+    target.focus()
+    const caret = start + (inside ? text.length - 1 : text.length)
+    target.setSelectionRange(caret, caret)
+  }
+
   function update(id: string, patch: Partial<Omit<Curve, 'id' | 'type'>>): void {
     store.updateCurve(id, patch)
   }
@@ -94,6 +127,7 @@
     <input
       data-testid="curve-expr-input"
       type="text"
+      bind:this={exprInput}
       placeholder={draftKind === 'implicit'
         ? '如 x^2 + y^2 - 4'
         : draftKind === 'polar'
@@ -110,6 +144,7 @@
       <input
         data-testid="curve-expr2-input"
         type="text"
+        bind:this={expr2Input}
         placeholder="y(t)，如 sin(t)"
         bind:value={draftExpr2}
         onkeydown={(e) => {
@@ -117,6 +152,18 @@
         }}
       />
     {/if}
+    <div class="fn-chips" role="group" aria-label="常用函数快捷插入">
+      {#each FN_SNIPPETS as snippet (snippet.key)}
+        <button
+          type="button"
+          class="fn-chip"
+          data-testid={`fn-chip-${snippet.key}`}
+          title={`插入 ${snippet.text}`}
+          onmousedown={(e) => e.preventDefault()}
+          onclick={() => void insertSnippet(snippet.text, snippet.inside)}>{snippet.label}</button
+        >
+      {/each}
+    </div>
     <button type="button" data-testid="curve-add" onclick={addCurve}>添加曲线</button>
   </div>
 
@@ -306,6 +353,25 @@
   .add-form button:hover {
     border-color: var(--accent);
     color: var(--accent);
+  }
+
+  .fn-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 2px;
+  }
+
+  .fn-chips button {
+    padding: 1px 7px;
+    font-size: 12px;
+    border-radius: 10px;
+    color: var(--text-dim);
+  }
+
+  .fn-chips button:hover {
+    color: var(--accent);
+    border-color: var(--accent);
   }
 
   .curve-items {

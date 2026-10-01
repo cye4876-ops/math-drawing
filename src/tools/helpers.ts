@@ -24,6 +24,22 @@ export interface CurveHit extends NearestPoint {
   curve: Curve
 }
 
+/**
+ * 解析坐标输入（工具面板的文本控件）：支持数字、常量与算术表达式的**无变量**求值，
+ * 如 `1`、`1.5`、`pi/2`、`2*pi`、`e^2`。非法或非有限值返回 null。
+ */
+export function parseCoordinate(text: string): number | null {
+  const trimmed = text.trim()
+  if (!trimmed) return null
+  try {
+    const compiled = compile(parse(trimmed))
+    const value = compiled({})
+    return Number.isFinite(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
 /** 在全部可见曲线上找离屏幕点最近的吸附点 */
 export function nearestCurveHit(
   ctx: ToolContext,

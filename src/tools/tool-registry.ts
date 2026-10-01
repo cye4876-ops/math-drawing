@@ -60,6 +60,13 @@ export type ToolControl =
       value: string
     }
   | {
+      kind: 'text'
+      id: string
+      label: string
+      value: string
+      placeholder?: string
+    }
+  | {
       kind: 'actions'
       id: string
       buttons: { id: string; label: string; disabled: boolean }[]
