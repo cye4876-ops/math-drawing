@@ -1,5 +1,11 @@
 import type { Point2 } from '../../state/types'
-import { MAX_EVALUATIONS, MIN_CHORD_PX, type SampleTuning, type SampledPolyline } from './types'
+import {
+  MAX_EVALUATIONS,
+  MIN_CHORD_PX,
+  type SamplePoint,
+  type SampleTuning,
+  type SampledPolyline,
+} from './types'
 
 /**
  * 参数方程 (x(t), y(t)) 的自适应采样。
@@ -42,8 +48,8 @@ export function sampleParametric(
 ): SampledPolyline {
   const { tMin, tMax, project, tolerancePx, maxDepth } = options
 
-  const segments: Point2[][] = []
-  let current: Point2[] | null = null
+  const segments: SamplePoint[][] = []
+  let current: SamplePoint[] | null = null
   let evaluations = 0
   let budgetExceeded = false
 
@@ -69,7 +75,7 @@ export function sampleParametric(
     }
     const last = current[current.length - 1]
     if (last && last.x === node.x && last.y === node.y) return
-    current.push({ x: node.x, y: node.y })
+    current.push({ x: node.x, y: node.y, t: node.t })
   }
 
   const breakSegment = (): void => {

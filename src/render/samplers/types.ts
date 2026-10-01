@@ -1,9 +1,14 @@
 import type { Point2 } from '../../state/types'
 
+/** 采样点：数学坐标 + 来源参数（显函数 t=x；参数方程 t=t；极坐标 t=θ；隐函数无 t） */
+export interface SamplePoint extends Point2 {
+  t?: number
+}
+
 /** 采样输出：数学坐标下的折线段（段与段之间断开，不跨段连线） */
 export interface SampledPolyline {
   /** 每段是一条连续可画的折线（数学坐标，按参数/横坐标递增） */
-  segments: Point2[][]
+  segments: SamplePoint[][]
   /** 检测到的垂直渐近线位置（数学 x，用于虚线标注） */
   asymptoteXs: number[]
   /** 函数求值次数（性能观察与测试用） */

@@ -1,10 +1,10 @@
-import type { Point2 } from '../../state/types'
 import {
   JUMP_GAP_FACTOR,
   MAG_FACTOR,
   MAX_EVALUATIONS,
   MIN_CHORD_PX,
   SEED_SPACING_PX,
+  type SamplePoint,
   type SampleTuning,
   type SampledPolyline,
 } from './types'
@@ -47,9 +47,9 @@ export function sampleExplicit(
   const { xMin, xMax, widthPx, heightPx, screenX, screenY, screenToMathX, tolerancePx, maxDepth } =
     options
 
-  const segments: Point2[][] = []
+  const segments: SamplePoint[][] = []
   const asymptoteXs: number[] = []
-  let current: Point2[] | null = null
+  let current: SamplePoint[] | null = null
   let evaluations = 0
   let budgetExceeded = false
 
@@ -72,7 +72,7 @@ export function sampleExplicit(
     }
     const last = current[current.length - 1]
     if (last && last.x === x && last.y === y) return
-    current.push({ x, y })
+    current.push({ x, y, t: x })
   }
 
   const breakSegment = (): void => {

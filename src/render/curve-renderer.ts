@@ -151,6 +151,15 @@ function sampleCurve(curve: Curve, view: ViewTransform, size: Size): SampledPoly
   return polyline
 }
 
+/** 供工具层使用：带缓存的曲线采样折线（v0.4 追踪/切线/积分等） */
+export function getCurveSample(
+  curve: Curve,
+  view: ViewTransform,
+  size: Size,
+): SampledPolyline | null {
+  return sampleCurve(curve, view, size)
+}
+
 /** 绘制单条曲线（折线段 + 渐近线虚线） */
 function strokeCurve(
   ctx: CanvasRenderingContext2D,
