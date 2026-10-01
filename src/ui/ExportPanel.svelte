@@ -11,6 +11,7 @@
   import type { RiemannMode } from '../math/numeric/riemann'
   import { buildShareUrl, SHARE_LENGTH_WARN } from '../export/url-state'
   import { downloadBlob, downloadText, timestampName } from '../export/download'
+  import { getPluginExporters, getRegistryRevision } from '../plugin/registry.svelte'
   import type { ExportRange } from '../export/frame'
   import type { AppStore } from '../state/store'
   import type { Curve, GraphObject } from '../state/types'
@@ -22,7 +23,7 @@
     onClose,
   }: {
     store: AppStore
-    mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced'
+    mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook'
     getStageSize: () => { width: number; height: number }
     onClose: () => void
   } = $props()
@@ -30,6 +31,38 @@
   let tab = $state<'png' | 'svg' | 'tikz' | 'animation' | 'share'>('png')
   let status = $state('')
   let busy = $state(false)
+
+  // ---------- 插件导出器（v1.0） ----------
+  let pluginExporterId = $state('')
+  let pluginExportMessage = $state('')
+
+  // 插件导出器列表随注册表修订刷新
+  const pluginExporterList = $derived.by(() => {
+    getRegistryRevision()
+    return getPluginExporters()
+  })
+
+  function runPluginExporter(): void {
+    pluginExportMessage = ''
+    const exporters = getPluginExporters()
+    const exporter = exporters.find((item) => item.id === pluginExporterId) ?? exporters[0]
+    if (!exporter) return
+    try {
+      const result = exporter.export({
+        doc: store.getDoc(),
+        view: store.getView(),
+        size: getStageSize(),
+      })
+      if (!result) {
+        pluginExportMessage = '该导出器不支持当前内容'
+        return
+      }
+      downloadBlob(result.blob, result.filename)
+      pluginExportMessage = `已导出 ${result.filename}`
+    } catch (error) {
+      pluginExportMessage = `导出失败：${(error as Error).message}`
+    }
+  }
 
   // 共用：范围
   let rangeKind = $state<ExportRange['kind']>('view')
@@ -504,6 +537,25 @@
   {#if status !== ''}
     <div class="status" data-testid="export-status">{status}</div>
   {/if}
+
+  {#if pluginExporterList.length > 0}
+    <div class="plugin-export">
+      <div class="dim-label">插件导出器</div>
+      <div class="row">
+        <select data-testid="plugin-exporter-select" bind:value={pluginExporterId}>
+          {#each pluginExporterList as exporter (exporter.id)}
+            <option value={exporter.id}>{exporter.label}</option>
+          {/each}
+        </select>
+        <button type="button" data-testid="plugin-exporter-run" onclick={runPluginExporter}
+          >导出</button
+        >
+      </div>
+      {#if pluginExportMessage}
+        <div class="status" data-testid="plugin-exporter-status">{pluginExportMessage}</div>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -522,6 +574,14 @@
     background: var(--panel);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     font-size: 13px;
+  }
+
+  .plugin-export {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-top: 1px dashed var(--border);
+    padding-top: 8px;
   }
 
   .panel-head {

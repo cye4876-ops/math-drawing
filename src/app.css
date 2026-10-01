@@ -122,3 +122,44 @@ body {
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
+
+/* 演示模式（v1.0）：全屏投影——隐藏编辑 UI、放大字号 */
+body.presentation-mode .side-column {
+  display: none;
+}
+
+body.presentation-mode .stage {
+  font-size: 18px;
+}
+
+body.presentation-mode .toolbar {
+  opacity: 0.85;
+}
+
+body.presentation-mode .status-bar {
+  font-size: 15px;
+}
+
+body.presentation-mode .notebook-view {
+  font-size: 17px;
+}
+
+/* 演示模式下侧栏被隐藏：浮动退出按钮（全屏被拒/AutoFullscreen 场景的兜底出口） */
+.presentation-exit {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  z-index: 1000;
+  padding: 6px 14px;
+  border: 1px solid rgba(37, 99, 235, 0.5);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2563eb;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(20, 30, 50, 0.18);
+}
+
+.presentation-exit:hover {
+  background: #ffffff;
+}

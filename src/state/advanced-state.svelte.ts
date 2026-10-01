@@ -5,14 +5,8 @@
 import type { ColormapName } from '../render3d/colormaps'
 import type { ModularMode } from '../numbertheory/modular'
 import { LifeSim, LIFE_PATTERNS } from '../cellular/life'
-import { parse, type Expr } from '../expr'
-import { astToPoly, polyToAst } from '../symbolic/poly'
-import { simplify } from '../symbolic/simplify'
-import { solveEquation, formatReal } from '../symbolic/solve'
-import { integrate } from '../symbolic/integrate'
-import { limit, type Approach } from '../symbolic/limit'
-import { toLatex } from '../symbolic/latex'
-import { formatSolutionSet, solveInequality, type Interval } from '../symbolic/inequality'
+import { runSymbolicOperation as runSymbolic, type SymbolicOperation } from '../symbolic/run'
+import type { Interval } from '../symbolic/inequality'
 
 export type AdvancedModule = 'complex' | 'numbertheory' | 'automata' | 'symbolic'
 export type ComplexViewMode = 'domain' | 'mobius' | 'branch' | 'contour'
@@ -20,8 +14,7 @@ export type NumberViz = 'ulam' | 'sacks' | 'modular' | 'collatz' | 'primes'
 export type AutomataViz = 'life' | 'mandelbrot' | 'julia'
 export type ComplexColormap = 'standard' | 'highcontrast'
 export type BranchKind = 'sqrt' | 'log'
-export type SymbolicOp =
-  'simplify' | 'expand' | 'solve' | 'integrate' | 'limit' | 'latex' | 'inequality'
+export type SymbolicOp = SymbolicOperation
 
 export interface SymbolicOutput {
   title: string
@@ -398,108 +391,8 @@ export function getSymbolicOutput(): SymbolicOutput | null {
   return symbolicOutput
 }
 
-/** 执行符号操作并把结果写入输出（面板按钮触发） */
+/** 执行符号操作并把结果写入输出（面板按钮触发；计算委托 symbolic/run 共享入口） */
 export function runSymbolicOperation(op: SymbolicOp): void {
-  const input = symbolicInput.trim()
-  const output: SymbolicOutput = { title: '', ok: true, latex: [], text: [] }
-  try {
-    if (input === '') throw new Error('请输入表达式')
-    const expr: Expr = parse(input)
-    switch (op) {
-      case 'simplify': {
-        const result = simplify(expr)
-        output.title = '化简'
-        output.latex = [toLatex(result)]
-        break
-      }
-      case 'expand': {
-        const poly = astToPoly(expr, 'x')
-        if (!poly) throw new Error('当前仅支持关于 x 的多项式展开')
-        output.title = '展开'
-        output.latex = [toLatex(polyToAst(poly, 'x'))]
-        break
-      }
-      case 'solve': {
-        const result = solveEquation(input)
-        output.title = '解方程'
-        if (result.ok && result.solutions.length > 0) {
-          output.latex = result.solutions.map((item) => `x = ${item.text.replace(/-/g, '-')}`)
-        } else if (result.ok) {
-          output.text = [result.message ?? '无解']
-        } else {
-          output.ok = false
-          output.text = [result.message ?? '无法求解']
-        }
-        break
-      }
-      case 'integrate': {
-        const antiderivative = integrate(expr)
-        if (!antiderivative)
-          throw new Error('该函数在当前规则集内无法积分（暂不支持 Risch 完整算法）')
-        output.title = '不定积分'
-        output.latex = [`\\int ${toLatex(expr)}\\,dx = ${toLatex(antiderivative)} + C`]
-        break
-      }
-      case 'limit': {
-        const pointText = symbolicLimitPoint.trim()
-        let approach: Approach
-        if (pointText === 'inf' || pointText === '+inf') approach = 'inf'
-        else if (pointText === '-inf') approach = '-inf'
-        else {
-          const value = Number(pointText)
-          if (!Number.isFinite(value)) throw new Error('极限点无效（输入数字或 inf / -inf）')
-          approach = value
-        }
-        const result = limit(expr, 'x', approach)
-        output.title = '极限'
-        if (result.ok) {
-          const target =
-            typeof approach === 'number'
-              ? formatReal(approach)
-              : approach === 'inf'
-                ? '+\\infty'
-                : '-\\infty'
-          const valueText =
-            result.infinite !== 0
-              ? result.infinite > 0
-                ? '+\\infty'
-                : '-\\infty'
-              : result.value !== null
-                ? formatReal(result.value)
-                : '?'
-          output.latex = [`\\lim_{x \\to ${target}} ${toLatex(expr)} = ${valueText}`]
-          if (result.method === 'numeric') output.text = ['数值近似结果']
-        } else {
-          output.ok = false
-          output.text = [result.message ?? '无法判定极限']
-        }
-        break
-      }
-      case 'latex': {
-        output.title = 'LaTeX 源码'
-        const latex = toLatex(expr)
-        output.text = [latex]
-        output.latex = [latex]
-        break
-      }
-      case 'inequality': {
-        const result = solveInequality(input)
-        output.title = '不等式解集'
-        if (!result.ok) {
-          output.ok = false
-          output.text = [result.message ?? '无法求解']
-        } else {
-          output.text = [formatSolutionSet(result.intervals)]
-          output.intervals = result.intervals
-        }
-        break
-      }
-    }
-  } catch (error) {
-    output.ok = false
-    output.title = output.title || '错误'
-    output.text = [(error as Error).message]
-  }
-  symbolicOutput = output
+  symbolicOutput = runSymbolic(symbolicInput, op, symbolicLimitPoint)
   bump()
 }

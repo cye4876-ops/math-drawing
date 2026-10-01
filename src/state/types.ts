@@ -200,7 +200,24 @@ export interface Ode2D {
 
 export type SpaceObject = Surface3D | Curve3D | Field3D | Ode2D
 
-export type SceneObject = MarkerPoint | Curve | GraphObject | Dataset | SpaceObject
+/**
+ * 插件场景对象（v1.0）：type 固定 'plugin'，渲染/命中由插件注册的 ElementRenderer 提供；
+ * data 为插件自有结构（序列化原样保留）。
+ */
+export interface PluginSceneObject {
+  id: string
+  type: 'plugin'
+  /** 插件元素类型（渲染器注册名） */
+  pluginType: string
+  /** 显示名（列表/图例用） */
+  name: string
+  /** 插件自有数据（渲染器自行解释） */
+  data: unknown
+  visible: boolean
+}
+
+export type SceneObject =
+  MarkerPoint | Curve | GraphObject | Dataset | SpaceObject | PluginSceneObject
 
 /** 文档状态：进入撤销历史的部分 */
 export interface DocState {

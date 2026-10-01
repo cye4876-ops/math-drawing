@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ExprSyntaxError } from './errors'
+import { FUNCTIONS } from './functions'
 import { tokenize, type Token } from './lexer'
 
 function summarize(source: string): [string, string][] {
@@ -100,6 +101,52 @@ describe('lexer: 标识符与已知词', () => {
     expect(summarize('log2x')).toEqual([
       ['identifier', 'log2'],
       ['identifier', 'x'],
+      ['eof', ''],
+    ])
+  })
+
+  it('完整词优先：运行时注册的函数名整体识别（logistic 不被 log 前缀吞掉）', () => {
+    const backup = FUNCTIONS['logistic']
+    FUNCTIONS['logistic'] = {
+      name: 'logistic',
+      minArgs: 1,
+      maxArgs: 1,
+      signature: 'logistic(x)',
+      differentiable: true,
+      fn: (x) => 1 / (1 + Math.exp(-x)),
+    }
+    try {
+      expect(summarize('logistic(x)')).toEqual([
+        ['identifier', 'logistic'],
+        ['lparen', '('],
+        ['identifier', 'x'],
+        ['rparen', ')'],
+        ['eof', ''],
+      ])
+      expect(summarize('2*logistic(0)')).toEqual([
+        ['number', '2'],
+        ['operator', '*'],
+        ['identifier', 'logistic'],
+        ['lparen', '('],
+        ['number', '0'],
+        ['rparen', ')'],
+        ['eof', ''],
+      ])
+    } finally {
+      if (backup === undefined) delete FUNCTIONS['logistic']
+      else FUNCTIONS['logistic'] = backup
+    }
+  })
+
+  it('未注册的形似词回退原有行为：logistic2 → log + i + s + t + i + c + 2', () => {
+    expect(summarize('logistic2')).toEqual([
+      ['identifier', 'log'],
+      ['identifier', 'i'],
+      ['identifier', 's'],
+      ['identifier', 't'],
+      ['identifier', 'i'],
+      ['identifier', 'c'],
+      ['number', '2'],
       ['eof', ''],
     ])
   })

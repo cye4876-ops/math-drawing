@@ -74,4 +74,16 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // PWA 分包（v1.0）：three / katex 独立 chunk（均由懒加载视图按需拉取，首屏不含）
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('node_modules/three')) return 'three'
+          if (id.includes('node_modules/katex')) return 'katex'
+          return undefined
+        },
+      },
+    },
+  },
 })

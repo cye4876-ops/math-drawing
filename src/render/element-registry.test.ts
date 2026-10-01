@@ -51,6 +51,25 @@ describe('render/element-registry: 注册与分发', () => {
     expect(registry.has('marker')).toBe(false)
   })
 
+  it('插件元素（type=plugin）按 pluginType 二级分发（注册键为插件类型名）', () => {
+    const log: string[] = []
+    const registry = new ElementRegistry().register(stubRenderer('polygon', log))
+
+    const objects = [
+      { id: 'p1', type: 'plugin', pluginType: 'polygon', data: {}, visible: true },
+      { id: 'p2', type: 'plugin', pluginType: 'unregistered', data: {}, visible: true },
+    ] as unknown as SceneObject[]
+
+    const ctx = {} as CanvasRenderingContext2D
+    registry.draw(ctx, objects, viewport)
+    expect(log).toEqual(['draw:p1'])
+
+    // 缺少 pluginType 的对象不抛出、不绘制
+    const broken = [{ id: 'p3', type: 'plugin' }] as unknown as SceneObject[]
+    expect(() => registry.draw(ctx, broken, viewport)).not.toThrow()
+    expect(log).toEqual(['draw:p1'])
+  })
+
   it('命中检测返回距离最近者', () => {
     const registry = new ElementRegistry()
       .register(stubRenderer('curve', [], () => ({ targetId: 'far', distancePx: 10 })))

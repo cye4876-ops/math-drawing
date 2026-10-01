@@ -38,6 +38,24 @@ export default defineConfig(
       },
     },
   },
+  {
+    // 示例插件：浏览器 ES 模块（document/Blob/...），与应用同环境运行
+    files: ['public/plugins/**/*.js', 'examples/plugins/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
+  {
+    // Service Worker：serviceworker 全局（self/caches/fetch/Response/...）
+    files: ['public/sw.js'],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
+      },
+    },
+  },
   svelte.configs.prettier,
   eslintConfigPrettier,
 )

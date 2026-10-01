@@ -87,7 +87,7 @@ describe('robustness: 性能基准（规格阈值）', () => {
   const strictPerf = process.env['EXPR_COVERAGE'] !== 'true' && !process.env['CI']
   const perfIt = strictPerf ? it : it.skip
 
-  it('单表达式解析 + 求值 < 0.1 ms（1000 次平均；3 轮取最优去调度噪声）', () => {
+  perfIt('单表达式解析 + 求值 < 0.1 ms（1000 次平均；3 轮取最优去调度噪声）', () => {
     const source = 'a*sin(b*x + c) + log(x, 2) - x^2/3'
     const scope: Scope = { a: 1.2, b: 2, c: 0.5, x: 0.7 }
 

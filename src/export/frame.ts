@@ -6,6 +6,7 @@ import { drawGrid } from '../render/grid-renderer'
 import { createSceneRenderer } from '../render/scene'
 import { mathToScreen } from '../core/transform'
 import type { SceneHighlight } from '../render/element-registry'
+import { getPluginElements } from '../plugin/registry.svelte'
 import type { DocState, SceneObject, Size, ViewTransform } from '../state/types'
 
 /** 导出范围：当前视窗 / 自动包含全部内容 / 指定数学区域 */
@@ -17,15 +18,26 @@ export type ExportRange =
 /** 导出层共用的场景渲染器（曲线采样缓存在模块级，跨帧复用） */
 const exportScene = createSceneRenderer()
 
+/** 已同步到导出场景的插件元素数量（幂等重注册） */
+let syncedPluginElements = 0
+
+/** 把插件注册的元素渲染器同步进导出场景（插件晚于模块初始化加载） */
+function syncPluginElements(): void {
+  const elements = getPluginElements()
+  if (elements.length === syncedPluginElements) return
+  for (const renderer of elements) exportScene.registry.register(renderer)
+  syncedPluginElements = elements.length
+}
+
 /** v0.8：仅在 3D 视图渲染的对象类型（2D 导出与画布不参与） */
 export const SPACE_OBJECT_TYPES = ['surface3d', 'curve3d', 'field3d', 'ode2d'] as const
 
 /** 按模式过滤画布对象（与 App 的可见性规则一致） */
 export function objectsOfMode(
   doc: DocState,
-  mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced',
+  mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook',
 ): SceneObject[] {
-  if (mode === 'space' || mode === 'advanced') return []
+  if (mode === 'space' || mode === 'advanced' || mode === 'notebook') return []
   return doc.objects.filter((object) => {
     if (mode === 'graph') return object.type === 'graph'
     if (mode === 'stats') return object.type === 'dataset'
@@ -110,11 +122,12 @@ export interface FrameRenderOptions {
 export function renderFrame(
   ctx: CanvasRenderingContext2D,
   doc: DocState,
-  mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced',
+  mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook',
   view: ViewTransform,
   size: Size,
   options: FrameRenderOptions,
 ): void {
+  syncPluginElements()
   const objects = objectsOfMode(doc, mode)
   if (mode !== 'graph' && options.withGrid) drawGrid(ctx, view, size, 1)
   exportScene.draw(ctx, objects, { view, size }, options.highlight)

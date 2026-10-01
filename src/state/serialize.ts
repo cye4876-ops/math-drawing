@@ -8,6 +8,7 @@ import type {
   GraphObject,
   LineStyle,
   Ode2D,
+  PluginSceneObject,
   PresetBinding,
   SceneObject,
   Surface3D,
@@ -285,6 +286,26 @@ function parseOde2D(raw: Record<string, unknown>, position: number): Ode2D {
   }
 }
 
+/** 插件场景对象（v1.0）：data 原样保留（插件自行校验解释） */
+function parsePluginObject(raw: Record<string, unknown>, position: number): PluginSceneObject {
+  const id = raw['id']
+  if (typeof id !== 'string' || id === '') {
+    throw new DocFormatError(`第 ${position} 个插件对象缺少 id`)
+  }
+  const pluginType = raw['pluginType']
+  if (typeof pluginType !== 'string' || pluginType === '') {
+    throw new DocFormatError(`第 ${position} 个插件对象缺少 pluginType`)
+  }
+  return {
+    id,
+    type: 'plugin',
+    pluginType,
+    name: typeof raw['name'] === 'string' ? raw['name'] : pluginType,
+    data: raw['data'],
+    visible: raw['visible'] !== false,
+  }
+}
+
 function parseView(raw: unknown): ViewTransform {
   const base = createView()
   if (raw === null || typeof raw !== 'object') return base
@@ -345,6 +366,7 @@ export function deserializeDocument(json: string): { doc: DocState; view: ViewTr
     else if (raw['type'] === 'curve3d') objects.push(parseCurve3D(raw, index))
     else if (raw['type'] === 'field3d') objects.push(parseField3D(raw, index))
     else if (raw['type'] === 'ode2d') objects.push(parseOde2D(raw, index))
+    else if (raw['type'] === 'plugin') objects.push(parsePluginObject(raw, index))
     else throw new DocFormatError(`第 ${index} 个对象类型未知：${String(raw['type'])}`)
   })
 

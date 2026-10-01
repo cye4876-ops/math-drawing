@@ -4,13 +4,14 @@
  * 关键规则（完整规范见 docs/expr-syntax.md）：
  * - 数字支持整数、小数、科学计数法；`2e3` 是 2000，而 `2e` 是 `2 * e`、
  *   `2e + 3` 是 `2e + 3`（科学计数法仅当 e/E 后紧跟[符号+数字]时生效）；
- * - 标识符采用"已知词最长匹配"策略：函数名、常量名、theta 等作为整体识别，
- *   其余连续字母拆分为单字母变量（xy → x * y，sinx → sin x）；
+ * - 标识符识别：完整词优先（函数名、常量名、theta 等作为整体识别；运行时注册的
+ *   插件函数同样生效），未命中时回退"已知词最长匹配 + 单字母拆分"
+ *   （xy → x * y，sinx → sin x）；
  * - 希腊字母别名：π→pi、φ→phi、τ→tau、θ→theta。
  */
 import { CONSTANTS, NAMED_VARIABLE_WORDS } from './ast'
 import { ExprSyntaxError, type SourcePosition } from './errors'
-import { FUNCTION_NAMES } from './functions'
+import { FUNCTION_NAMES, FUNCTIONS } from './functions'
 
 export type TokenType =
   | 'number'
@@ -37,12 +38,17 @@ export interface Token {
   end: SourcePosition
 }
 
-/** 已知词（函数名、常量名、命名变量），按长度降序保证最长匹配 */
-const KNOWN_WORDS: readonly string[] = [
-  ...FUNCTION_NAMES,
-  ...Object.keys(CONSTANTS),
-  ...NAMED_VARIABLE_WORDS,
-].sort((a, b) => b.length - a.length)
+/** 已知词（函数名、常量名、命名变量），按长度降序保证最长匹配。
+ * 运行时构建（含插件注册的新函数名）；构建成本低且仅在遇到标识符时一次。 */
+function knownWords(): { list: readonly string[]; set: ReadonlySet<string> } {
+  const set = new Set<string>([
+    ...FUNCTION_NAMES,
+    ...Object.keys(FUNCTIONS),
+    ...Object.keys(CONSTANTS),
+    ...NAMED_VARIABLE_WORDS,
+  ])
+  return { list: [...set].sort((a, b) => b.length - a.length), set }
+}
 
 const GREEK_ALIASES: Record<string, string> = {
   π: 'pi',
@@ -59,11 +65,18 @@ function isLetter(c: string): boolean {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
+function isIdentifierChar(c: string): boolean {
+  return isLetter(c) || isDigit(c) || c === '_'
+}
+
 export function tokenize(source: string): Token[] {
   const tokens: Token[] = []
   let offset = 0
   let line = 1
   let column = 1
+  let wordsCache: { list: readonly string[]; set: ReadonlySet<string> } | null = null
+  const words = (): { list: readonly string[]; set: ReadonlySet<string> } =>
+    (wordsCache ??= knownWords())
 
   const position = (): SourcePosition => ({ offset, line, column })
   const peekChar = (ahead = 0): string => source[offset + ahead] ?? ''
@@ -132,11 +145,25 @@ export function tokenize(source: string): Token[] {
       continue
     }
 
-    // 标识符：已知词最长匹配，否则单字母变量
+    // 标识符：优先整体识别完整词（含插件动态注册的函数名——如 logistic 不应被 log 前缀吞掉），
+    // 否则回退「已知词最长匹配 + 单字母拆分」（sinx → sin x、xy → x * y）
     if (isLetter(c)) {
+      let end = offset
+      while (end < source.length) {
+        const ch = source[end]
+        if (ch === undefined || !isIdentifierChar(ch)) break
+        end += 1
+      }
+      const whole = source.slice(offset, end)
+      const known = words()
+      if (known.set.has(whole)) {
+        advance(whole.length)
+        push('identifier', start, whole)
+        continue
+      }
       const rest = source.slice(offset)
       let matched: string | null = null
-      for (const word of KNOWN_WORDS) {
+      for (const word of known.list) {
         if (rest.startsWith(word)) {
           matched = word
           break

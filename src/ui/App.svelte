@@ -25,10 +25,6 @@
   import CurveList from './CurveList.svelte'
   import GraphPanel from './GraphPanel.svelte'
   import StatsPanel from './StatsPanel.svelte'
-  import SpacePanel from './SpacePanel.svelte'
-  import SpaceView from './SpaceView.svelte'
-  import AdvancedPanel from './AdvancedPanel.svelte'
-  import AdvancedView from './AdvancedView.svelte'
   import MarkerLayer from './MarkerLayer.svelte'
   import StatusBar from './StatusBar.svelte'
   import MarkerList from './MarkerList.svelte'
@@ -38,19 +34,46 @@
   import { clearSampleCache } from '../render/curve-renderer'
   import { decodeSharedState, SHARE_PARAM } from '../export/url-state'
   import { SPACE_OBJECT_TYPES } from '../export/frame'
+  import { getPluginElements, getPluginTools } from '../plugin/registry.svelte'
+  import { exitPresentation, isPresentationMode } from '../teaching/presentation.svelte'
+
+  // 懒加载（v1.0 PWA）：three / katex 等大依赖只在首次进入对应模式时下载
+  function lazy<M>(factory: () => Promise<M>): () => Promise<M> {
+    let promise: Promise<M> | null = null
+    return () => (promise ??= factory())
+  }
+  const spaceViewLazy = lazy(() => import('./SpaceView.svelte'))
+  const advancedViewLazy = lazy(() => import('./AdvancedView.svelte'))
+  const notebookViewLazy = lazy(() => import('./NotebookView.svelte'))
+  const spacePanelLazy = lazy(() => import('./SpacePanel.svelte'))
+  const advancedPanelLazy = lazy(() => import('./AdvancedPanel.svelte'))
+  const notebookPanelLazy = lazy(() => import('./NotebookPanel.svelte'))
+
+  // 重视图常驻语义：一旦进入过就保持挂载（WebGL 上下文/组件状态不丢）
+  let spaceMounted = $state(false)
+  let advancedMounted = $state(false)
+  let notebookMounted = $state(false)
+  $effect(() => {
+    if (mode === 'space') spaceMounted = true
+    if (mode === 'advanced') advancedMounted = true
+    if (mode === 'notebook') notebookMounted = true
+  })
+
+  // 演示模式（v1.0）：侧栏整体隐藏，浮动退出按钮保证随时可退出（含全屏被拒场景）
+  const presenting = $derived(isPresentationMode())
 
   const store = createStore()
   let canvasLayerRef: CanvasLayer | null = null
   let sceneRef: SceneRenderer | null = null
 
   // 工具注册表（v0.4）：ctx 延迟绑定到画布层与场景渲染器
-  const registry = new ToolRegistry({
+  const toolContext = {
     store,
     getView: () => store.getView(),
     getSize: () => canvasLayerRef?.getSize() ?? { width: 0, height: 0 },
     requestRender: () => canvasLayerRef?.requestRender(),
     notify: () => registry.notify(),
-    hitTest: (screen, maxDistancePx) => {
+    hitTest: (screen: Point2, maxDistancePx?: number) => {
       const size = canvasLayerRef?.getSize()
       if (!sceneRef || !size || size.width <= 0) return null
       return sceneRef.hitTest(
@@ -60,7 +83,23 @@
         maxDistancePx,
       )
     },
-  })
+  }
+  const registry = new ToolRegistry(toolContext)
+
+  /** 插件加载后：接入插件工具到工具注册表、元素渲染器到场景（v1.0） */
+  function handlePluginsChanged(): void {
+    for (const contribution of getPluginTools()) {
+      try {
+        registry.register(contribution.create(toolContext))
+      } catch (error) {
+        console.warn(`插件工具注册失败：${contribution.id}`, error)
+      }
+    }
+    for (const renderer of getPluginElements()) {
+      sceneRef?.registry.register(renderer)
+    }
+    canvasLayerRef?.requestRender()
+  }
   registry
     .register(createTraceCursorTool())
     .register(createTangentTool())
@@ -98,7 +137,8 @@
     return null
   }
 
-  let sharedPreloadMode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | null = null
+  let sharedPreloadMode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | null =
+    null
 
   function preloadFromUrl(target: AppStore): ViewRangeInput | null {
     if (typeof location === 'undefined') return null
@@ -190,28 +230,29 @@
   // 预载必须在组件状态初始化之前执行（否则初始 UI 状态捕获不到）
   const pendingRange = preloadFromUrl(store)
 
-  /** 界面模式（工具条左上角切换）：plot / graph / stats / space / advanced；?mode= 可指定 */
-  function initialModeFromUrl(): 'plot' | 'graph' | 'stats' | 'space' | 'advanced' {
+  /** 界面模式（工具条左上角切换）：plot / graph / stats / space / advanced / notebook；?mode= 可指定 */
+  function initialModeFromUrl(): 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' {
     if (typeof location === 'undefined') return 'plot'
     const modeParam = readRawParam(location.search, 'mode')
     if (modeParam === 'graph') return 'graph'
     if (modeParam === 'stats') return 'stats'
     if (modeParam === 'space') return 'space'
     if (modeParam === 'advanced') return 'advanced'
+    if (modeParam === 'notebook') return 'notebook'
     if (modeParam === null && readRawParam(location.search, 'graph') !== null) return 'graph'
     return 'plot'
   }
-  const initialMode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' =
+  const initialMode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' =
     sharedPreloadMode ?? initialModeFromUrl()
 
-  let mode = $state<'plot' | 'graph' | 'stats' | 'space' | 'advanced'>(initialMode)
+  let mode = $state<'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook'>(initialMode)
 
   /**
-   * 五种模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
+   * 六种模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
    * 页面初始视图归属于初始模式；未访问过的模式回落到标准默认视图。
    */
   const savedViews: Record<
-    'plot' | 'graph' | 'stats' | 'space' | 'advanced',
+    'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook',
     ViewTransform | null
   > = {
     plot: initialMode === 'plot' ? { ...store.getView() } : null,
@@ -219,11 +260,12 @@
     stats: initialMode === 'stats' ? { ...store.getView() } : null,
     space: initialMode === 'space' ? { ...store.getView() } : null,
     advanced: initialMode === 'advanced' ? { ...store.getView() } : null,
+    notebook: initialMode === 'notebook' ? { ...store.getView() } : null,
   }
 
-  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集，3D/进阶不画 2D */
+  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集，3D/进阶/Notebook 不画 2D */
   function visibleObjectsOf(state: { doc: { objects: SceneObject[] } }): SceneObject[] {
-    if (mode === 'space' || mode === 'advanced') return []
+    if (mode === 'space' || mode === 'advanced' || mode === 'notebook') return []
     return state.doc.objects.filter((object) => {
       if (mode === 'graph') return object.type === 'graph'
       if (mode === 'stats') return object.type === 'dataset'
@@ -235,7 +277,7 @@
     })
   }
 
-  function setMode(next: 'plot' | 'graph' | 'stats' | 'space' | 'advanced'): void {
+  function setMode(next: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook'): void {
     if (mode === next) return
     savedViews[mode] = store.getView()
     mode = next
@@ -359,10 +401,26 @@
     <div
       class="stage"
       bind:this={stageElement}
-      class:hidden2d={mode === 'space' || mode === 'advanced'}
+      class:hidden2d={mode === 'space' || mode === 'advanced' || mode === 'notebook'}
     >
-      <SpaceView {store} active={mode === 'space'} />
-      <AdvancedView active={mode === 'advanced'} />
+      {#if spaceMounted}
+        {#await spaceViewLazy() then spaceModule}
+          {@const SpaceView = spaceModule.default}
+          <SpaceView {store} active={mode === 'space'} />
+        {/await}
+      {/if}
+      {#if advancedMounted}
+        {#await advancedViewLazy() then advancedModule}
+          {@const AdvancedView = advancedModule.default}
+          <AdvancedView active={mode === 'advanced'} />
+        {/await}
+      {/if}
+      {#if notebookMounted}
+        {#await notebookViewLazy() then notebookModule}
+          {@const NotebookView = notebookModule.default}
+          <NotebookView active={mode === 'notebook'} {store} onOpenMode={setMode} />
+        {/await}
+      {/if}
     </div>
     <div class="side-column">
       {#if mode === 'plot'}
@@ -377,12 +435,39 @@
           requestRender={() => canvasLayerRef?.requestRender()}
         />
       {:else if mode === 'space'}
-        <SpacePanel {store} />
+        {#await spacePanelLazy() then spacePanelModule}
+          {@const SpacePanel = spacePanelModule.default}
+          <SpacePanel {store} />
+        {/await}
+      {:else if mode === 'notebook'}
+        {#await notebookPanelLazy() then notebookPanelModule}
+          {@const NotebookPanel = notebookPanelModule.default}
+          <NotebookPanel
+            {store}
+            {registry}
+            {mode}
+            onOpenMode={setMode}
+            onPluginsChanged={handlePluginsChanged}
+          />
+        {/await}
       {:else}
-        <AdvancedPanel />
+        {#await advancedPanelLazy() then advancedPanelModule}
+          {@const AdvancedPanel = advancedPanelModule.default}
+          <AdvancedPanel />
+        {/await}
       {/if}
       <ToolsPanel {registry} />
     </div>
   </div>
   <StatusBar {cursor} {scale} {coordType} />
+  {#if presenting}
+    <button
+      type="button"
+      class="presentation-exit"
+      data-testid="presentation-exit"
+      onclick={() => void exitPresentation()}
+    >
+      退出演示（Esc）
+    </button>
+  {/if}
 </div>

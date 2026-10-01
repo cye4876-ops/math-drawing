@@ -161,6 +161,18 @@ export class AppStore {
     return marker
   }
 
+  /** 添加通用场景对象（v1.0 插件元素）：入撤销历史，返回带 id 的对象 */
+  addSceneObject(input: { type: string; [key: string]: unknown }): SceneObject {
+    const created = { ...input, id: crypto.randomUUID() } as unknown as SceneObject
+    this.commit((doc) => ({ objects: [...doc.objects, created] }))
+    return created
+  }
+
+  /** 删除任意场景对象（v1.0 插件元素；按 id） */
+  removeSceneObject(id: string): void {
+    this.commit((doc) => ({ objects: doc.objects.filter((object) => object.id !== id) }))
+  }
+
   /** 删除标记点（入撤销历史） */
   removeMarker(id: string): void {
     this.commit((doc) => ({ objects: doc.objects.filter((object) => object.id !== id) }))

@@ -70,6 +70,17 @@ export class ElementRegistry {
     return this.renderers.has(type)
   }
 
+  /** 解析对象对应的渲染器：插件元素（type = 'plugin'）按 pluginType 二级分发，
+   *  插件以自身类型名（如 'polygon'）注册渲染器。 */
+  private resolve(object: SceneObject): AnyRenderer | undefined {
+    if (object.type === 'plugin') {
+      return typeof object.pluginType === 'string'
+        ? this.renderers.get(object.pluginType)
+        : undefined
+    }
+    return this.renderers.get(object.type)
+  }
+
   /** 按文档顺序绘制（未注册类型与 DOM 层元素跳过）；highlight 供元素叠加高亮 */
   draw(
     ctx: CanvasRenderingContext2D,
@@ -79,7 +90,7 @@ export class ElementRegistry {
   ): void {
     for (const object of objects) {
       if (object.type === 'marker') continue
-      this.renderers.get(object.type)?.draw(ctx, object, viewport, highlight)
+      this.resolve(object)?.draw(ctx, object, viewport, highlight)
     }
   }
 
@@ -93,9 +104,7 @@ export class ElementRegistry {
     let best: ElementHit | null = null
     for (const object of objects) {
       if (object.type === 'marker') continue
-      const hit = this.renderers
-        .get(object.type)
-        ?.hitTest?.(object, screen, viewport, maxDistancePx)
+      const hit = this.resolve(object)?.hitTest?.(object, screen, viewport, maxDistancePx)
       if (hit && (best === null || hit.distancePx < best.distancePx)) best = hit
     }
     return best
