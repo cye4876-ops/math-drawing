@@ -15,12 +15,16 @@
   import { downloadBlob, timestampName } from '../export/download'
   import {
     getExportRequest,
+    getGifFps,
+    getGifFrames,
     getSpaceOptions,
     getSpaceRevision,
+    isSpaceExporting,
     isTangentEnabled,
     loadCameraState,
     saveCameraState,
     setContextAvailable,
+    setSpaceExporting,
     setTangentPoint,
   } from '../state/space-state.svelte'
 
@@ -32,7 +36,6 @@
   let webglAvailable = $state(true)
   let appState = $state<AppState | null>(null)
   let sceneReady = $state(false)
-  let exporting = $state(false)
 
   let sceneRef: SpaceScene | null = null
   let resizeObserver: ResizeObserver | null = null
@@ -181,7 +184,8 @@
     const scene = sceneRef
     if (!scene) return
     const initial = scene.getCameraState()
-    const frames = 36
+    const frames = getGifFrames()
+    const delay = Math.max(20, Math.round(1000 / getGifFps()))
     const gif = GIFEncoder()
     for (let i = 0; i < frames; i++) {
       scene.spinCamera(360 / frames)
@@ -205,7 +209,7 @@
       }
       const palette = quantize(small, 256)
       const index = applyPalette(small, palette)
-      gif.writeFrame(index, width, height, { palette, delay: 80 })
+      gif.writeFrame(index, width, height, { palette, delay })
       await new Promise((resolve) => setTimeout(resolve, 0))
     }
     gif.finish()
@@ -215,18 +219,27 @@
     downloadBlob(new Blob([bytes], { type: 'image/gif' }), timestampName('gif'))
   }
 
+  // 导出命令通道：按 token 消账（同一请求只执行一次）；导出期间新请求排队
+  // （exporting 变化会重触发本 effect，但 token 已消账 → 直接返回，不会重复执行）
+  let handledExportToken = -1
+
   $effect(() => {
     const request = getExportRequest()
-    if (!request || !sceneReady || exporting) return
+    if (!request || !sceneReady) return
+    if (request.token === handledExportToken) return
+    if (isSpaceExporting()) return
+    handledExportToken = request.token
     if (request.kind === 'reset') {
       sceneRef?.resetCamera()
       return
     }
-    exporting = true
+    setSpaceExporting(true)
     const run = request.kind === 'png' ? exportPng() : exportGif()
-    void run.finally(() => {
-      exporting = false
-    })
+    void run
+      .catch(() => {})
+      .finally(() => {
+        setSpaceExporting(false)
+      })
   })
 </script>
 
@@ -248,6 +261,10 @@
   {:else if contextLost}
     <div class="overlay" data-testid="space-context-lost">
       WebGL 上下文丢失（显卡驱动或资源原因）。<br />恢复后视图将自动重建…
+    </div>
+  {:else if isSpaceExporting()}
+    <div class="overlay" data-testid="space-exporting">
+      正在导出（相机临时旋转取帧）…<br />完成后自动恢复视角
     </div>
   {/if}
 

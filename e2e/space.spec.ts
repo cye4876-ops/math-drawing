@@ -139,6 +139,41 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
     expect(buffer[1]).toBe(0x50)
   })
 
+  test('旋转 GIF：帧数/速度可调；一次点击仅一个下载（回归：不再无限重复导出）', async ({
+    page,
+  }) => {
+    await page.goto('/?mode=space')
+    test.skip(!(await webglAvailable(page)), 'WebGL 不可用')
+    await page.getByTestId('space-add').click()
+    await expect.poll(() => countScenePixels(page), { timeout: 15000 }).toBeGreaterThan(1000)
+
+    // 参数可调：帧数调小、速度调快（缩短测试时间）
+    await page.getByTestId('space-gif-frames').evaluate((element) => {
+      const input = element as HTMLInputElement
+      input.value = '12'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await page.getByTestId('space-gif-fps').evaluate((element) => {
+      const input = element as HTMLInputElement
+      input.value = '20'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    let downloads = 0
+    page.on('download', () => {
+      downloads += 1
+    })
+    await page.getByTestId('space-export-gif').click()
+    // 导出中：遮罩可见、按钮禁用（文案切换）
+    await expect(page.getByTestId('space-exporting')).toBeVisible()
+    await expect(page.getByTestId('space-export-gif')).toBeDisabled()
+    // 完成后按钮恢复
+    await expect(page.getByTestId('space-export-gif')).toBeEnabled({ timeout: 60000 })
+    // 等待旧 bug 的“第二轮导出”窗口，确认没有重复下载
+    await page.waitForTimeout(2500)
+    expect(downloads).toBe(1)
+  })
+
   test('与 2D 共享文档：plot 曲线与 3D 对象互不干扰、切换不丢状态', async ({ page }) => {
     await page.goto('/?curves=sin(x)')
     // 2D 曲线在

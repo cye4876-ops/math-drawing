@@ -113,3 +113,28 @@ export function requestSpaceExport(kind: 'png' | 'gif' | 'reset'): void {
 export function getExportRequest(): { kind: 'png' | 'gif' | 'reset'; token: number } | null {
   return exportRequest
 }
+
+/** 导出进行中（面板按钮禁用与提示） */
+let exporting = $state(false)
+export function isSpaceExporting(): boolean {
+  return exporting
+}
+export function setSpaceExporting(value: boolean): void {
+  exporting = value
+}
+
+/** 旋转 GIF 参数：帧数（平滑度）与播放帧率（速度） */
+let gifFrames = $state(36)
+let gifFps = $state(12)
+export function getGifFrames(): number {
+  return gifFrames
+}
+export function setGifFrames(value: number): void {
+  gifFrames = Math.max(8, Math.min(96, Math.round(value)))
+}
+export function getGifFps(): number {
+  return gifFps
+}
+export function setGifFps(value: number): void {
+  gifFps = Math.max(2, Math.min(30, Math.round(value)))
+}

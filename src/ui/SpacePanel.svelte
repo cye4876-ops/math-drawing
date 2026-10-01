@@ -22,14 +22,19 @@
     getCamera,
     getColormapName,
     getContourCount,
+    getGifFps,
+    getGifFrames,
     getShading,
     getSpaceRevision,
     getTangentPoint,
+    isSpaceExporting,
     isTangentEnabled,
     requestSpaceExport,
     setCamera,
     setColormapName,
     setContourCount,
+    setGifFps,
+    setGifFrames,
     setShading,
     setTangentEnabled,
   } from '../state/space-state.svelte'
@@ -646,9 +651,34 @@
 
   <div class="section">
     <div class="row">
+      <span class="dim">GIF 帧数</span>
+      <input
+        type="range"
+        min="12"
+        max="72"
+        step="4"
+        data-testid="space-gif-frames"
+        value={getGifFrames()}
+        oninput={(event) => setGifFrames(Number((event.currentTarget as HTMLInputElement).value))}
+      />
+      <span class="value">{getGifFrames()}</span>
+      <span class="dim">播放速度</span>
+      <input
+        type="range"
+        min="2"
+        max="30"
+        step="1"
+        data-testid="space-gif-fps"
+        value={getGifFps()}
+        oninput={(event) => setGifFps(Number((event.currentTarget as HTMLInputElement).value))}
+      />
+      <span class="value">{getGifFps()} fps</span>
+    </div>
+    <div class="row">
       <button
         type="button"
         data-testid="space-export-png"
+        disabled={isSpaceExporting()}
         onclick={() => requestSpaceExport('png')}
       >
         截图 PNG
@@ -656,10 +686,14 @@
       <button
         type="button"
         data-testid="space-export-gif"
+        disabled={isSpaceExporting()}
         onclick={() => requestSpaceExport('gif')}
       >
-        旋转 GIF
+        {isSpaceExporting() ? '导出中…' : '旋转 GIF'}
       </button>
+      {#if isSpaceExporting()}
+        <span class="dim">正在取帧，完成后自动恢复视角</span>
+      {/if}
     </div>
   </div>
 </aside>
