@@ -1,7 +1,7 @@
 <script lang="ts">
   import { mathToScreen } from '../core/transform'
   import type { AppStore } from '../state/store'
-  import type { AppState, Size } from '../state/types'
+  import type { AppState, MarkerPoint, Size } from '../state/types'
 
   let { store }: { store: AppStore } = $props()
 
@@ -33,15 +33,17 @@
   const markers = $derived.by(() => {
     const state = appState
     if (!state) return []
-    return state.doc.objects.map((object) => {
-      const screen = mathToScreen(state.view, size, object)
-      return {
-        id: object.id,
-        left: screen.x,
-        top: screen.y,
-        label: `(${object.x}, ${object.y})`,
-      }
-    })
+    return state.doc.objects
+      .filter((object): object is MarkerPoint => object.type === 'marker')
+      .map((object) => {
+        const screen = mathToScreen(state.view, size, object)
+        return {
+          id: object.id,
+          left: screen.x,
+          top: screen.y,
+          label: `(${object.x}, ${object.y})`,
+        }
+      })
   })
 </script>
 

@@ -33,6 +33,12 @@ body {
   flex-direction: column;
 }
 
+.main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 .stage {
   position: relative;
   flex: 1;
