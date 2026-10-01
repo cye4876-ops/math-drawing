@@ -53,6 +53,17 @@
   const currentStep = $derived(index >= 0 ? (steps[index] ?? null) : null)
   const finished = $derived(steps.length > 0 && index >= steps.length - 1)
 
+  /** 着色结果 → 节点填充色（运行后直接上画布） */
+  const coloringFills = $derived.by(() => {
+    const current = result
+    if (!current || !('colors' in current) || !('count' in current)) return undefined
+    const fills: Record<string, string> = {}
+    for (const [id, color] of Object.entries(current.colors)) {
+      fills[id] = COLOR_SWATCHES[color % COLOR_SWATCHES.length]!
+    }
+    return fills
+  })
+
   function stopPlayback(): void {
     playing = false
     if (timer !== undefined) {
@@ -61,21 +72,23 @@
     }
   }
 
-  // 当前步骤变化 → 画布高亮联动（当前步骤琥珀 + 累积轨迹玫红）
+  // 当前步骤变化 → 画布高亮联动（当前步骤琥珀 + 累积轨迹玫红 + 着色结果节点填充）
   $effect(() => {
     const step = currentStep
-    if (!step) {
+    const fills = coloringFills
+    if (!step && !fills) {
       onHighlight(null)
       return
     }
-    const nodes = step.node ? [step.node] : []
-    const edges = step.edge ? [{ source: step.edge.source, target: step.edge.target }] : []
-    const trail = computeTrail(steps, index)
+    const nodes = step?.node ? [step.node] : []
+    const edges = step?.edge ? [{ source: step.edge.source, target: step.edge.target }] : []
+    const trail = step ? computeTrail(steps, index) : { nodes: [], edges: [] }
     onHighlight({
       nodes,
       edges,
       trailNodes: trail.nodes,
       trailEdges: trail.edges,
+      fills,
     })
   })
 
@@ -213,6 +226,16 @@
       return {
         title: `最大匹配（${res.size} 对）`,
         items: res.pairs.map((pair) => `${label(pair.left)} ↔ ${label(pair.right)}`),
+      }
+    }
+    if ('negativeCycle' in res) {
+      const items = res.labels.map((item, i) => {
+        const row = res.matrix[i]!.map((value) => (value === null ? '∞' : String(value))).join('　')
+        return `${item.label}：${row}`
+      })
+      return {
+        title: res.negativeCycle ? '全对最短路（检测到负环）' : '全对最短路矩阵',
+        items,
       }
     }
     if ('start' in res) {

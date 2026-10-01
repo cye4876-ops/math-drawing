@@ -11,6 +11,7 @@ import {
   ALGORITHMS,
   reconstructPath,
   runAlgorithm,
+  type AllPairsResult,
   type MatchingResult,
   type MaxFlowResult,
   type SccResult,
@@ -253,8 +254,8 @@ describe('v0.5 算法：二分判定（规格关键项）', () => {
 })
 
 describe('v0.5 算法：注册与统一入口', () => {
-  it('ALGORITHMS 元数据完整（13 项）且 runAlgorithm 全部可用', () => {
-    expect(ALGORITHMS).toHaveLength(13)
+  it('ALGORITHMS 元数据完整（14 项）且 runAlgorithm 全部可用', () => {
+    expect(ALGORITHMS).toHaveLength(14)
     // 二分路径图：所有算法都可运行（matching 需要二分图，奇环图上报错属规格行为）
     const graph = make('A-B:1, B-C:2')
     for (const info of ALGORITHMS) {
@@ -368,6 +369,49 @@ describe('v0.5 算法：最大流（Edmonds-Karp，容量=权重）', () => {
     expect(result.maxFlow).toBe(2)
     const bad = runAlgorithm('max-flow', graph, sId, sId).result
     expect('error' in bad).toBe(true)
+  })
+})
+
+describe('v0.5 算法：Floyd-Warshall 全对最短路', () => {
+  it('与手算一致（无向对称）', () => {
+    const graph = make('A-B:2, A-C:5, B-C:1, B-D:4, C-D:1')
+    const result = runAlgorithm('floyd', graph).result as AllPairsResult
+    const idx = (name: string): number => result.labels.findIndex((item) => item.label === name)
+    const at = (a: string, b: string): number | null => result.matrix[idx(a)]![idx(b)]!
+    expect(at('A', 'C')).toBe(3)
+    expect(at('A', 'D')).toBe(4)
+    expect(at('B', 'D')).toBe(2) // B-C-D = 1 + 1
+    expect(at('D', 'A')).toBe(4)
+    expect(result.negativeCycle).toBe(false)
+  })
+
+  it('有向负权（无负环）正确；负环报告', () => {
+    const r1 = runAlgorithm('floyd', make('A->B:1, B->C:-3')).result as AllPairsResult
+    expect(r1.matrix[0]![2]).toBe(-2)
+    expect(r1.negativeCycle).toBe(false)
+    const r2 = runAlgorithm('floyd', make('A->B:1, B->C:-2, C->B:1')).result as AllPairsResult
+    expect(r2.negativeCycle).toBe(true)
+  })
+
+  it('平行边取小；不可达 null；空图', () => {
+    expect(
+      (runAlgorithm('floyd', make('A-B:5, A-B:2')).result as AllPairsResult).matrix[0]![1],
+    ).toBe(2)
+    expect(
+      (runAlgorithm('floyd', make('A-B, C-D')).result as AllPairsResult).matrix[0]![2],
+    ).toBeNull()
+    expect((runAlgorithm('floyd', EMPTY).result as AllPairsResult).matrix).toEqual([])
+  })
+
+  it('与 Dijkstra 全源对拍', () => {
+    const graph = make('A-B:2, B-C:3, A-C:10, C-D:1')
+    const floyd = runAlgorithm('floyd', graph).result as AllPairsResult
+    for (const [i, source] of floyd.labels.entries()) {
+      const dij = runAlgorithm('dijkstra', graph, source.id).result as ShortestPathResult
+      for (const [j, target] of floyd.labels.entries()) {
+        expect(floyd.matrix[i]![j]).toBe(dij.distance[target.id] ?? null)
+      }
+    }
   })
 })
 

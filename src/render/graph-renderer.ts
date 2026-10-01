@@ -176,7 +176,7 @@ export const graphElementRenderer: ElementRenderer<GraphObject> = {
       const highlighted = nodeHighlighted(node.id, highlight)
       const inTrail = !highlighted && nodeInTrail(node.id, highlight)
       drawNodeShape(ctx, s, node.shape)
-      ctx.fillStyle = node.color
+      ctx.fillStyle = highlight?.fills?.[node.id] ?? node.color
       ctx.fill()
       ctx.strokeStyle = highlighted ? HIGHLIGHT_COLOR : inTrail ? TRAIL_COLOR : '#ffffff'
       ctx.lineWidth = highlighted ? 3.5 : inTrail ? 2.8 : 2

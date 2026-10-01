@@ -26,7 +26,7 @@
   } from '../graph/families'
   import { dslMatchesGraph, graphObjectFromDsl, graphToDsl } from '../graph/dsl-to-doc'
   import { parseGraphDsl, type DslError } from '../graph/dsl-parser'
-  import { layoutCircular, layoutGrid } from '../graph/layouts'
+  import { layoutCircular, layoutGrid, layoutLayered } from '../graph/layouts'
   import type { LayoutWorkerResponse } from '../graph/layout-worker'
 
   let {
@@ -196,6 +196,11 @@
     if (current) applyLayoutNodes(layoutGrid(current))
   }
 
+  function runLayeredLayout(): void {
+    const current = firstGraph(store.getState())
+    if (current) applyLayoutNodes(layoutLayered(current))
+  }
+
   function runForceLayout(): void {
     const current = firstGraph(store.getState())
     if (!current || layoutBusy) return
@@ -352,6 +357,14 @@
       </button>
       <button type="button" data-testid="layout-grid" disabled={!graph} onclick={runGridLayout}>
         网格
+      </button>
+      <button
+        type="button"
+        data-testid="layout-layered"
+        disabled={!graph}
+        onclick={runLayeredLayout}
+      >
+        分层
       </button>
       <button
         type="button"

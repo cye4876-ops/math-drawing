@@ -36,6 +36,24 @@ async function countTrailPixels(page: Page): Promise<number> {
   })
 }
 
+/** 统计曲线/节点严格红（#c32222 = rgb(195,34,34)，避开原节点红 #dc2626）像素数 */
+async function countStrictRed(page: Page): Promise<number> {
+  return page.getByTestId('stage-canvas').evaluate((el) => {
+    const canvas = el as HTMLCanvasElement
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return -1
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+    let count = 0
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i] ?? 0
+      const g = data[i + 1] ?? 0
+      const b = data[i + 2] ?? 0
+      if (Math.abs(r - 195) < 10 && Math.abs(g - 34) < 10 && Math.abs(b - 34) < 10) count++
+    }
+    return count
+  })
+}
+
 test.describe('v0.5 算法 UI 播放器（阶段 5b）', () => {
   test('BFS：运行 → 首步高亮与 note → 单步 → 到末尾显示访问顺序', async ({ page }) => {
     await page.goto('/?mode=graph&graph=' + encodeURIComponent('1-2, 2-3, 3-1'))
@@ -170,5 +188,24 @@ test.describe('v0.5 算法 UI 播放器（阶段 5b）', () => {
     await page.getByTestId('algorithm-end').click()
     await expect(page.getByTestId('algorithm-result')).toContainText('最大流 = 5')
     await expect(page.getByTestId('algorithm-result')).toContainText('B → D：2 / 2')
+  })
+
+  test('Floyd-Warshall：结果全对最短路矩阵', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('A-B:2, B-C:3, A-C:10'))
+    await page.getByTestId('algorithm-select').selectOption('floyd')
+    await page.getByTestId('algorithm-run').click()
+    await page.getByTestId('algorithm-end').click()
+    await expect(page.getByTestId('algorithm-result')).toContainText('全对最短路矩阵')
+    await expect(page.getByTestId('algorithm-result')).toContainText('A：0　2　5')
+  })
+
+  test('着色结果直接上画布（节点换用色板）；重置恢复原色', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('1-2, 2-3, 3-1'))
+    expect(await countStrictRed(page)).toBeLessThan(20)
+    await page.getByTestId('algorithm-select').selectOption('dsatur-color')
+    await page.getByTestId('algorithm-run').click()
+    await expect.poll(() => countStrictRed(page)).toBeGreaterThan(50)
+    await page.getByTestId('algorithm-reset').click()
+    await expect.poll(() => countStrictRed(page)).toBeLessThan(20)
   })
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { graphObjectFromDsl } from './dsl-to-doc'
-import { layoutCircular, layoutForceAtlas, layoutGrid } from './layouts'
+import { layoutCircular, layoutForceAtlas, layoutGrid, layoutLayered } from './layouts'
 import type { GraphObject } from './model'
 
 function makeGraph(dsl: string): GraphObject {
@@ -61,6 +61,37 @@ describe('graph/layouts: 网格布局', () => {
     const five = layoutGrid(makeGraph('A, B, C, D, E'))
     expect(five[2]).toMatchObject({ x: 1.6, y: 0.8 })
     expect(five[4]).toMatchObject({ x: 0, y: -0.8 })
+  })
+})
+
+describe('graph/layouts: 分层布局', () => {
+  it('有向链 A→B→C：三层，根在顶部（y 递减）', () => {
+    const nodes = layoutLayered(makeGraph('A->B, B->C'))
+    const byLabel = (label: string): (typeof nodes)[number] =>
+      nodes.find((node) => node.label === label)!
+    expect(byLabel('A').y).toBeGreaterThan(byLabel('B').y)
+    expect(byLabel('B').y).toBeGreaterThan(byLabel('C').y)
+  })
+
+  it('有向树：兄弟同层（y 相等、x 不同）', () => {
+    const nodes = layoutLayered(makeGraph('1->2, 1->3'))
+    const two = nodes.find((node) => node.label === '2')!
+    const three = nodes.find((node) => node.label === '3')!
+    expect(two.y).toBeCloseTo(three.y, 9)
+    expect(two.x).not.toBeCloseTo(three.x, 9)
+  })
+
+  it('无向图退化为 BFS 分层：链 1-2-3 三层；环图坐标有限', () => {
+    const nodes = layoutLayered(makeGraph('1-2, 2-3'))
+    const byLabel = (label: string): (typeof nodes)[number] =>
+      nodes.find((node) => node.label === label)!
+    expect(byLabel('1').y).toBeGreaterThan(byLabel('2').y)
+    expect(byLabel('2').y).toBeGreaterThan(byLabel('3').y)
+    const cycle = layoutLayered(makeGraph('A-B, B-A'))
+    for (const node of cycle) {
+      expect(Number.isFinite(node.x)).toBe(true)
+      expect(Number.isFinite(node.y)).toBe(true)
+    }
   })
 })
 

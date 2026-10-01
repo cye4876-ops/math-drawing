@@ -47,3 +47,84 @@ export function layoutForceAtlas(graph: GraphObject, iterations = 250): GraphNod
     return { ...node, x, y }
   })
 }
+
+/**
+ * 分层布局（DAG 语义的「最长路径分层」）：
+ * - 含**有向边**：沿箭头方向迭代松弛 layer[v] ≥ layer[u] + 1（无向边双向；至多 n 轮，环图亦有界）；
+ * - 全**无向**图：退化为 BFS 分层（各连通分量自 0 起）；
+ * 层 0 在顶部、层内水平均布，整体居中。适合树/DAG/流程图排布。
+ */
+export function layoutLayered(graph: GraphObject, spacing = 1.6): GraphNodeData[] {
+  const n = graph.nodes.length
+  if (n === 0) return []
+  const index = new Map(graph.nodes.map((node, i) => [node.id, i]))
+  const layer = new Array<number>(n).fill(0)
+  const hasDirected = graph.edges.some((edge) => edge.directed)
+  if (!hasDirected) {
+    // 无向图：BFS 分层
+    const adjacency = new Map<string, string[]>()
+    const push = (u: string, v: string): void => {
+      const list = adjacency.get(u)
+      if (list) list.push(v)
+      else adjacency.set(u, [v])
+    }
+    for (const edge of graph.edges) {
+      if (edge.source === edge.target) continue
+      push(edge.source, edge.target)
+      push(edge.target, edge.source)
+    }
+    const visited = new Array<boolean>(n).fill(false)
+    for (let s = 0; s < n; s++) {
+      if (visited[s]) continue
+      visited[s] = true
+      layer[s] = 0
+      const queue = [s]
+      while (queue.length > 0) {
+        const u = queue.shift()!
+        for (const id of adjacency.get(graph.nodes[u]!.id) ?? []) {
+          const v = index.get(id)!
+          if (visited[v]) continue
+          visited[v] = true
+          layer[v] = layer[u]! + 1
+          queue.push(v)
+        }
+      }
+    }
+  } else {
+    // 有向语义：最长路径分层（迭代松弛，n 轮封顶）
+    for (let round = 0; round < n; round++) {
+      let changed = false
+      for (const edge of graph.edges) {
+        const i = index.get(edge.source)
+        const j = index.get(edge.target)
+        if (i === undefined || j === undefined || i === j) continue
+        if (layer[j]! < layer[i]! + 1) {
+          layer[j] = layer[i]! + 1
+          changed = true
+        }
+        if (!edge.directed && layer[i]! < layer[j]! + 1) {
+          layer[i] = layer[j]! + 1
+          changed = true
+        }
+      }
+      if (!changed) break
+    }
+  }
+  const byLayer = new Map<number, number[]>()
+  layer.forEach((value, i) => {
+    const list = byLayer.get(value)
+    if (list) list.push(i)
+    else byLayer.set(value, [i])
+  })
+  const maxLayer = Math.max(...layer)
+  const result = graph.nodes.map((node) => ({ ...node }))
+  for (const [value, members] of byLayer) {
+    const width = (members.length - 1) * spacing
+    members.forEach((memberIndex, k) => {
+      const node = result[memberIndex]!
+      node.x = k * spacing - width / 2
+      node.y = (maxLayer - value - maxLayer / 2) * spacing
+    })
+  }
+  return result
+}

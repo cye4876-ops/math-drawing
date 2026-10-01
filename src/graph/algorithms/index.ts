@@ -6,6 +6,7 @@
 import type { GraphObject } from '../model'
 import { dsaturColoring, greedyColoring, isBipartite } from './coloring'
 import { stronglyConnectedSteps, type SccResult } from './connectivity'
+import { floydWarshallSteps, type AllPairsResult } from './floyd'
 import { maxFlowSteps, type MaxFlowResult } from './flow'
 import { bipartiteMatchingSteps, type MatchingResult } from './matching'
 import { topologicalSteps } from './ordering'
@@ -29,6 +30,7 @@ export type { MstEdge, MstResult } from './spanning-tree'
 export type { SccResult } from './connectivity'
 export type { MatchingResult } from './matching'
 export type { FlowEdge, MaxFlowResult } from './flow'
+export type { AllPairsResult } from './floyd'
 
 export type AlgorithmResult =
   | TraversalResult
@@ -40,6 +42,7 @@ export type AlgorithmResult =
   | SccResult
   | MatchingResult
   | MaxFlowResult
+  | AllPairsResult
   | AlgorithmFailure
 
 export interface AlgorithmInfo {
@@ -129,6 +132,12 @@ export const ALGORITHMS: AlgorithmInfo[] = [
     requiresEnd: true,
     description: '容量取边权重（缺省 1）；BFS 增广',
   },
+  {
+    id: 'floyd',
+    name: 'Floyd-Warshall 全对最短路',
+    requiresStart: false,
+    description: '逐中间点迭代，给出完整距离矩阵；可报告负环',
+  },
 ]
 
 /** 运行算法：生成器算法收集全部步骤；判定/着色类返回结果（步骤为空数组） */
@@ -176,6 +185,8 @@ export function runAlgorithm(
       return collect(bipartiteMatchingSteps(graph))
     case 'max-flow':
       return collect(maxFlowSteps(graph, startId, endId))
+    case 'floyd':
+      return collect(floydWarshallSteps(graph))
     default:
       return { steps: [], result: { error: `未知算法：${id}` } }
   }
