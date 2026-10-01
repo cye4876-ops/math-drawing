@@ -2,11 +2,12 @@
  * 图的谱分析（v0.5）：
  * - 加权邻接矩阵（无向边对称、有向边按 i→j、平行边累加、自环计对角一次）；
  * - 对称邻接阵全谱：Jacobi 旋转（特征值降序 + 正交特征向量，符号规范化）；
+ * - 非对称（有向）邻接阵全谱：特征多项式（Faddeev–LeVerrier）+ 复根（Durand–Kerner），特征值可为复数；
  * - 谱半径与 Perron 向量：幂迭代（Powers 于 A+I 上迭代，避免周期图的振荡；
  *   Perron–Frobenius：非负矩阵的谱半径必为特征值，且存在非负特征向量）。
  *
  * 复杂度：矩阵 O(n²)；Jacobi 约 O(n³)（UI 仅在 n ≤ maxFullSpectrumSize 时求全谱）；
- * Perron 幂迭代每步 O(E)（稀疏，按边列表施加矩阵，大图亦可）。
+ * 复数谱 O(n⁴)（仅 n ≤ maxComplexSpectrumSize 时求）；Perron 幂迭代每步 O(E)（稀疏，按边列表施加矩阵，大图亦可）。
  */
 import type { GraphObject } from './model'
 
@@ -130,6 +131,170 @@ export function jacobiEigenSymmetric(input: number[][]): SymmetricEigen {
   return { values: pairs.map((pair) => pair.value), vectors: pairs.map((pair) => pair.vector) }
 }
 
+/** 复数（本模块内部数值工具） */
+export interface ComplexNumber {
+  re: number
+  im: number
+}
+
+const cAdd = (a: ComplexNumber, b: ComplexNumber): ComplexNumber => ({
+  re: a.re + b.re,
+  im: a.im + b.im,
+})
+const cSub = (a: ComplexNumber, b: ComplexNumber): ComplexNumber => ({
+  re: a.re - b.re,
+  im: a.im - b.im,
+})
+const cMul = (a: ComplexNumber, b: ComplexNumber): ComplexNumber => ({
+  re: a.re * b.re - a.im * b.im,
+  im: a.re * b.im + a.im * b.re,
+})
+const cDiv = (a: ComplexNumber, b: ComplexNumber): ComplexNumber => {
+  const d = b.re * b.re + b.im * b.im
+  return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d }
+}
+
+/**
+ * 特征多项式系数（Faddeev–LeVerrier，O(n⁴)）。
+ * 返回 monic 系数（高次在前）：[1, c_{n−1}, …, c₁, c₀]，即 p(λ) = det(λI − A)。
+ * 迭代：M_k = A·M_{k−1} + c_{n−k+1}·I；c_{n−k} = −tr(A·M_k)/k。
+ */
+export function characteristicPolynomial(matrix: number[][]): number[] {
+  const n = matrix.length
+  if (n === 0) return [1]
+  let m: number[][] = Array.from({ length: n }, () => new Array<number>(n).fill(0))
+  const c: number[] = new Array<number>(n + 1).fill(0)
+  c[n] = 1
+  for (let k = 1; k <= n; k++) {
+    // am = A·M_{k−1}
+    const am: number[][] = Array.from({ length: n }, (_, i) =>
+      Array.from({ length: n }, (_, j) => {
+        let sum = 0
+        for (let t = 0; t < n; t++) sum += matrix[i]![t]! * m[t]![j]!
+        return sum
+      }),
+    )
+    // M_k = am + c_{n−k+1}·I
+    const coefficient = c[n - k + 1]!
+    m = am.map((row, i) => row.map((value, j) => (i === j ? value + coefficient : value)))
+    // c_{n−k} = −tr(A·M_k)/k
+    let trace = 0
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) trace += matrix[i]![j]! * m[j]![i]!
+    }
+    c[n - k] = -trace / k
+  }
+  // 内部按低次在前累积；返回高次在前（monic）：[1, c_{n−1}, …, c₀]
+  return c.reverse()
+}
+
+/** 复数系数多项式求值（Horner；系数高次在前，实系数） */
+function evalPolynomial(coefficients: number[], x: ComplexNumber): ComplexNumber {
+  let y: ComplexNumber = { re: coefficients[0] ?? 0, im: 0 }
+  for (let i = 1; i < coefficients.length; i++) {
+    y = cAdd(cMul(y, x), { re: coefficients[i] ?? 0, im: 0 })
+  }
+  return y
+}
+
+/**
+ * Durand–Kerner 同时迭代求全部复根（系数高次在前且 monic）。
+ * 初始根取单位圆上伪随机分布 ×Cauchy 界；迭代上限保护（重根时线性收敛）。
+ */
+export function durandKerner(
+  coefficients: number[],
+  options: { maxIterations?: number; tolerance?: number } = {},
+): ComplexNumber[] {
+  const n = coefficients.length - 1
+  if (n <= 0) return []
+  let maxCoefficient = 0
+  for (const value of coefficients) maxCoefficient = Math.max(maxCoefficient, Math.abs(value))
+  const radius = 1 + maxCoefficient
+  const maxIterations = options.maxIterations ?? 5000
+  const tolerance = options.tolerance ?? 1e-13
+
+  // 初始根：R × (0.4+0.9i)^k 的归一化方向（错开对称性）
+  const roots: ComplexNumber[] = []
+  let seed: ComplexNumber = { re: 1, im: 0 }
+  const step: ComplexNumber = { re: 0.4, im: 0.9 }
+  for (let k = 0; k < n; k++) {
+    const norm = Math.hypot(seed.re, seed.im)
+    roots.push({ re: (radius * seed.re) / norm, im: (radius * seed.im) / norm })
+    seed = cMul(seed, step)
+  }
+
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    let maxDelta = 0
+    for (let i = 0; i < n; i++) {
+      const numerator = evalPolynomial(coefficients, roots[i]!)
+      let denominator: ComplexNumber = { re: 1, im: 0 }
+      for (let j = 0; j < n; j++) {
+        if (j !== i) denominator = cMul(denominator, cSub(roots[i]!, roots[j]!))
+      }
+      const delta = cDiv(numerator, denominator)
+      roots[i] = cSub(roots[i]!, delta)
+      maxDelta = Math.max(maxDelta, Math.hypot(delta.re, delta.im))
+    }
+    if (maxDelta < tolerance * (1 + radius)) break
+  }
+  return roots
+}
+
+/**
+ * 非对称（有向）邻接阵的全谱：特征多项式（Faddeev–LeVerrier）+ 复根（Durand–Kerner）。
+ * 返回特征值（|λ| 降序，同模按实部降序）；近实数的微小虚部归零。
+ * 数值方法定位：可视化与教学用途（精度约 1e-8 量级）；对称矩阵请用 jacobiEigenSymmetric。
+ */
+export function complexEigenvalues(matrix: number[][]): ComplexNumber[] {
+  const n = matrix.length
+  if (n === 0) return []
+  const roots = durandKerner(characteristicPolynomial(matrix))
+
+  // 重根聚簇塌缩：DK 对重根会停留在真根附近的小环上，取质心（容差随根尺度缩放）
+  let maxAbs = 1
+  for (const root of roots) maxAbs = Math.max(maxAbs, Math.hypot(root.re, root.im))
+  const tolerance = 1e-6 * maxAbs
+  const collapsed: ComplexNumber[] = []
+  const used = roots.map(() => false)
+  for (let i = 0; i < roots.length; i++) {
+    if (used[i]) continue
+    const cluster = [i]
+    used[i] = true
+    for (let j = i + 1; j < roots.length; j++) {
+      if (
+        !used[j] &&
+        Math.hypot(roots[i]!.re - roots[j]!.re, roots[i]!.im - roots[j]!.im) < tolerance
+      ) {
+        used[j] = true
+        cluster.push(j)
+      }
+    }
+    let re = 0
+    let im = 0
+    for (const index of cluster) {
+      re += roots[index]!.re
+      im += roots[index]!.im
+    }
+    for (let k = 0; k < cluster.length; k++) {
+      collapsed.push({ re: re / cluster.length, im: im / cluster.length })
+    }
+  }
+
+  const cleaned = collapsed.map((root) => {
+    const scale = Math.max(1, Math.abs(root.re))
+    const im = Math.abs(root.im) < 1e-9 * scale ? 0 : root.im
+    const re = Math.abs(root.re) < 1e-12 ? 0 : root.re
+    return { re, im }
+  })
+  cleaned.sort((a, b) => {
+    const da = Math.hypot(a.re, a.im)
+    const db = Math.hypot(b.re, b.im)
+    if (Math.abs(db - da) > 1e-9) return db - da
+    return b.re - a.re
+  })
+  return cleaned
+}
+
 export interface PerronResult {
   /** 谱半径（Perron 根）估计 */
   eigenvalue: number
@@ -207,6 +372,8 @@ export interface GraphSpectrum {
   symmetric: boolean
   /** 全特征值（降序）；非对称邻接阵或超出规模上限时为 null */
   eigenvalues: number[] | null
+  /** 非对称邻接阵的全谱（复平面，|λ| 降序）；对称图或超出规模上限为 null */
+  complexEigenvalues: ComplexNumber[] | null
   /** 拉普拉斯谱（升序，近零归一为 0）；非对称/超限时为 null。
    *  0 的重数 = 连通分量数；λ₂（升序第二个值）= 代数连通度。 */
   laplacianEigenvalues: number[] | null
@@ -220,25 +387,30 @@ export interface GraphSpectrum {
 /** 计算图的谱（矩阵 + 全谱（如适用）+ 拉普拉斯谱 + 谱半径与 Perron 向量） */
 export function computeSpectrum(
   graph: GraphObject,
-  options: { maxFullSpectrumSize?: number } = {},
+  options: { maxFullSpectrumSize?: number; maxComplexSpectrumSize?: number } = {},
 ): GraphSpectrum {
   const adjacency = buildAdjacencyMatrix(graph)
   const n = adjacency.matrix.length
   const maxFull = options.maxFullSpectrumSize ?? 64
+  const maxComplex = options.maxComplexSpectrumSize ?? 40
   let eigenvalues: number[] | null = null
   let laplacianEigenvalues: number[] | null = null
+  let complexValues: ComplexNumber[] | null = null
   if (adjacency.symmetric && n > 0 && n <= maxFull) {
     eigenvalues = jacobiEigenSymmetric(adjacency.matrix).values
     laplacianEigenvalues = jacobiEigenSymmetric(buildLaplacianMatrix(adjacency))
       .values.slice()
       .reverse()
       .map((value) => (Math.abs(value) < 1e-9 ? 0 : value))
+  } else if (!adjacency.symmetric && n > 0 && n <= maxComplex) {
+    complexValues = complexEigenvalues(adjacency.matrix)
   }
   const perron = perronVector(graph)
   return {
     adjacency,
     symmetric: adjacency.symmetric,
     eigenvalues,
+    complexEigenvalues: complexValues,
     laplacianEigenvalues,
     spectralRadius: perron.eigenvalue,
     perron: perron.vector,

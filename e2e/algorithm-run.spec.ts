@@ -198,6 +198,44 @@ test.describe('v0.5 算法 UI 播放器（阶段 5b）', () => {
     await expect(page.getByTestId('algorithm-result')).toContainText('A：0　2　5')
   })
 
+  test('割点与桥：路径图给出割点与桥；三角形无割点无桥', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('A-B, B-C, C-D'))
+    await page.getByTestId('algorithm-select').selectOption('articulation')
+    await page.getByTestId('algorithm-run').click()
+    await page.getByTestId('algorithm-end').click()
+    await expect(page.getByTestId('algorithm-result')).toContainText('割点 2 个 / 桥 3 条')
+    await expect(page.getByTestId('algorithm-result')).toContainText('B—C')
+
+    // 换成三角形：无割点无桥（先等 DSL 防抖应用）
+    await page.getByTestId('graph-dsl').fill('1-2, 2-3, 3-1')
+    await expect(page.getByTestId('graph-stats')).toContainText('顶点 3')
+    await page.getByTestId('algorithm-select').selectOption('articulation')
+    await page.getByTestId('algorithm-run').click()
+    await page.getByTestId('algorithm-end').click()
+    await expect(page.getByTestId('algorithm-result')).toContainText('割点 0 个 / 桥 0 条')
+  })
+
+  test('欧拉路：三角形回路可播放；星形图报告不存在', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('A-B, B-C, C-A'))
+    await page.getByTestId('algorithm-select').selectOption('euler')
+    await page.getByTestId('algorithm-run').click()
+    // 走边动画（有步骤且能播放）
+    await expect(page.getByTestId('algorithm-progress')).toContainText('/')
+    await page.getByTestId('algorithm-play').click()
+    await expect(page.getByTestId('algorithm-play')).toContainText('暂停')
+    await page.getByTestId('algorithm-end').click()
+    await expect(page.getByTestId('algorithm-result')).toContainText('欧拉回路')
+    await expect(page.getByTestId('algorithm-result')).toContainText('→')
+
+    // 星形 K1,3（4 个奇度顶点）→ 不存在，原因含奇度说明（先等 DSL 防抖应用）
+    await page.getByTestId('graph-dsl').fill('C-A, C-B, C-D')
+    await expect(page.getByTestId('graph-stats')).toContainText('顶点 4')
+    await page.getByTestId('algorithm-select').selectOption('euler')
+    await page.getByTestId('algorithm-run').click()
+    await expect(page.getByTestId('algorithm-result')).toContainText('不存在欧拉路')
+    await expect(page.getByTestId('algorithm-result')).toContainText('4 个奇度顶点')
+  })
+
   test('着色结果直接上画布（节点换用色板）；重置恢复原色', async ({ page }) => {
     await page.goto('/?mode=graph&graph=' + encodeURIComponent('1-2, 2-3, 3-1'))
     expect(await countStrictRed(page)).toBeLessThan(20)

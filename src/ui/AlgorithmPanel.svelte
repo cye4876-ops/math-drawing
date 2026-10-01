@@ -235,6 +235,38 @@
         items: res.pairs.map((pair) => `${label(pair.left)} ↔ ${label(pair.right)}`),
       }
     }
+    if ('articulation' in res) {
+      const items: string[] = []
+      items.push(
+        res.articulation.length > 0
+          ? `割点（${res.articulation.length} 个）：${res.articulation.map(label).join('、')}`
+          : '无割点（删去任一顶点仍连通）',
+      )
+      items.push(
+        res.bridges.length > 0
+          ? `桥（${res.bridges.length} 条）：${res.bridges
+              .map((bridge) => `${label(bridge.source)}—${label(bridge.target)}`)
+              .join('、')}`
+          : '无桥（删去任一边仍连通）',
+      )
+      items.push(`连通分量：${res.components} 个（无向语义，忽略方向）`)
+      return { title: `割点 ${res.articulation.length} 个 / 桥 ${res.bridges.length} 条`, items }
+    }
+    if ('exists' in res) {
+      if (!res.exists) {
+        return { title: '不存在欧拉路', items: [res.reason ?? ''] }
+      }
+      const path = res.path ?? []
+      return {
+        title: res.kind === 'circuit' ? '欧拉回路（可一圈走完全部边）' : '欧拉通路',
+        items: [
+          `路径（${path.length} 个顶点）：${path.map(label).join(' → ')}`,
+          res.kind === 'circuit'
+            ? `回路长度 = ${path.length - 1} 条边`
+            : '起终点为仅有的两个奇度顶点',
+        ],
+      }
+    }
     if ('negativeCycle' in res) {
       const items = res.labels.map((item, i) => {
         const row = res.matrix[i]!.map((value) => (value === null ? '∞' : String(value))).join('　')

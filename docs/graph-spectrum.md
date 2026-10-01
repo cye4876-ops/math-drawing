@@ -1,6 +1,6 @@
 # 邻接矩阵与图的谱（v0.5）
 
-图面板「矩阵与谱」区块在**图生成/编辑的同时**自动给出：加权邻接矩阵、特征值（对称邻接阵全谱）、
+图面板「矩阵与谱」区块在**图生成/编辑的同时**自动给出：加权邻接矩阵、特征值（对称邻接阵全谱 / 非对称邻接阵**复数全谱**）、
 **谱半径（Perron 根）与 Perron 向量**。点击矩阵格子可与画布**联动高亮**对应边（琥珀色）。
 
 实现于 `src/graph/spectral.ts`。
@@ -26,6 +26,27 @@
 经典案例（单元测试覆盖）：K3 `[2,-1,-1]`、K4 `[3,-1,-1,-1]`、C4 `[2,0,0,-2]`、
 P3 `[√2,0,-√2]`、带权路径 `±√13`。
 
+## 有向图复数全谱（非对称邻接阵）
+
+有向图的邻接阵非对称，特征值一般**不是实数**。面板对非对称邻接阵给出完整复数谱：
+
+- 算法：**特征多项式**（Faddeev–LeVerrier，O(n⁴)）→ **Durand–Kerner 同时迭代**求全部复根；
+- 显示：特征值 chips（形如 `1`、`−0.500+0.866i`，按 |λ| 降序、按近似重数聚合）+ **复平面散点图**
+  （虚线圆 = 谱半径；每点一个特征值）；
+- 重根处理：DK 对重根会收敛到真根附近的小环——后处理按根尺度容差（1e-6·max|λ|）**聚簇塌缩**取质心；
+- 规模上限 40（`maxComplexSpectrumSize`，O(n⁴) 保护；超出时仅显示谱半径与 Perron 向量）；
+- 数值定位：可视化/教学（精度约 1e-8）；**对称矩阵仍走 Jacobi**（精度更高）。
+
+经典案例（单元测试覆盖）：
+
+| 图 | 复谱 |
+|---|---|
+| 三节点有向环 A→B→C→A | 三次单位根：`1`、`−0.5±0.866i` |
+| 四节点有向环 | `±1`、`±i` |
+| 有向链 A→B:2, B→C:3（幂零） | `0×3` |
+| 迹与行列式不变量 | Σλ = tr(A)、∏λ = det(A)（测试验证） |
+| 对称图交叉验证 | 复谱虚部≈0 且与 Jacobi 实数谱一致 |
+
 ## 谱半径与 Perron 向量
 
 - 算法：**幂迭代**（在 `A + I` 上迭代——避免二分图（周期）情形的振荡），每步 O(E) 稀疏施加；
@@ -49,7 +70,9 @@ Petersen（3-正则、点传递）→ ρ=3、向量全 1；带权路径 A-B:3, B
 
 | 情形 | 行为 |
 |---|---|
-| 有向图（非对称） | 仅显示谱半径与 Perron 向量（复数全谱暂不展开），显示注记 |
+| 对称图（含互为反向的有向边对） | 走 Jacobi 实数全谱 |
+| 有向图（非对称，顶点 ≤ 40） | **复数全谱**：特征值 chips + 复平面散点（谱半径虚线圆） |
+| 有向图（非对称，顶点 > 40） | 复谱省略（O(n⁴) 保护），仅显示谱半径与 Perron 向量 |
 | 顶点数 > 40 | 矩阵表格省略（谱信息保留） |
 | 顶点数 > 64 | 跳过 Jacobi 全谱（幂迭代仍给出谱半径/Perron） |
 | 空图 / 孤立点 | ρ=0；孤立点 Perron=[1]；单点自环 ρ=1 |
@@ -70,9 +93,16 @@ Petersen（3-正则、点传递）→ ρ=3、向量全 1；带权路径 A-B:3, B
 ## 程序接口
 
 ```ts
-import { buildAdjacencyMatrix, jacobiEigenSymmetric, perronVector, computeSpectrum } from '../graph/spectral'
+import {
+  buildAdjacencyMatrix,
+  jacobiEigenSymmetric,
+  complexEigenvalues,
+  perronVector,
+  computeSpectrum,
+} from '../graph/spectral'
 
-const spectrum = computeSpectrum(graph)         // { adjacency, eigenvalues, laplacianEigenvalues, spectralRadius, perron, ... }
-const { values, vectors } = jacobiEigenSymmetric(matrix)
+const spectrum = computeSpectrum(graph)  // { adjacency, eigenvalues, complexEigenvalues, laplacianEigenvalues, spectralRadius, perron, ... }
+const { values, vectors } = jacobiEigenSymmetric(matrix)   // 对称：实数全谱
+const valuesC = complexEigenvalues(matrix)                 // 非对称：复数全谱（|λ| 降序）
 const { eigenvalue, vector, converged } = perronVector(graph)
 ```

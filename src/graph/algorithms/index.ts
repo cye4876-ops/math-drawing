@@ -4,8 +4,10 @@
  * 测试可直接断言步骤序列与最终结果。
  */
 import type { GraphObject } from '../model'
+import { cutVerticesSteps, type CutResult } from './articulation'
 import { dsaturColoring, greedyColoring, isBipartite } from './coloring'
 import { stronglyConnectedSteps, type SccResult } from './connectivity'
+import { eulerTrailSteps, type EulerResult } from './euler'
 import { floydWarshallSteps, type AllPairsResult } from './floyd'
 import { maxFlowSteps, type MaxFlowResult } from './flow'
 import { bipartiteMatchingSteps, type MatchingResult } from './matching'
@@ -28,6 +30,8 @@ export { collectSteps } from './types'
 export { reconstructPath } from './shortest-path'
 export type { MstEdge, MstResult } from './spanning-tree'
 export type { SccResult } from './connectivity'
+export type { CutResult } from './articulation'
+export type { EulerResult } from './euler'
 export type { MatchingResult } from './matching'
 export type { FlowEdge, MaxFlowResult } from './flow'
 export type { AllPairsResult } from './floyd'
@@ -40,6 +44,8 @@ export type AlgorithmResult =
   | BipartiteResult
   | MstResult
   | SccResult
+  | CutResult
+  | EulerResult
   | MatchingResult
   | MaxFlowResult
   | AllPairsResult
@@ -138,6 +144,18 @@ export const ALGORITHMS: AlgorithmInfo[] = [
     requiresStart: false,
     description: '逐中间点迭代，给出完整距离矩阵；可报告负环',
   },
+  {
+    id: 'articulation',
+    name: '割点与桥（Tarjan）',
+    requiresStart: false,
+    description: '无向语义（忽略方向）：找删去后破坏连通性的顶点与边；平行边不构成桥',
+  },
+  {
+    id: 'euler',
+    name: '欧拉路（Hierholzer）',
+    requiresStart: false,
+    description: '无向语义（忽略方向）：0/2 个奇度顶点时逐步走出一条欧拉回路/通路',
+  },
 ]
 
 /** 运行算法：生成器算法收集全部步骤；判定/着色类返回结果（步骤为空数组） */
@@ -187,6 +205,10 @@ export function runAlgorithm(
       return collect(maxFlowSteps(graph, startId, endId))
     case 'floyd':
       return collect(floydWarshallSteps(graph))
+    case 'articulation':
+      return collect(cutVerticesSteps(graph))
+    case 'euler':
+      return collect(eulerTrailSteps(graph))
     default:
       return { steps: [], result: { error: `未知算法：${id}` } }
   }

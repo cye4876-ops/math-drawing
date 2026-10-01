@@ -254,8 +254,8 @@ describe('v0.5 算法：二分判定（规格关键项）', () => {
 })
 
 describe('v0.5 算法：注册与统一入口', () => {
-  it('ALGORITHMS 元数据完整（14 项）且 runAlgorithm 全部可用', () => {
-    expect(ALGORITHMS).toHaveLength(14)
+  it('ALGORITHMS 元数据完整（16 项）且 runAlgorithm 全部可用', () => {
+    expect(ALGORITHMS).toHaveLength(16)
     // 二分路径图：所有算法都可运行（matching 需要二分图，奇环图上报错属规格行为）
     const graph = make('A-B:1, B-C:2')
     for (const info of ALGORITHMS) {

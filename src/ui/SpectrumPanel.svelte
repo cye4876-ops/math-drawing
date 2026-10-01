@@ -8,7 +8,12 @@
    */
   import type { GraphObject } from '../graph/model'
   import type { SceneHighlight } from '../render/element-registry'
-  import { buildLaplacianMatrix, computeSpectrum, type GraphSpectrum } from '../graph/spectral'
+  import {
+    buildLaplacianMatrix,
+    computeSpectrum,
+    type ComplexNumber,
+    type GraphSpectrum,
+  } from '../graph/spectral'
   import { structuralKey } from '../graph/structural-key'
   import { getMatrixFocus } from '../state/matrix-focus.svelte'
 
@@ -132,6 +137,52 @@
     if (!values || values.length < 2) return null
     return values[1]!
   })
+
+  /** 复数谱按近似重数聚合（已按 |λ| 降序） */
+  const groupedComplex = $derived.by(() => {
+    const values = spectrum?.complexEigenvalues
+    if (!values) return []
+    const groups: { value: ComplexNumber; count: number }[] = []
+    for (const value of values) {
+      const last = groups[groups.length - 1]
+      if (last && Math.hypot(last.value.re - value.re, last.value.im - value.im) < 1e-6) {
+        last.count += 1
+      } else {
+        groups.push({ value, count: 1 })
+      }
+    }
+    return groups
+  })
+
+  /** 复数格式化：a+bi / bi / a（小数位跟随 formatValue） */
+  function formatComplex(value: ComplexNumber): string {
+    if (Math.abs(value.im) < 5e-4) return formatValue(value.re)
+    if (Math.abs(value.re) < 5e-4) return `${formatValue(value.im)}i`
+    return `${formatValue(value.re)}${value.im > 0 ? '+' : '−'}${formatValue(Math.abs(value.im))}i`
+  }
+
+  /** 复平面几何（等比尺度，含谱半径虚线圆） */
+  const complexGeometry = $derived.by(() => {
+    const values = spectrum?.complexEigenvalues
+    if (!values || values.length === 0 || !spectrum) return null
+    let radius = 1
+    for (const value of values) {
+      radius = Math.max(radius, Math.abs(value.re), Math.abs(value.im))
+    }
+    radius *= 1.15
+    const centerX = 120
+    const centerY = 75
+    const scale = 62 / radius
+    return {
+      centerX,
+      centerY,
+      circleRadius: spectrum.spectralRadius * scale,
+      points: values.map((value) => ({
+        x: centerX + value.re * scale,
+        y: centerY - value.im * scale,
+      })),
+    }
+  })
 </script>
 
 <div class="spectrum" data-testid="spectrum-panel">
@@ -234,9 +285,42 @@
           >
         {/each}
       </div>
+    {:else if spectrum.complexEigenvalues}
+      <div class="line" data-testid="complex-eigenvalues">
+        <span class="dim">邻接谱（复，|λ| 降序）：</span>
+        {#each groupedComplex as group, index (index)}
+          <span class="chip"
+            >{formatComplex(group.value)}{group.count > 1 ? `×${group.count}` : ''}</span
+          >
+        {/each}
+      </div>
+      {#if complexGeometry}
+        <div class="complex-plane">
+          <svg
+            class="plane"
+            viewBox="0 0 240 150"
+            data-testid="complex-spectrum"
+            role="img"
+            aria-label="复平面上的特征值分布"
+          >
+            <line x1="0" y1="75" x2="240" y2="75" class="axis" />
+            <line x1="120" y1="6" x2="120" y2="144" class="axis" />
+            <circle
+              cx={complexGeometry.centerX}
+              cy={complexGeometry.centerY}
+              r={complexGeometry.circleRadius}
+              class="radius-circle"
+            />
+            {#each complexGeometry.points as point, index (index)}
+              <circle cx={point.x} cy={point.y} r="3" class="point" />
+            {/each}
+          </svg>
+        </div>
+      {/if}
     {:else}
       <div class="hint" data-testid="spectral-note">
-        非对称邻接阵（有向图）：仅显示谱半径与 Perron 向量
+        非对称邻接阵（有向图）：{matrixSize > 40 ? '图较大，复谱已省略；' : ''}仅显示谱半径与 Perron
+        向量
       </div>
     {/if}
 
@@ -292,6 +376,34 @@
   .hint {
     font-size: 12px;
     color: var(--text-dim);
+  }
+
+  .complex-plane {
+    display: flex;
+    justify-content: center;
+  }
+
+  .plane {
+    width: 240px;
+    height: 150px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .plane .axis {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+
+  .plane .radius-circle {
+    fill: none;
+    stroke: #9ca3af;
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+  }
+
+  .plane .point {
+    fill: #2563eb;
   }
 
   .matrix-wrap {

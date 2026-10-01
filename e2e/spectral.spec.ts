@@ -69,15 +69,26 @@ test.describe('v0.5 邻接矩阵与谱（特征值 / Perron 向量）', () => {
     await expect.poll(() => countHighlightPixels(page)).toBeLessThan(20)
   })
 
-  test('有向图：非对称注记、矩阵非对称、谱半径与 Perron 仍显示', async ({ page }) => {
+  test('有向图：复谱（特征值 chips + 复平面）、矩阵非对称、谱半径与 Perron 仍显示', async ({
+    page,
+  }) => {
     await page.goto('/?mode=graph&graph=' + encodeURIComponent('A->B:2, B->C:3'))
-    await expect(page.getByTestId('spectral-note')).toBeVisible()
-    await expect(page.getByTestId('spectral-note')).toContainText('有向')
+    // 幂零链：三个特征值全为 0（聚合显示 ×3）
+    await expect(page.getByTestId('complex-eigenvalues')).toBeVisible()
+    await expect(page.getByTestId('complex-eigenvalues')).toContainText('0×3')
+    await expect(page.getByTestId('complex-spectrum')).toBeVisible()
     await expect(page.getByTestId('spectral-radius')).toBeVisible()
     // 矩阵非对称：A→B 为 2，B→A 为 0
     await expect(page.getByTestId('matrix-cell-0-1')).toHaveText('2')
     await expect(page.getByTestId('matrix-cell-1-0')).toHaveText('0')
     await expect(page.getByTestId('perron-0')).toBeVisible()
+  })
+
+  test('有向环：复谱给出三次单位根（含非实特征值）', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('A->B, B->C, C->A'))
+    const chips = page.getByTestId('complex-eigenvalues')
+    await expect(chips).toContainText('0.866i')
+    await expect(page.getByTestId('complex-spectrum')).toBeVisible()
   })
 
   test('矩阵视图切换：邻接 ⇄ 拉普拉斯（L = D − A）', async ({ page }) => {
