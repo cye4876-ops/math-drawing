@@ -17,6 +17,8 @@
 | [docs/expr-syntax.md](docs/expr-syntax.md) | 表达式语法手册（示例可执行校验） |
 | [docs/curve-input-guide.md](docs/curve-input-guide.md) | **曲线输入与使用指南**（v0.3） |
 | [docs/sampling-algorithms.md](docs/sampling-algorithms.md) | 采样算法原理（v0.3） |
+| [docs/tools.md](docs/tools.md) | **交互分析工具使用说明**（v0.4：追踪/切线/零点/交点/积分/黎曼和/泰勒） |
+| [docs/numeric-methods.md](docs/numeric-methods.md) | 数值算法说明（v0.4：选型/收敛/回退策略） |
 | [tests/benchmark/pathological-functions.md](tests/benchmark/pathological-functions.md) | **病态函数基准对照**（JSXGraph 并排图） |
 
 ### 各版本规格
@@ -45,7 +47,7 @@
 | v0.1 项目骨架 | 已完成 | 2026-09-30 | 本地验收全绿（typecheck / lint / test / e2e / 许可证扫描），CI 通过 |
 | v0.2 表达式引擎 | 已完成 | 2026-10-01 | 词法/语法/AST/求值/符号求导/参数系统落地；381 项测试全绿，覆盖率 ≥91%；性能达标（解析+求值 <0.1 ms，编译闭包 <100 ns），CI 通过 |
 | v0.3 2D 绘图核心 | 已完成 | 2026-10-01 | 四类曲线（显/隐/参数/极坐标）+ 自适应采样 + 渐近线断开虚线标注；病态函数基准与 JSXGraph 逐条一致（并排图存档）；单元测试 471 项 + e2e 16 项全绿，CI 通过 |
-| v0.4 交互分析 | 未开始 | — | **验收节点 A：可日常使用的函数绘图器** |
+| v0.4 交互分析 | 已完成 | 2026-10-02 | **验收节点 A：可日常使用的函数绘图器**。7 个分析工具 + 工具抽象（单激活不变量）；数值库（安全牛顿求根/自适应 Simpson/黎曼和/屏幕空间最近点）；单测 538 项 + e2e 26 项全绿 |
 | v0.5 图论 | 未开始 | — | **验收节点 B：两大核心诉求齐备** |
 | v0.6 导出与分享 | 未开始 | — | — |
 | v0.7 统计与数据 | 未开始 | — | — |

@@ -25,6 +25,8 @@ export default defineConfig({
         'src/render/viewport.ts',
         'src/render/curve-renderer.ts',
         'src/state/**',
+        'src/math/numeric/**',
+        'src/tools/**',
       ],
       reporter: ['text', 'html'],
       thresholds: {
@@ -45,6 +47,19 @@ export default defineConfig({
           branches: 85,
           functions: 90,
           lines: 90,
+        },
+        'src/math/numeric/**': {
+          statements: 88,
+          branches: 84,
+          functions: 95,
+          lines: 88,
+        },
+        // 交互工具含大量 canvas 绘制分支（由 e2e/人工验证兜底），阈值低于纯逻辑模块
+        'src/tools/**': {
+          statements: 76,
+          branches: 55,
+          functions: 80,
+          lines: 80,
         },
       },
     },
