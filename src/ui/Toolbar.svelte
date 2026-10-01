@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { AppStore } from '../state/store'
   import type { CoordType, Size, ViewTransform } from '../state/types'
+  import type { ToolRegistry } from '../tools/tool-registry'
   import { withEqualAspect } from '../core/transform'
   import { clearSampleCache } from '../render/curve-renderer'
   import { type ViewRangeInput, exactView } from '../render/viewport'
@@ -11,11 +12,13 @@
     canUndo,
     canRedo,
     getStageSize,
+    registry,
   }: {
     store: AppStore
     canUndo: boolean
     canRedo: boolean
     getStageSize: () => Size
+    registry: ToolRegistry
   } = $props()
 
   let currentView = $state<ViewTransform | null>(null)
@@ -24,6 +27,15 @@
     return store.subscribe((state) => {
       currentView = state.view
     })
+  })
+
+  let activeToolId = $state<string | null>(null)
+  $effect(() => {
+    const sync = (): void => {
+      activeToolId = registry.getActive()?.id ?? null
+    }
+    sync()
+    return registry.subscribe(sync)
   })
 
   let showView = $state(false)
@@ -104,6 +116,25 @@
 </script>
 
 <div class="toolbar" role="toolbar" aria-label="工具条">
+  <div class="tool-group" role="radiogroup" aria-label="分析工具">
+    <button
+      type="button"
+      data-testid="tool-none"
+      class:active={activeToolId === null}
+      title="选择/平移（默认）"
+      onclick={() => registry.activate(null)}>选择</button
+    >
+    {#each registry.getTools() as tool (tool.id)}
+      <button
+        type="button"
+        data-testid={`tool-${tool.id}`}
+        class:active={activeToolId === tool.id}
+        onclick={() => registry.activate(activeToolId === tool.id ? null : tool.id)}
+        >{tool.name}</button
+      >
+    {/each}
+  </div>
+  <span class="divider"></span>
   <button type="button" data-testid="view-settings" onclick={toggleViewPanel}>视图设置</button>
   <button
     type="button"
@@ -206,6 +237,12 @@
   .toolbar button.active {
     border-color: var(--accent);
     color: var(--accent);
+  }
+
+  .tool-group {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
   }
 
   .select-label {

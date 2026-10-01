@@ -1,5 +1,6 @@
 import type { AppStore } from '../state/store'
 import type { Point2, Size } from '../state/types'
+import type { ToolPointerEvent } from '../tools/tool-registry'
 import { mathToScreen, panBy, screenToMath, zoomAt } from '../core/transform'
 
 /** 滚轮缩放灵敏度 */
@@ -16,6 +17,12 @@ export interface InteractionOptions {
   getSize: () => Size
   /** 光标所在数学坐标（离开画布为 null） */
   onCursorMove?: (position: Point2 | null) => void
+  /** 工具钩子：返回 true 表示已消费（阻止平移/轴拖动等默认行为） */
+  toolHooks?: {
+    down?: (e: ToolPointerEvent) => boolean
+    move?: (e: ToolPointerEvent) => boolean
+    up?: (e: ToolPointerEvent) => boolean
+  }
 }
 
 /**
@@ -25,19 +32,26 @@ export interface InteractionOptions {
  * - 返回解绑函数。
  */
 export function attachInteractions(options: InteractionOptions): () => void {
-  const { container, store, getSize, onCursorMove } = options
+  const { container, store, getSize, onCursorMove, toolHooks } = options
 
   let dragging = false
   let axisDrag: 'x' | 'y' | null = null
   let lastX = 0
   let lastY = 0
 
-  const toMath = (clientX: number, clientY: number): Point2 => {
+  /** 事件目标是否属于画布区域（画布本身或容器空白区），而非叠加的 DOM 面板/控件 */
+  const isCanvasTarget = (target: EventTarget | null): boolean =>
+    target === container || (target instanceof HTMLElement && target.tagName === 'CANVAS')
+
+  /** 构造工具事件（屏幕坐标 + 数学坐标 + 原始事件） */
+  const buildToolEvent = (event: PointerEvent): ToolPointerEvent => {
     const rect = container.getBoundingClientRect()
-    return screenToMath(store.getView(), getSize(), {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
-    })
+    const screen = { x: event.clientX - rect.left, y: event.clientY - rect.top }
+    return {
+      screen,
+      math: screenToMath(store.getView(), getSize(), screen),
+      pointer: event,
+    }
   }
 
   /** 指针是否落在可见坐标轴附近：'x' = 水平轴（调 axisX），'y' = 垂直轴（调 axisY） */
@@ -60,6 +74,8 @@ export function attachInteractions(options: InteractionOptions): () => void {
   }
 
   const onWheel = (event: WheelEvent): void => {
+    // 仅画布区域响应滚轮缩放（面板/控件上的滚动不缩放视图）
+    if (!isCanvasTarget(event.target)) return
     event.preventDefault()
     const rect = container.getBoundingClientRect()
     const anchor = { x: event.clientX - rect.left, y: event.clientY - rect.top }
@@ -69,6 +85,11 @@ export function attachInteractions(options: InteractionOptions): () => void {
 
   const onPointerDown = (event: PointerEvent): void => {
     if (event.button !== 0) return
+    // 仅画布区域响应：点击叠加面板/控件（DOM 层）不应触发工具或平移，
+    // 也不调用 setPointerCapture（否则按钮的真实点击会因 capture 重定向而丢失）。
+    if (!isCanvasTarget(event.target)) return
+    // 工具优先：消费后不再触发轴拖动/平移
+    if (toolHooks?.down?.(buildToolEvent(event))) return
     const hit = axisAt(event.clientX, event.clientY)
     if (hit) {
       axisDrag = hit
@@ -83,30 +104,36 @@ export function attachInteractions(options: InteractionOptions): () => void {
   }
 
   const onPointerMove = (event: PointerEvent): void => {
-    onCursorMove?.(toMath(event.clientX, event.clientY))
+    const toolEvent = buildToolEvent(event)
+    onCursorMove?.(toolEvent.math)
 
     if (axisDrag) {
-      const m = toMath(event.clientX, event.clientY)
       const view = store.getView()
-      if (axisDrag === 'x') store.setView({ ...view, axisX: m.y })
-      else store.setView({ ...view, axisY: m.x })
+      if (axisDrag === 'x') store.setView({ ...view, axisX: toolEvent.math.y })
+      else store.setView({ ...view, axisY: toolEvent.math.x })
       return
     }
 
-    if (!dragging) {
-      // 悬停在坐标轴上时给出可拖动提示
-      const hit = axisAt(event.clientX, event.clientY)
-      container.style.cursor = hit === 'x' ? 'ns-resize' : hit === 'y' ? 'ew-resize' : ''
+    const toolHandled = toolHooks?.move?.(toolEvent) ?? false
+
+    if (dragging) {
+      const dx = event.clientX - lastX
+      const dy = event.clientY - lastY
+      lastX = event.clientX
+      lastY = event.clientY
+      store.setView(panBy(store.getView(), dx, dy))
       return
     }
-    const dx = event.clientX - lastX
-    const dy = event.clientY - lastY
-    lastX = event.clientX
-    lastY = event.clientY
-    store.setView(panBy(store.getView(), dx, dy))
+
+    if (toolHandled) return
+
+    // 悬停在坐标轴上时给出可拖动提示
+    const hit = axisAt(event.clientX, event.clientY)
+    container.style.cursor = hit === 'x' ? 'ns-resize' : hit === 'y' ? 'ew-resize' : ''
   }
 
   const endDrag = (event: PointerEvent): void => {
+    toolHooks?.up?.(buildToolEvent(event))
     if (axisDrag) {
       axisDrag = null
       if (container.hasPointerCapture(event.pointerId)) {
@@ -149,8 +176,25 @@ export function attachInteractions(options: InteractionOptions): () => void {
  * - Ctrl/Cmd + Z：撤销
  * - Ctrl/Cmd + Shift + Z 或 Ctrl + Y：重做
  */
-export function attachKeyboardShortcuts(store: AppStore): () => void {
+export function attachKeyboardShortcuts(
+  store: AppStore,
+  options: { onKey?: (event: KeyboardEvent) => boolean } = {},
+): () => void {
   const onKeyDown = (event: KeyboardEvent): void => {
+    // 文本输入控件内不转发工具快捷键（空格、方向键等应留给输入本身）
+    const target = event.target
+    if (
+      target instanceof HTMLElement &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable)
+    ) {
+      return
+    }
+    // 工具优先消费（空格/方向键等）；返回 true 则跳过全局快捷键
+    if (options.onKey?.(event)) return
+
     const mod = event.ctrlKey || event.metaKey
     if (!mod) return
 

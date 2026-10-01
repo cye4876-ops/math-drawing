@@ -8,14 +8,42 @@
   import { type ViewRangeInput, exactView } from '../render/viewport'
   import { createStore, type AppStore } from '../state/store'
   import type { Point2 } from '../state/types'
+  import {
+    ToolRegistry,
+    createIntegralTool,
+    createIntersectionTool,
+    createRiemannTool,
+    createRootsTool,
+    createTangentTool,
+    createTaylorTool,
+    createTraceCursorTool,
+  } from '../tools'
   import { attachInteractions, attachKeyboardShortcuts } from './interactions'
   import CurveList from './CurveList.svelte'
   import MarkerLayer from './MarkerLayer.svelte'
   import StatusBar from './StatusBar.svelte'
   import Toolbar from './Toolbar.svelte'
+  import ToolsPanel from './ToolsPanel.svelte'
 
   const store = createStore()
-  let stageSizeRef: CanvasLayer | null = null
+  let canvasLayerRef: CanvasLayer | null = null
+
+  // 工具注册表（v0.4）：ctx 延迟绑定到画布层
+  const registry = new ToolRegistry({
+    store,
+    getView: () => store.getView(),
+    getSize: () => canvasLayerRef?.getSize() ?? { width: 0, height: 0 },
+    requestRender: () => canvasLayerRef?.requestRender(),
+    notify: () => registry.notify(),
+  })
+  registry
+    .register(createTraceCursorTool())
+    .register(createTangentTool())
+    .register(createRootsTool())
+    .register(createIntersectionTool())
+    .register(createIntegralTool())
+    .register(createRiemannTool())
+    .register(createTaylorTool())
 
   /**
    * URL 预载（自动化测试与基准截图用）：
@@ -107,13 +135,17 @@
   let scale = $state(store.getView().scaleX)
 
   onMount(() => {
-    // 分层渲染：Canvas 层（网格 + 曲线）+ DOM 覆盖层（标记点与面板）
+    // 分层渲染：Canvas 层（网格 + 曲线 + 工具覆盖层）+ DOM 覆盖层（标记点与面板）
+    let boundLayer: CanvasLayer | null = null
     const canvasLayer = createCanvasLayer(stageElement, (ctx, size, dpr) => {
       const state = store.getState()
       drawGrid(ctx, state.view, size, dpr)
       drawCurves(ctx, store.getCurves(), state.view, size)
+      registry.drawOverlay(ctx)
+      if (registry.isAnimating()) boundLayer?.requestRender()
     })
-    stageSizeRef = canvasLayer
+    boundLayer = canvasLayer
+    canvasLayerRef = canvasLayer
     const domLayer = createDomLayer(stageElement)
 
     const markers = mount(MarkerLayer, {
@@ -142,8 +174,26 @@
       onCursorMove: (position) => {
         cursor = position
       },
+      toolHooks: {
+        down: (e) => registry.handlePointerDown(e),
+        move: (e) => registry.handlePointerMove(e),
+        up: (e) => registry.handlePointerUp(e),
+      },
     })
-    const unbindKeyboard = attachKeyboardShortcuts(store)
+    const unbindKeyboard = attachKeyboardShortcuts(store, {
+      onKey: (event) => {
+        if (registry.handleKeyDown(event)) {
+          // 消费后阻止默认行为（空格滚动页面 / 按钮被空格二次触发）
+          event.preventDefault()
+          return true
+        }
+        if (event.key === 'Escape' && registry.getActive()) {
+          registry.activate(null)
+          return true
+        }
+        return false
+      },
+    })
 
     return () => {
       unbindKeyboard()
@@ -161,10 +211,13 @@
     {store}
     {canUndo}
     {canRedo}
-    getStageSize={() => stageSizeRef?.getSize() ?? { width: 0, height: 0 }}
+    {registry}
+    getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
   />
   <div class="main">
-    <div class="stage" bind:this={stageElement}></div>
+    <div class="stage" bind:this={stageElement}>
+      <ToolsPanel {registry} />
+    </div>
     <CurveList {store} />
   </div>
   <StatusBar {cursor} {scale} />
