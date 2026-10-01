@@ -10,7 +10,7 @@ import type { DocState, ViewTransform } from '../state/types'
 export interface SharedState {
   doc: DocState
   view: ViewTransform
-  mode: 'plot' | 'graph' | 'stats' | 'space'
+  mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced'
 }
 
 /** URL 分享参数名 */
@@ -64,12 +64,13 @@ export function decodeSharedState(param: string): SharedState {
     throw new DocFormatError('分享链接数据损坏（解压失败）')
   }
   const { doc, view } = deserializeDocument(json)
-  let mode: 'plot' | 'graph' | 'stats' | 'space' = 'plot'
+  let mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' = 'plot'
   try {
     const raw = JSON.parse(json) as Record<string, unknown>
     if (raw['mode'] === 'graph') mode = 'graph'
     else if (raw['mode'] === 'stats') mode = 'stats'
     else if (raw['mode'] === 'space') mode = 'space'
+    else if (raw['mode'] === 'advanced') mode = 'advanced'
   } catch {
     // 已由 deserializeDocument 校验过，此处仅为读取 mode
   }

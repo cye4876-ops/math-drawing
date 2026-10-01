@@ -27,6 +27,8 @@
   import StatsPanel from './StatsPanel.svelte'
   import SpacePanel from './SpacePanel.svelte'
   import SpaceView from './SpaceView.svelte'
+  import AdvancedPanel from './AdvancedPanel.svelte'
+  import AdvancedView from './AdvancedView.svelte'
   import MarkerLayer from './MarkerLayer.svelte'
   import StatusBar from './StatusBar.svelte'
   import MarkerList from './MarkerList.svelte'
@@ -96,7 +98,7 @@
     return null
   }
 
-  let sharedPreloadMode: 'plot' | 'graph' | 'stats' | 'space' | null = null
+  let sharedPreloadMode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | null = null
 
   function preloadFromUrl(target: AppStore): ViewRangeInput | null {
     if (typeof location === 'undefined') return null
@@ -188,35 +190,40 @@
   // 预载必须在组件状态初始化之前执行（否则初始 UI 状态捕获不到）
   const pendingRange = preloadFromUrl(store)
 
-  /** 界面模式（工具条左上角切换）：plot / graph / stats / space；?mode= 可指定 */
-  function initialModeFromUrl(): 'plot' | 'graph' | 'stats' | 'space' {
+  /** 界面模式（工具条左上角切换）：plot / graph / stats / space / advanced；?mode= 可指定 */
+  function initialModeFromUrl(): 'plot' | 'graph' | 'stats' | 'space' | 'advanced' {
     if (typeof location === 'undefined') return 'plot'
     const modeParam = readRawParam(location.search, 'mode')
     if (modeParam === 'graph') return 'graph'
     if (modeParam === 'stats') return 'stats'
     if (modeParam === 'space') return 'space'
+    if (modeParam === 'advanced') return 'advanced'
     if (modeParam === null && readRawParam(location.search, 'graph') !== null) return 'graph'
     return 'plot'
   }
-  const initialMode: 'plot' | 'graph' | 'stats' | 'space' =
+  const initialMode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' =
     sharedPreloadMode ?? initialModeFromUrl()
 
-  let mode = $state<'plot' | 'graph' | 'stats' | 'space'>(initialMode)
+  let mode = $state<'plot' | 'graph' | 'stats' | 'space' | 'advanced'>(initialMode)
 
   /**
-   * 四种模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
+   * 五种模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
    * 页面初始视图归属于初始模式；未访问过的模式回落到标准默认视图。
    */
-  const savedViews: Record<'plot' | 'graph' | 'stats' | 'space', ViewTransform | null> = {
+  const savedViews: Record<
+    'plot' | 'graph' | 'stats' | 'space' | 'advanced',
+    ViewTransform | null
+  > = {
     plot: initialMode === 'plot' ? { ...store.getView() } : null,
     graph: initialMode === 'graph' ? { ...store.getView() } : null,
     stats: initialMode === 'stats' ? { ...store.getView() } : null,
     space: initialMode === 'space' ? { ...store.getView() } : null,
+    advanced: initialMode === 'advanced' ? { ...store.getView() } : null,
   }
 
-  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集，3D 不画 2D */
+  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集，3D/进阶不画 2D */
   function visibleObjectsOf(state: { doc: { objects: SceneObject[] } }): SceneObject[] {
-    if (mode === 'space') return []
+    if (mode === 'space' || mode === 'advanced') return []
     return state.doc.objects.filter((object) => {
       if (mode === 'graph') return object.type === 'graph'
       if (mode === 'stats') return object.type === 'dataset'
@@ -228,7 +235,7 @@
     })
   }
 
-  function setMode(next: 'plot' | 'graph' | 'stats' | 'space'): void {
+  function setMode(next: 'plot' | 'graph' | 'stats' | 'space' | 'advanced'): void {
     if (mode === next) return
     savedViews[mode] = store.getView()
     mode = next
@@ -349,8 +356,13 @@
     getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
   />
   <div class="main">
-    <div class="stage" bind:this={stageElement} class:hidden2d={mode === 'space'}>
+    <div
+      class="stage"
+      bind:this={stageElement}
+      class:hidden2d={mode === 'space' || mode === 'advanced'}
+    >
       <SpaceView {store} active={mode === 'space'} />
+      <AdvancedView active={mode === 'advanced'} />
     </div>
     <div class="side-column">
       {#if mode === 'plot'}
@@ -364,8 +376,10 @@
           getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
           requestRender={() => canvasLayerRef?.requestRender()}
         />
-      {:else}
+      {:else if mode === 'space'}
         <SpacePanel {store} />
+      {:else}
+        <AdvancedPanel />
       {/if}
       <ToolsPanel {registry} />
     </div>

@@ -23,9 +23,9 @@ export const SPACE_OBJECT_TYPES = ['surface3d', 'curve3d', 'field3d', 'ode2d'] a
 /** 按模式过滤画布对象（与 App 的可见性规则一致） */
 export function objectsOfMode(
   doc: DocState,
-  mode: 'plot' | 'graph' | 'stats' | 'space',
+  mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced',
 ): SceneObject[] {
-  if (mode === 'space') return []
+  if (mode === 'space' || mode === 'advanced') return []
   return doc.objects.filter((object) => {
     if (mode === 'graph') return object.type === 'graph'
     if (mode === 'stats') return object.type === 'dataset'
@@ -110,7 +110,7 @@ export interface FrameRenderOptions {
 export function renderFrame(
   ctx: CanvasRenderingContext2D,
   doc: DocState,
-  mode: 'plot' | 'graph' | 'stats' | 'space',
+  mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced',
   view: ViewTransform,
   size: Size,
   options: FrameRenderOptions,
