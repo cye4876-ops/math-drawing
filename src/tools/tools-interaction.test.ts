@@ -262,9 +262,9 @@ describe('tools/riemann: 黎曼和', () => {
 
     // 空格切换播放状态
     expect(tool.onKeyDown!({ key: ' ' } as KeyboardEvent, f.ctx)).toBe(true)
-    expect(tool.isAnimating!()).toBe(true)
+    expect(tool.isAnimating!(f.ctx)).toBe(true)
     expect(tool.onKeyDown!({ key: ' ' } as KeyboardEvent, f.ctx)).toBe(true)
-    expect(tool.isAnimating!()).toBe(false)
+    expect(tool.isAnimating!(f.ctx)).toBe(false)
   })
 
   it('播放状态下覆盖层绘制矩形并请求续帧', () => {
@@ -316,7 +316,7 @@ describe('tools/taylor: 泰勒展开', () => {
 
     f.registry.handlePointerDown(pointerEvent(f.store, 0.5, 0))
     tool.onControl!('toggle', '', f.ctx)
-    expect(tool.isAnimating!()).toBe(true)
+    expect(tool.isAnimating!(f.ctx)).toBe(true)
 
     const canvas = mockCanvas()
     tool.drawOverlay!(canvas, f.ctx)
