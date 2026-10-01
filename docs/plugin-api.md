@@ -1,6 +1,6 @@
 # 插件开发文档（v1.0）
 
-数学绘图工具的插件是**本地 ES 模块**（`.js`），通过 `activate(api)` 约定注册扩展点。
+Math Drawing（数学绘图工具）的插件是**本地 ES 模块**（`.js`），通过 `activate(api)` 约定注册扩展点。
 v1.0 提供 **6 类扩展点**：表达式函数、图形元素、交互工具、侧栏视图、导出格式、Notebook 单元格类型。
 
 > 完整可运行的示例插件：`examples/plugins/example-logistic.js`

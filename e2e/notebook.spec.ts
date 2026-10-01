@@ -308,7 +308,7 @@ test.describe('v1.0 PWA 资源', () => {
     const manifest = await request.get('/manifest.webmanifest')
     expect(manifest.ok()).toBeTruthy()
     const body = await manifest.json()
-    expect(body.name).toBe('数学绘图工具')
+    expect(body.name).toBe('Math Drawing')
     expect(body.icons.length).toBeGreaterThanOrEqual(2)
 
     const icon = await request.get('/icon-512.png')

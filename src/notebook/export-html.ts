@@ -447,7 +447,7 @@ document.querySelectorAll('canvas[data-figure]').forEach(function (canvas) {
     `<style>${PAGE_STYLE}</style>`,
     '</head>',
     '<body>',
-    `<header><h1>${escapeHtml(notebook.title)}</h1><p class="meta">数学绘图工具 v1.0 导出 · ${new Date().toLocaleString('zh-CN')}</p></header>`,
+    `<header><h1>${escapeHtml(notebook.title)}</h1><p class="meta">Math Drawing v1.0 导出 · ${new Date().toLocaleString('zh-CN')}</p></header>`,
     `<main>${interactHint}${sections.join('\n')}</main>`,
     script,
     '</body>',

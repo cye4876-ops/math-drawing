@@ -433,7 +433,7 @@ export function buildTikz(
   }
 
   const commentLines = [
-    `% 由「数学绘图工具」导出（v0.6）`,
+    `% 由「Math Drawing」导出（v0.6）`,
     `% 模式：${mode === 'graph' ? '图论' : '函数绘图'}；范围：${options.range.kind}`,
   ]
   for (const item of skipped) {

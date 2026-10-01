@@ -45,7 +45,7 @@
 \documentclass[tikz,border=6pt]{standalone}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
-% 由「数学绘图工具」导出（v0.6）
+% 由「Math Drawing」导出（v0.6）
 % 模式：函数绘图；范围：view
 \begin{document}
   % ---- 函数曲线 ----
@@ -69,7 +69,7 @@
 \documentclass[tikz,border=6pt]{standalone}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
-% 由「数学绘图工具」导出（v0.6）
+% 由「Math Drawing」导出（v0.6）
 % 模式：图论；范围：view
 \begin{document}
   % ---- 图 ----

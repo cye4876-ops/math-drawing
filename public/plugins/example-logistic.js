@@ -1,5 +1,5 @@
 /**
- * 数学绘图工具 v1.0 —— 示例插件（覆盖全部 6 类扩展点）
+ * Math Drawing v1.0 —— 示例插件（覆盖全部 6 类扩展点）
  *
  * 加载方式（任选其一）：
  * 1. 在「Notebook → 插件」区输入 /plugins/example-logistic.js 并加载；

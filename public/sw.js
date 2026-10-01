@@ -1,5 +1,5 @@
 /**
- * 数学绘图工具 Service Worker（v1.0）
+ * Math Drawing Service Worker（v1.0）
  *
  * 策略：
  * - 应用外壳（HTML/manifest/图标）：install 预缓存；导航请求 network-first（拿到新版即更新缓存），

@@ -131,7 +131,7 @@ export function buildNotebookLatex(notebook: Notebook, runResult: NotebookRunRes
   }
   const skippedNote = skipped.length > 0 ? `% 已跳过：${skipped.join('；')}\n` : ''
   return [
-    '% 由数学绘图工具 v1.0 导出（xelatex/lualatex 编译以支持中文）',
+    '% 由 Math Drawing v1.0 导出（xelatex/lualatex 编译以支持中文）',
     '\\documentclass[11pt]{article}',
     '\\usepackage{amsmath,amssymb}',
     '\\usepackage{pgfplots}',

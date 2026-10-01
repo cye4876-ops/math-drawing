@@ -1,6 +1,6 @@
 {
-  "name": "数学绘图工具",
-  "short_name": "数学绘图",
+  "name": "Math Drawing",
+  "short_name": "Math Drawing",
   "description": "函数绘图、图论、统计、3D 与场、进阶分析与 Notebook 教学一体的数学可视化工具",
   "lang": "zh-CN",
   "start_url": "/",

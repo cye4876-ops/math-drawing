@@ -50,6 +50,7 @@ describe('v1.0 LaTeX 导出：文本转义', () => {
           type: 'compute',
           collapsed: false,
           operation: 'evaluate',
+          limitPoint: '0',
           source: 'x+1\\end{verbatim}\\input{secret}',
         },
       ],
@@ -63,7 +64,14 @@ describe('v1.0 LaTeX 导出：文本转义', () => {
     const notebook: Notebook = {
       title: '测试',
       cells: [
-        { id: 'c1', type: 'compute', collapsed: false, operation: 'evaluate', source: 'sin(x)' },
+        {
+          id: 'c1',
+          type: 'compute',
+          collapsed: false,
+          operation: 'evaluate',
+          limitPoint: '0',
+          source: 'sin(x)',
+        },
       ],
     }
     const tex = buildNotebookLatex(notebook, emptyRun)
