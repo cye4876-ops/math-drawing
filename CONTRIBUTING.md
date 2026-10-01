@@ -20,6 +20,9 @@
 | `pnpm test` | 单元测试（Vitest） |
 | `pnpm test:e2e` | 端到端测试（Playwright；默认使用内置 Chromium，首次需 `pnpm exec playwright install chromium`；网络受限时可用系统浏览器：设置环境变量 `PW_CHANNEL=chrome` 或 `msedge`） |
 | `pnpm check:licenses` | 许可证扫描（拒绝 GPL/AGPL/SSPL 系依赖） |
+| `node scripts/bundle-size.mjs` | 构建产物体积核算（gzip 阈值校验） |
+| `node scripts/verify-pwa.mjs` | PWA 生产验证（SW/离线；需先 `pnpm preview`） |
+| `node scripts/gen-icons.mjs` | 重新生成 PWA 图标 PNG（需本机 Chrome） |
 
 ## 提交规范
 
@@ -42,6 +45,9 @@
 ## 项目约定
 
 - **文档与代码同源**：版本规格变更时同步更新 `README.md` 进度表；实现偏离规格时，先改文档再改代码
+- **Svelte 5 runes 文件后缀**：含 `$state`/`$derived`/`$effect` 的模块必须命名为 `*.svelte.ts`（否则运行时报 `rune_outside_svelte`）
 - **渲染分层**：大批量图形走 Canvas 层；需要独立鼠标事件的元素走 DOM 覆盖层（见 `docs/TECH-STACK.md` 第二节）
 - **依赖红线**：不引入 GPL/AGPL 依赖；运行时依赖保持极简（见 `docs/TECH-STACK.md`）
+- **插件扩展**：新增模块能力优先考虑走 6 类插件扩展点（见 `docs/plugin-api.md`），保持核心可扩展
+- **限制诚实**：已知边界必须写进 `docs/limitations.md`
 - 界面文案使用中文（v0.1 起暂不引入国际化框架）

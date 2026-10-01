@@ -1,8 +1,41 @@
-# 数学绘图工具（暂定名）
+# 数学绘图工具
 
 一个开源的数学可视化工具，覆盖**函数绘图**、**图论**，并向统计、3D 曲面、向量场、复变函数、数论、符号计算、交互 Notebook 延伸。
 
-形态：**网页应用**（TypeScript + 自研 Canvas 渲染器，纯静态部署，无后端）。
+形态：**网页应用**（TypeScript + 自研 Canvas 渲染器，纯静态部署，无后端），支持 **PWA 安装与离线使用**。
+
+---
+
+## 快速开始
+
+```bash
+pnpm install     # 安装依赖（Node ≥ 22.12；pnpm 版本见 package.json）
+pnpm dev         # 开发服务器 http://127.0.0.1:5173
+pnpm build       # 生产构建（dist/，可部署到任意静态托管）
+pnpm preview     # 本地预览生产构建
+```
+
+质量门禁：
+
+```bash
+pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e
+pnpm check:licenses          # 许可证扫描（拒绝 GPL/AGPL）
+node scripts/bundle-size.mjs # 产物体积核算（gzip）
+```
+
+> e2e 默认使用内置 Chromium（首次 `pnpm exec playwright install chromium`）；网络受限时用系统浏览器：`PW_CHANNEL=chrome pnpm test:e2e`。
+
+**部署**：`pnpm build` 产物为纯静态文件（含 `manifest.webmanifest` 与 `sw.js`），任意静态服务器/对象存储/CDN 均可；用 HTTPS（或 localhost）访问即获得 PWA 安装与离线能力。
+
+---
+
+## 截图
+
+> 各模式截图占位——欢迎在 PR 中补充（`docs/assets/` 目录）。
+
+| 函数绘图 | Notebook 教学 |
+|---|---|
+| _待补充_ | _待补充_ |
 
 ---
 
@@ -10,6 +43,12 @@
 
 | 文档 | 内容 |
 |---|---|
+| [docs/guide.md](docs/guide.md) | **用户手册**（v1.0：全部模块功能汇总与用法） |
+| [docs/plugin-api.md](docs/plugin-api.md) | **插件开发文档**（v1.0：6 类扩展点 API + 示例解析） |
+| [docs/limitations.md](docs/limitations.md) | **已知限制汇总**（v1.0：诚实边界清单） |
+| [CHANGELOG.md](CHANGELOG.md) | 更新日志（v0.1 ~ v1.0） |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南（环境 / 命令 / 提交规范 / 项目约定） |
+| [LICENSE](LICENSE) | MIT 许可证 |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | **总路线图**：9 个版本的主题、架构断点、依赖关系、投入分布 |
 | [docs/TECH-STACK.md](docs/TECH-STACK.md) | 技术选型与**开源生态清单**（含许可证、明确不用的东西及原因） |
 | [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md) | 待定问题与已决策记录 |
@@ -64,7 +103,7 @@
 | v0.7 统计与数据 | 已完成 | 2026-10-02 | **第三模式：统计与数据**。CSV/TSV 容错解析（分隔符/引号/BOM/千分位/缺失值，10 万行 < 3 s）、散点+**6 类回归**（最小二乘走 **QR 分解**，非线性 LM）与残差联动、**10 种分布**曲线（Lanczos/不完全 Γ·Β 数值实现，探针实时显示 $P(X\le x)$）、直方图（FD/Sturges）+ **KDE**（Silverman）、**5 类模拟动画**（LLN/CLT/蒙特卡洛/Bootstrap/随机游走，可复现）、描述统计+箱线、统计探针工具、URL 分享与 PNG 导出；stats 单测 65 项 + e2e 13 项，全量 865 单测 / 114 e2e 全绿 |
 | v0.8 3D 与场 | 已完成 | 2026-10-02 | **第四模式：3D 与场**（唯一新增渲染后端，three.js WebGL 与 2D 并存、共享文档与撤销栈）。曲面（显式/参数/**隐式 Marching Cubes**/旋转体/正多面体）、空间曲线（**洛伦兹吸引子**、参数曲线）、**向量场**（箭头/流线/**散度·旋度着色**）、**ODE 三方法对比**（欧拉/改进/RK4 + 方向场 + 相图）；**可拖动切平面**（偏导 = 符号求导，误差 < 1e-6）、等高线投影、4 色图着色、**截图 PNG / 旋转 GIF 导出**、上下文丢失恢复与限帧降级；单测 56 项（含 MC 64³ < 2 s、RK4 精度、散度/旋度解析对照）+ e2e 9 项 |
 | v0.9 复变·数论·符号 | 已完成 | 2026-10-03 | **第五模式：进阶**（复变 / 数论 / 自动机 / 符号四个子标签）。复变：**域着色**（1024² < 100 ms 实测达成、色相/条纹查表优化、零点黑·极点白、等相位·等模网格）、**Möbius 变换**（保角性 + 圆→圆）、**分支示意**（√z/ln z 分层）、**围道积分**；数论：**Ulam 螺旋**（1000²）、**Sacks 螺旋**、**模运算图案**（三模式）、**π(x) vs x/ln x**、**Collatz**（27→111）；自动机：**生命游戏**（1000² 单步 < 33 ms、滑翔机周期 4 位移 1）与 **Mandelbrot/Julia**（两阶段渐进渲染、滚轮缩放）；符号：化简（sin²+cos²=1）/ 展开 / 解方程（复根·高次 DKA·超越模式·数值兜底）/ **不等式 + 数轴** / 积分（有限规则集）/ 极限（标准模式 + 多项式比）/ **LaTeX（KaTeX 渲染）**，**nerdamer 差分 75/75 = 100%**；新增 99 单测 + 12 e2e（全量 1074 单测 / 141 e2e 全绿） |
-| v1.0 Notebook 与教学 | 未开始 | — | 收官，非终点 |
+| v1.0 Notebook 与教学 | 已完成 | 2026-10-03 | **收官，非终点**。Notebook 五类单元格（文本/图形/计算/数据/插件）+ 跨格变量拓扑级联 + 循环依赖诊断；导出（单文件交互 HTML / 打印 PDF / Markdown zip / LaTeX pgfplots / JSON）；教学（10 示例库、5 题判定、演示模式、参数动画 GIF）；**插件系统 6 类扩展点**（函数/元素/工具/视图/导出器/单元格，URL 与文件加载，错误隔离，`docs/plugin-api.md`）；**PWA**（可安装、离线可用）；性能：视图懒加载 + three/katex 分包，首屏 gzip ≈119KB（原 436KB），dist gzip ≈1.3MB；**全量 1126 单测 / 161 e2e 全绿**（含新增 notebook/teaching/plugin 模块与 20 项 Notebook e2e） |
 
 ---
 
@@ -85,3 +124,8 @@
 **病态函数基准测试集**（v0.3 完成）—— 用客观图像对照代替"我觉得画得对"。
 已落地：[tests/benchmark/pathological-functions.md](tests/benchmark/pathological-functions.md)
 （10 个病态函数 × JSXGraph 1.13.3 基准图并排对照；该机制在 v0.3 当场捕获了一个大坐标视图缺陷）。
+
+## 许可证
+
+本项目以 [MIT 许可证](LICENSE) 开源。
+第三方依赖的许可证审查见 [docs/TECH-STACK.md](docs/TECH-STACK.md)（运行时依赖仅 katex / fflate / gifenc / three，均为 MIT/兼容许可；每版 CI 均做许可证扫描）。
