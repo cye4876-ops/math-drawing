@@ -103,6 +103,18 @@ describe('store: 订阅', () => {
     expect(a.x).toBe(0)
     expect(b.y).toBe(1)
   })
+
+  it('removeMarker 删除指定标记点，可撤销恢复', () => {
+    const a = store.addMarker(0, 0)
+    const b = store.addMarker(1, 1)
+    store.removeMarker(a.id)
+    const markers = store.getState().doc.objects.filter((o) => o.type === 'marker')
+    expect(markers).toHaveLength(1)
+    expect(markers[0]?.id).toBe(b.id)
+
+    store.undo()
+    expect(store.getState().doc.objects.filter((o) => o.type === 'marker')).toHaveLength(2)
+  })
 })
 
 describe('store: 曲线管理', () => {

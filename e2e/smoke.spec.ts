@@ -46,7 +46,7 @@ test.describe('v0.1 冒烟测试', () => {
     expect(before).not.toBeNull()
     expect(canvas).not.toBeNull()
 
-    // 起点避开坐标轴（画布中心是轴交叉点，会触发 v0.3 的"拖动坐标轴"交互）
+    // 从画布空白处开始拖动平移（坐标轴已固定不可拖动）
     const startX = canvas!.x + canvas!.width / 2 + 150
     const startY = canvas!.y + canvas!.height / 2 + 120
     await page.mouse.move(startX, startY)

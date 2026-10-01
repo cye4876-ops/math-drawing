@@ -1,13 +1,10 @@
 import type { AppStore } from '../state/store'
 import type { Point2, Size } from '../state/types'
 import type { ToolPointerEvent } from '../tools/tool-registry'
-import { mathToScreen, panBy, screenToMath, zoomAt } from '../core/transform'
+import { panBy, screenToMath, zoomAt } from '../core/transform'
 
 /** 滚轮缩放灵敏度 */
 const ZOOM_SENSITIVITY = 0.0015
-
-/** 坐标轴命中距离（CSS 像素） */
-const AXIS_HIT_PX = 5
 
 export interface InteractionOptions {
   /** 手势区域（stage 容器） */
@@ -17,7 +14,7 @@ export interface InteractionOptions {
   getSize: () => Size
   /** 光标所在数学坐标（离开画布为 null） */
   onCursorMove?: (position: Point2 | null) => void
-  /** 工具钩子：返回 true 表示已消费（阻止平移/轴拖动等默认行为） */
+  /** 工具钩子：返回 true 表示已消费（阻止平移等默认行为） */
   toolHooks?: {
     down?: (e: ToolPointerEvent) => boolean
     move?: (e: ToolPointerEvent) => boolean
@@ -35,7 +32,6 @@ export function attachInteractions(options: InteractionOptions): () => void {
   const { container, store, getSize, onCursorMove, toolHooks } = options
 
   let dragging = false
-  let axisDrag: 'x' | 'y' | null = null
   let lastX = 0
   let lastY = 0
 
@@ -54,25 +50,6 @@ export function attachInteractions(options: InteractionOptions): () => void {
     }
   }
 
-  /** 指针是否落在可见坐标轴附近：'x' = 水平轴（调 axisX），'y' = 垂直轴（调 axisY） */
-  const axisAt = (clientX: number, clientY: number): 'x' | 'y' | null => {
-    const view = store.getView()
-    if (!view.axisVisible) return null
-    const size = getSize()
-    const rect = container.getBoundingClientRect()
-    const px = clientX - rect.left
-    const py = clientY - rect.top
-    const axisScreenY = mathToScreen(view, size, { x: view.centerX, y: view.axisX }).y
-    const axisScreenX = mathToScreen(view, size, { x: view.axisY, y: view.centerY }).x
-    const nearH =
-      axisScreenY >= 0 && axisScreenY <= size.height && Math.abs(py - axisScreenY) <= AXIS_HIT_PX
-    const nearV =
-      axisScreenX >= 0 && axisScreenX <= size.width && Math.abs(px - axisScreenX) <= AXIS_HIT_PX
-    if (nearV && (!nearH || Math.abs(px - axisScreenX) <= Math.abs(py - axisScreenY))) return 'y'
-    if (nearH) return 'x'
-    return null
-  }
-
   const onWheel = (event: WheelEvent): void => {
     // 仅画布区域响应滚轮缩放（面板/控件上的滚动不缩放视图）
     if (!isCanvasTarget(event.target)) return
@@ -88,14 +65,8 @@ export function attachInteractions(options: InteractionOptions): () => void {
     // 仅画布区域响应：点击叠加面板/控件（DOM 层）不应触发工具或平移，
     // 也不调用 setPointerCapture（否则按钮的真实点击会因 capture 重定向而丢失）。
     if (!isCanvasTarget(event.target)) return
-    // 工具优先：消费后不再触发轴拖动/平移
+    // 工具优先：消费后不再触发平移
     if (toolHooks?.down?.(buildToolEvent(event))) return
-    const hit = axisAt(event.clientX, event.clientY)
-    if (hit) {
-      axisDrag = hit
-      container.setPointerCapture(event.pointerId)
-      return
-    }
     dragging = true
     lastX = event.clientX
     lastY = event.clientY
@@ -106,13 +77,6 @@ export function attachInteractions(options: InteractionOptions): () => void {
   const onPointerMove = (event: PointerEvent): void => {
     const toolEvent = buildToolEvent(event)
     onCursorMove?.(toolEvent.math)
-
-    if (axisDrag) {
-      const view = store.getView()
-      if (axisDrag === 'x') store.setView({ ...view, axisX: toolEvent.math.y })
-      else store.setView({ ...view, axisY: toolEvent.math.x })
-      return
-    }
 
     const toolHandled = toolHooks?.move?.(toolEvent) ?? false
 
@@ -126,21 +90,10 @@ export function attachInteractions(options: InteractionOptions): () => void {
     }
 
     if (toolHandled) return
-
-    // 悬停在坐标轴上时给出可拖动提示
-    const hit = axisAt(event.clientX, event.clientY)
-    container.style.cursor = hit === 'x' ? 'ns-resize' : hit === 'y' ? 'ew-resize' : ''
   }
 
   const endDrag = (event: PointerEvent): void => {
     toolHooks?.up?.(buildToolEvent(event))
-    if (axisDrag) {
-      axisDrag = null
-      if (container.hasPointerCapture(event.pointerId)) {
-        container.releasePointerCapture(event.pointerId)
-      }
-      return
-    }
     if (!dragging) return
     dragging = false
     if (container.hasPointerCapture(event.pointerId)) {
@@ -151,7 +104,6 @@ export function attachInteractions(options: InteractionOptions): () => void {
 
   const onPointerLeave = (): void => {
     onCursorMove?.(null)
-    container.style.cursor = ''
   }
 
   container.addEventListener('wheel', onWheel, { passive: false })

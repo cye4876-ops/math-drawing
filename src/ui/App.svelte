@@ -22,6 +22,7 @@
   import CurveList from './CurveList.svelte'
   import MarkerLayer from './MarkerLayer.svelte'
   import StatusBar from './StatusBar.svelte'
+  import MarkerList from './MarkerList.svelte'
   import Toolbar from './Toolbar.svelte'
   import ToolsPanel from './ToolsPanel.svelte'
 
@@ -220,6 +221,7 @@
     <div class="stage" bind:this={stageElement}></div>
     <div class="side-column">
       <CurveList {store} />
+      <MarkerList {store} />
       <ToolsPanel {registry} />
     </div>
   </div>

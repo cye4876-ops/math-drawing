@@ -157,6 +157,11 @@ export class AppStore {
     return marker
   }
 
+  /** 删除标记点（入撤销历史） */
+  removeMarker(id: string): void {
+    this.commit((doc) => ({ objects: doc.objects.filter((object) => object.id !== id) }))
+  }
+
   /** 添加曲线：颜色默认按已有曲线数量从色环分配 */
   addCurve(input: AddCurveInput): Curve {
     const curve: Curve = {
