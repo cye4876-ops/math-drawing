@@ -12,8 +12,8 @@
 | 显函数 | `\addplot[样式, domain=…] {符号表达式};` |
 | 参数方程 `(x(t), y(t))` | `\addplot[parametric, domain=…] ({fx}, {fy});`（参数变量为 PGF 的 `x`） |
 | 极坐标 `r(θ)` | 展开为 parametric：`({r*cos(deg(x))}, {r*sin(deg(x))})`（弧度为项目语义，用 `deg()` 桥接 PGF 的度数制） |
+| 隐函数 `F(x,y)=0` | **marching squares 采样折线**：`\draw[…, line width=0.8pt] plot[smooth] coordinates {(x,y) (x,y) …};`（PGFPlots 无隐式绘图，以与屏幕一致的几何折线输出；范围内无分支时跳过并注明） |
 | 图论 | `\node[circle, fill=…, label=below:…]` + `\draw[->, …] (a) -- node[auto] {权重} (b);`；自环用 `edge [loop above]` |
-| 隐函数 | **不导出**（PGFPlots 无隐式绘图）——在文件头以 `% [跳过]` 注释原因 |
 
 ## 表达式 → PGFPlots 数学映射
 
@@ -99,7 +99,7 @@ pnpm exec vitest run src/export/tikz-compile
 
 | 限制 | 说明 |
 |---|---|
-| 隐函数 | 不导出（可用等价显式/参数化形式改写） |
+| 隐函数 | 以折线坐标列输出（无符号形式；点列经抽稀，单段可读） |
 | factorial/gamma/erf 等 | 无 PGFPlots 对应函数，逐条跳过并在文件头注明 |
 | 平行边 | 导出为直线（TikZ 层可用 `bend left/bend right` 手工分离） |
 | 节点 id | 输出为内部 id（字母数字形式）；重命名可读 id 属于后续优化 |
