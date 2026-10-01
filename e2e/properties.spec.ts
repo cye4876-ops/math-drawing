@@ -85,4 +85,25 @@ test.describe('v0.5 禁图：平面性与图的性质', () => {
     await expect(page.getByTestId('property-bipartization')).toContainText('已是二分图')
     await expect(page.getByTestId('property-bipart-highlight')).toHaveCount(0)
   })
+
+  test('色数与点覆盖：K5 χ=5 τ=4 并高亮最小点覆盖；C6 χ=2；自环无着色', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent(K5))
+    await expect(page.getByTestId('property-chromatic')).toContainText('χ = 5')
+    await expect(page.getByTestId('property-vertex-cover')).toContainText('τ = 4')
+
+    expect(await countHighlightPixels(page)).toBeLessThan(20)
+    await page.getByTestId('property-cover-highlight').click()
+    await expect.poll(() => countHighlightPixels(page)).toBeGreaterThan(30)
+    await page.getByTestId('property-cover-highlight').click()
+    await expect.poll(() => countHighlightPixels(page)).toBeLessThan(20)
+
+    // C6：二分 → χ=2
+    const C6 = '1-2, 2-3, 3-4, 4-5, 5-6, 6-1'
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent(C6))
+    await expect(page.getByTestId('property-chromatic')).toContainText('χ = 2')
+
+    // 含自环：无正常着色
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('A-A, A-B'))
+    await expect(page.getByTestId('property-chromatic')).toContainText('无正常着色')
+  })
 })

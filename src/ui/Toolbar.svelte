@@ -6,6 +6,7 @@
   import { clearSampleCache } from '../render/curve-renderer'
   import { type ViewRangeInput, exactView } from '../render/viewport'
   import { DocFormatError, deserializeDocument, serializeDocument } from '../state/serialize'
+  import ExportPanel from './ExportPanel.svelte'
 
   let {
     store,
@@ -43,6 +44,7 @@
   })
 
   let showView = $state(false)
+  let showExport = $state(false)
   let range = $state<ViewRangeInput>({ minX: -10, maxX: 10, minY: -5, maxY: 5 })
   let viewError = $state('')
   let ioError = $state('')
@@ -163,8 +165,7 @@
         type="button"
         data-testid={`tool-${tool.id}`}
         class:active={activeToolId === tool.id}
-        onclick={() => registry.activate(activeToolId === tool.id ? null : tool.id)}
-        >{tool.name}</button
+        onclick={() => registry.activate(tool.id)}>{tool.name}</button
       >
     {/each}
   </div>
@@ -235,6 +236,12 @@
   <button type="button" data-testid="import-json-button" onclick={() => fileInput?.click()}>
     导入 JSON
   </button>
+  <button
+    type="button"
+    data-testid="export-open"
+    class:active={showExport}
+    onclick={() => (showExport = !showExport)}>导出…</button
+  >
   <input
     class="hidden-file"
     data-testid="import-json"
@@ -266,6 +273,10 @@
     disabled={!canRedo}
     onclick={() => store.redo()}>重做</button
   >
+
+  {#if showExport}
+    <ExportPanel {store} {mode} {getStageSize} onClose={() => (showExport = false)} />
+  {/if}
 </div>
 
 <style>

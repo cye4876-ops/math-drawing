@@ -71,4 +71,25 @@ test.describe('v0.5 点击选中编辑（画布 → 图面板卡片）', () => {
     await page.getByTestId('selection-clear').click()
     await expect(page.getByTestId('selection-card')).toBeHidden()
   })
+
+  test('打开图论模式即自动激活图编辑：不点工具直接单击边出赋权卡片', async ({ page }) => {
+    await page.goto('/?graph=' + encodeURIComponent('A-B:3'))
+    const box = await page.getByTestId('stage-canvas').boundingBox()
+    expect(box).not.toBeNull()
+    const cx = box!.x + box!.width / 2
+    const cy = box!.y + box!.height / 2
+
+    await page.mouse.click(cx, cy)
+    await expect(page.getByTestId('selection-card')).toBeVisible()
+    await expect(page.getByTestId('selection-weight')).toBeVisible()
+  })
+
+  test('从函数绘图切到图论绘图后自动激活图编辑（点击空白建点）', async ({ page }) => {
+    await page.goto('/')
+    await page.getByTestId('mode-graph').click()
+    const box = await page.getByTestId('stage-canvas').boundingBox()
+    expect(box).not.toBeNull()
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2)
+    await expect(page.getByTestId('tool-readout-value').nth(0)).toHaveText('1')
+  })
 })

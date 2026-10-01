@@ -6,6 +6,8 @@
 import { toGraphology, type GraphObject } from './model'
 import { isBipartite } from './algorithms/coloring'
 import { detectPlanarity, type PlanarityResult } from './planarity'
+import { chromaticNumber, type ChromaticResult } from './chromatic'
+import { minimumVertexCover, type VertexCoverResult } from './vertex-cover'
 
 export interface GraphProperties {
   nodeCount: number
@@ -17,6 +19,10 @@ export interface GraphProperties {
   /** 欧拉：回路 / 路径 / 不存在（无向化判据；忽略孤立点） */
   euler: 'circuit' | 'path' | 'none'
   planar: PlanarityResult
+  /** 色数 χ(G)（小图精确 / 大图上下界） */
+  chromatic: ChromaticResult
+  /** 最小点覆盖 τ(G)（小图精确 / 大图 2-近似） */
+  vertexCover: VertexCoverResult
 }
 
 export function computeProperties(graph: GraphObject): GraphProperties {
@@ -95,5 +101,7 @@ export function computeProperties(graph: GraphObject): GraphProperties {
     bipartite: isBipartite(graph).bipartite,
     euler,
     planar: detectPlanarity(graph),
+    chromatic: chromaticNumber(graph),
+    vertexCover: minimumVertexCover(graph),
   }
 }

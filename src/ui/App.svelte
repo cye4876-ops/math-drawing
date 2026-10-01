@@ -29,6 +29,8 @@
   import Toolbar from './Toolbar.svelte'
   import ToolsPanel from './ToolsPanel.svelte'
   import type { SceneHighlight } from '../render/element-registry'
+  import { clearSampleCache } from '../render/curve-renderer'
+  import { decodeSharedState, SHARE_PARAM } from '../export/url-state'
 
   const store = createStore()
   let canvasLayerRef: CanvasLayer | null = null
@@ -88,8 +90,25 @@
     return null
   }
 
+  let sharedPreloadMode: 'plot' | 'graph' | null = null
+
   function preloadFromUrl(target: AppStore): ViewRangeInput | null {
     if (typeof location === 'undefined') return null
+
+    // 完整文档分享参数（v0.6，优先级最高）：?doc=…（压缩的文档 + 视图）
+    const docParam = readRawParam(location.search, SHARE_PARAM)
+    if (docParam) {
+      try {
+        const shared = decodeSharedState(docParam)
+        target.loadState(shared.doc, shared.view)
+        clearSampleCache()
+        sharedPreloadMode = shared.mode
+        return null
+      } catch {
+        // 无效的分享参数：忽略，继续尝试其他预载参数
+      }
+    }
+
     const viewParam = readRawParam(location.search, 'view')
     if (viewParam) {
       const parts = viewParam.split(',').map(Number)
@@ -165,11 +184,12 @@
 
   /** 界面模式（工具条左上角切换）：plot = 函数绘图，graph = 图论绘图；?mode= / ?graph= 可指定 */
   const initialMode: 'plot' | 'graph' =
-    typeof location !== 'undefined' &&
+    sharedPreloadMode ??
+    (typeof location !== 'undefined' &&
     (readRawParam(location.search, 'mode') === 'graph' ||
       readRawParam(location.search, 'graph') !== null)
       ? 'graph'
-      : 'plot'
+      : 'plot')
   let mode = $state<'plot' | 'graph'>(initialMode)
 
   /**
@@ -192,8 +212,8 @@
     if (mode === next) return
     savedViews[mode] = store.getView()
     mode = next
-    // 切模式时取消激活工具（工具按钮列表会变化），并清除图高亮（仅图论联动使用）
-    registry.activate(null)
+    // 切模式时重置工具（按钮列表随模式变化）：图论模式默认激活「图编辑」（点击即可选中/建点），函数模式取消激活
+    registry.activate(next === 'graph' ? 'graph' : null)
     graphHighlight = null
     const saved = savedViews[next] ?? createView(0, 0, 80)
     // setView 总是触发订阅：视图恢复 + 重绘 + MarkerLayer 可见性刷新
@@ -281,6 +301,9 @@
         return false
       },
     })
+
+    // 图论模式（含 ?graph= / ?mode=graph 预载）：默认激活「图编辑」——打开即可点击选中/建点
+    if (initialMode === 'graph') registry.activate('graph')
 
     return () => {
       unbindKeyboard()
