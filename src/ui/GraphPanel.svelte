@@ -13,6 +13,8 @@
   import type { SceneHighlight } from '../render/element-registry'
   import SpectrumPanel from './SpectrumPanel.svelte'
   import AlgorithmPanel from './AlgorithmPanel.svelte'
+  import EdgeListPanel from './EdgeListPanel.svelte'
+  import PropertyPanel from './PropertyPanel.svelte'
   import {
     DEFAULT_PARAMS,
     FAMILIES,
@@ -376,6 +378,14 @@
     <button type="button" data-testid="graph-delete" disabled={!graph} onclick={deleteGraph}>
       删除此图
     </button>
+  </div>
+
+  <div class="section">
+    <EdgeListPanel {store} {graph} />
+  </div>
+
+  <div class="section">
+    <PropertyPanel {graph} {onHighlight} />
   </div>
 
   <div class="section">

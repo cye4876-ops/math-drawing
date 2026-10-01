@@ -12,7 +12,7 @@ async function countHighlightPixels(page: Page): Promise<number> {
       const r = data[i] ?? 0
       const g = data[i + 1] ?? 0
       const b = data[i + 2] ?? 0
-      if (Math.abs(r - 245) < 40 && Math.abs(g - 158) < 40 && Math.abs(b - 11) < 40) count++
+      if (Math.abs(r - 245) < 20 && Math.abs(g - 158) < 25 && Math.abs(b - 11) < 20) count++
     }
     return count
   })
