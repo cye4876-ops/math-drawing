@@ -78,25 +78,33 @@ test.describe('v0.3 曲线绘制', () => {
     expect(await countRedPixels(page)).toBeLessThan(20)
   })
 
-  test('滚轮缩放以光标为锚点：光标下数学坐标保持不变', async ({ page }) => {
+  test('滚轮缩放以视图中心为锚点：中心数学坐标保持不变', async ({ page }) => {
     await page.goto('/')
     const canvas = await page.getByTestId('stage-canvas').boundingBox()
     expect(canvas).not.toBeNull()
-    const px = canvas!.x + canvas!.width * 0.35
-    const py = canvas!.y + canvas!.height * 0.4
+    const cx = canvas!.x + canvas!.width / 2
+    const cy = canvas!.y + canvas!.height / 2
 
-    await page.mouse.move(px, py)
-    const before = await readCursor(page)
-    expect(before).not.toBeNull()
+    // 记录画布中心（视图中心）的数学坐标
+    await page.mouse.move(cx, cy)
+    const centerBefore = await readCursor(page)
+    expect(centerBefore).not.toBeNull()
 
+    // 在偏离中心的位置滚轮缩放（旧实现以光标为锚点，会改变中心坐标）
+    await page.mouse.move(canvas!.x + canvas!.width * 0.25, canvas!.y + canvas!.height * 0.3)
     await page.mouse.wheel(0, -500)
-    await page.mouse.move(px + 0.5, py) // 触发状态栏刷新
-    const after = await readCursor(page)
-    expect(after).not.toBeNull()
+    await page.mouse.move(cx, cy)
+    const centerAfter = await readCursor(page)
+    expect(centerAfter).not.toBeNull()
 
-    // 0.5px 的指针偏移 → 数学坐标变化上界 0.5/40（缩放后 scale 约 80×e^0.75≈169）
-    expect(Math.abs(after!.x - before!.x)).toBeLessThan(0.05)
-    expect(Math.abs(after!.y - before!.y)).toBeLessThan(0.05)
+    // 中心坐标保持不动（缩放围绕视图中心）
+    expect(Math.abs(centerAfter!.x - centerBefore!.x)).toBeLessThan(0.001)
+    expect(Math.abs(centerAfter!.y - centerBefore!.y)).toBeLessThan(0.001)
+
+    // 缩放确实生效：比例读数变大
+    const scaleText = await page.getByTestId('scale-readout').textContent()
+    const scale = Number(scaleText?.match(/([\d.]+)/)?.[1] ?? '0')
+    expect(scale).toBeGreaterThan(80)
   })
 
   test('单条曲线显隐切换', async ({ page }) => {

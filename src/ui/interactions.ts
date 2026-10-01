@@ -54,10 +54,11 @@ export function attachInteractions(options: InteractionOptions): () => void {
     // 仅画布区域响应滚轮缩放（面板/控件上的滚动不缩放视图）
     if (!isCanvasTarget(event.target)) return
     event.preventDefault()
-    const rect = container.getBoundingClientRect()
-    const anchor = { x: event.clientX - rect.left, y: event.clientY - rect.top }
+    // 以视图中心为锚点缩放：中心的数学坐标保持不动（坐标轴中心始终位于画布中央）
+    const size = getSize()
+    const anchor = { x: size.width / 2, y: size.height / 2 }
     const factor = Math.exp(-event.deltaY * ZOOM_SENSITIVITY)
-    store.setView(zoomAt(store.getView(), getSize(), anchor, factor))
+    store.setView(zoomAt(store.getView(), size, anchor, factor))
   }
 
   const onPointerDown = (event: PointerEvent): void => {
