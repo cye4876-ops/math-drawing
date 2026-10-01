@@ -39,6 +39,15 @@ body {
   min-height: 0;
 }
 
+/* 右侧栏：曲线列表（上，占剩余空间）+ 工具面板（下，自适应） */
+.side-column {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
 .stage {
   position: relative;
   flex: 1;

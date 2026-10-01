@@ -4,6 +4,7 @@
 import { createProjector, unitRangeSamples } from '../core/transform'
 import type { Point2 } from '../state/types'
 import {
+  COORD_CHIPS,
   analyzeAt,
   formatNum,
   getFs,
@@ -189,6 +190,7 @@ export function createTangentTool(): Tool {
           label: '切点 x₀',
           value: inputText,
           placeholder: '输入 x 坐标，如 1、pi/2',
+          chips: COORD_CHIPS,
         },
       ]
     },

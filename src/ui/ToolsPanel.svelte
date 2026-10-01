@@ -64,6 +64,18 @@
               registry.onControl(control.id, (e.currentTarget as HTMLInputElement).value)}
           />
         </label>
+        {#if control.chips && control.chips.length > 0}
+          <div class="chips">
+            {#each control.chips as chip (chip.value)}
+              <button
+                type="button"
+                data-testid={`tool-chip-${control.id}-${chip.value}`}
+                title={`输入 ${chip.value}`}
+                onclick={() => registry.onControl(control.id, chip.value)}>{chip.label}</button
+              >
+            {/each}
+          </div>
+        {/if}
       {:else if control.kind === 'buttons'}
         <div class="control buttons">
           <span class="label">{control.label}</span>
@@ -98,19 +110,15 @@
 
 <style>
   .tool-panel {
-    position: absolute;
-    left: 12px;
-    bottom: 12px;
-    z-index: 5;
-    width: 320px;
-    max-height: 70%;
+    flex: 0 0 auto;
+    max-height: 46%;
     overflow-y: auto;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgb(0 0 0 / 10%);
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    border-top: 1px solid var(--border);
     padding: 10px 12px;
     font-size: 13px;
+    box-sizing: border-box;
   }
 
   h4 {
@@ -178,6 +186,29 @@
   .text input:focus {
     outline: none;
     border-color: var(--accent);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 4px 0 0;
+  }
+
+  .chips button {
+    font: inherit;
+    font-size: 12px;
+    padding: 1px 7px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+
+  .chips button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
   .buttons .button-row,

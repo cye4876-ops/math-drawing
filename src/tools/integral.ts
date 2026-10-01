@@ -5,7 +5,7 @@
 import { createProjector, mathToScreen } from '../core/transform'
 import { adaptiveSimpson } from '../math/numeric/integrate'
 import type { Point2 } from '../state/types'
-import { formatNum, getFs } from './helpers'
+import { COORD_CHIPS, formatNum, getFs, parseCoordinate } from './helpers'
 import type { Tool, ToolContext } from './tool-registry'
 
 const HANDLE_HIT_PX = 12
@@ -19,6 +19,11 @@ export function createIntegralTool(): Tool {
   let a = Number.NaN
   let b = Number.NaN
   let dragging: 'a' | 'b' | null = null
+  /** 区间输入框原文（空串 = 回落到当前区间值显示） */
+  let aText = ''
+  let bText = ''
+  /** 输入错误提示，空串表示正常 */
+  let inputError = ''
 
   const defaults = (ctx: ToolContext): void => {
     const size = ctx.getSize()
@@ -57,11 +62,17 @@ export function createIntegralTool(): Tool {
 
     activate(ctx) {
       if (!Number.isFinite(a) || !Number.isFinite(b)) defaults(ctx)
+      aText = ''
+      bText = ''
+      inputError = ''
       ctx.notify()
     },
 
     deactivate() {
       dragging = null
+      aText = ''
+      bText = ''
+      inputError = ''
     },
 
     onPointerDown(e, ctx) {
@@ -78,8 +89,14 @@ export function createIntegralTool(): Tool {
         if (hit) ctx.requestRender()
         return false
       }
-      if (dragging === 'a') a = e.math.x
-      else b = e.math.x
+      if (dragging === 'a') {
+        a = e.math.x
+        aText = ''
+      } else {
+        b = e.math.x
+        bText = ''
+      }
+      inputError = ''
       ctx.notify()
       ctx.requestRender()
       return true
@@ -151,6 +168,44 @@ export function createIntegralTool(): Tool {
       c.restore()
     },
 
+    getControls() {
+      return [
+        {
+          kind: 'text' as const,
+          id: 'a',
+          label: '下限 a',
+          value: aText || (Number.isFinite(a) ? formatNum(a) : ''),
+          placeholder: '输入下限，如 0、-pi',
+          chips: COORD_CHIPS,
+        },
+        {
+          kind: 'text' as const,
+          id: 'b',
+          label: '上限 b',
+          value: bText || (Number.isFinite(b) ? formatNum(b) : ''),
+          placeholder: '输入上限，如 pi、2*pi',
+          chips: COORD_CHIPS,
+        },
+      ]
+    },
+
+    onControl(id, value, ctx) {
+      if ((id === 'a' || id === 'b') && typeof value === 'string') {
+        const parsed = parseCoordinate(value)
+        if (id === 'a') aText = value
+        else bText = value
+        if (parsed === null) {
+          inputError = '区间无法解析：支持数字与常量表达式（如 pi、2*pi、pi/2）'
+        } else {
+          inputError = ''
+          if (id === 'a') a = parsed
+          else b = parsed
+        }
+        ctx.notify()
+        ctx.requestRender()
+      }
+    },
+
     getReadout(ctx) {
       const fs = getFs(ctx, 1)[0]
       if (!fs) {
@@ -172,7 +227,9 @@ export function createIntegralTool(): Tool {
           },
           { label: '求值次数', value: String(result.evaluations) },
         ],
-        note: '自适应 Simpson；拖动端点调整区间。不支持奇异积分；解析解未实现（v0.4 无符号积分）。',
+        note:
+          inputError ||
+          '拖动端点或输入区间端点调整范围；自适应 Simpson；不支持奇异积分；解析解未实现（v0.4 无符号积分）。',
       }
     },
   }

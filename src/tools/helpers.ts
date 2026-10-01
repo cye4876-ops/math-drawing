@@ -24,6 +24,16 @@ export interface CurveHit extends NearestPoint {
   curve: Curve
 }
 
+/** 坐标输入快捷符号（由工具面板渲染为 chips，点击直接提交常量表达式） */
+export const COORD_CHIPS: { label: string; value: string }[] = [
+  { label: '0', value: '0' },
+  { label: 'π/2', value: 'pi/2' },
+  { label: 'π', value: 'pi' },
+  { label: '2π', value: '2*pi' },
+  { label: '-π', value: '-pi' },
+  { label: 'e', value: 'e' },
+]
+
 /**
  * 解析坐标输入（工具面板的文本控件）：支持数字、常量与算术表达式的**无变量**求值，
  * 如 `1`、`1.5`、`pi/2`、`2*pi`、`e^2`。非法或非有限值返回 null。

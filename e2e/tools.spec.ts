@@ -239,6 +239,10 @@ test.describe('v0.4 交互分析工具', () => {
     await input.fill('abc')
     await input.press('Enter')
     await expect(page.getByTestId('tools-readout')).toContainText('无法解析')
+
+    // 快捷符号：点击 0 → 切点回到 (0, 0)
+    await page.getByTestId('tool-chip-x-0').click()
+    await expect(page.getByTestId('tool-readout-value').nth(1)).toHaveText('(0, 0)')
   })
 
   test('泰勒：输入展开点坐标直接生成展开式', async ({ page }) => {
@@ -254,6 +258,10 @@ test.describe('v0.4 交互分析工具', () => {
     expect(values[1]).toBe('1')
     expect(values[3]).toContain('0.540302') // cos(1)
     expect(values[3]).toContain('(x−1)')
+
+    // 快捷符号：点击 π → 展开点 3.14159
+    await page.getByTestId('tool-chip-x0-pi').click()
+    await expect(page.getByTestId('tool-readout-value').nth(1)).toHaveText('3.14159')
   })
 
   test('对数坐标下切线正常绘制（回归：越过 y≤0 断开而非整条消失）', async ({ page }) => {
@@ -269,5 +277,51 @@ test.describe('v0.4 交互分析工具', () => {
 
     // 画布上应出现切线颜色像素（修复前 log 模式下整条不绘制）
     await expect.poll(() => countTealPixels(page)).toBeGreaterThan(100)
+  })
+
+  test('定积分：快捷符号与输入框设置区间', async ({ page }) => {
+    await page.goto('/?curves=x^2')
+    await activateTool(page, 'integral')
+
+    // 快捷符号：下限 0、上限 π → ∫₀^π x² dx = π³/3
+    await page.getByTestId('tool-chip-a-0').click()
+    await page.getByTestId('tool-chip-b-pi').click()
+    const values = await readoutValues(page)
+    expect(values[1]).toBe('[0, 3.14159]')
+    expect(Number(values[2])).toBeCloseTo(Math.PI ** 3 / 3, 6)
+
+    // 手动输入上限 pi/2
+    const bInput = page.getByTestId('tool-control-b')
+    await bInput.fill('pi/2')
+    await bInput.press('Enter')
+    await expect(page.getByTestId('tool-readout-value').nth(1)).toHaveText('[0, 1.5708]')
+
+    // 非法输入：提示且保留上次区间
+    await bInput.fill('?')
+    await bInput.press('Enter')
+    await expect(page.getByTestId('tools-readout')).toContainText('无法解析')
+    await expect(page.getByTestId('tool-readout-value').nth(1)).toHaveText('[0, 1.5708]')
+  })
+
+  test('工具面板显示在右侧栏（不遮挡画布）', async ({ page }) => {
+    await page.goto('/?curves=sin(x)')
+    await activateTool(page, 'tangent')
+
+    const viewport = page.viewportSize()
+    const vw = viewport?.width ?? 0
+    const box = await page.getByTestId('tools-readout').boundingBox()
+    expect(box).not.toBeNull()
+    expect(box!.x).toBeGreaterThan(vw / 2)
+    // 面板右缘不超出视口（侧栏内容不被裁切）
+    expect(box!.x + box!.width).toBeLessThanOrEqual(vw + 1)
+    // 输入框也在面板内（右侧）
+    const inputBox = await page.getByTestId('tool-control-x').boundingBox()
+    expect(inputBox).not.toBeNull()
+    expect(inputBox!.x).toBeGreaterThan(vw / 2)
+    expect(inputBox!.x + inputBox!.width).toBeLessThanOrEqual(vw + 1)
+    // 曲线列表输入框同样完整可见
+    const curveInput = await page.getByTestId('curve-expr-input').boundingBox()
+    expect(curveInput).not.toBeNull()
+    expect(curveInput!.x + curveInput!.width).toBeLessThanOrEqual(vw + 1)
   })
 })

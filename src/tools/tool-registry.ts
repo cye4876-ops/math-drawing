@@ -65,6 +65,8 @@ export type ToolControl =
       label: string
       value: string
       placeholder?: string
+      /** 快捷符号：点击后把 value 直接作为输入值提交（免打字，如 π、2π） */
+      chips?: { label: string; value: string }[]
     }
   | {
       kind: 'actions'

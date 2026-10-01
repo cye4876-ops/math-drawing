@@ -5,7 +5,13 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createStore, type AppStore } from '../state/store'
-import { ToolRegistry, type Tool, type ToolContext, type ToolPointerEvent } from './tool-registry'
+import {
+  ToolRegistry,
+  type Tool,
+  type ToolContext,
+  type ToolControl,
+  type ToolPointerEvent,
+} from './tool-registry'
 import { createTraceCursorTool } from './trace-cursor'
 import { createTangentTool } from './tangent'
 import { createRootsTool } from './roots'
@@ -73,6 +79,11 @@ function readoutOf(fixture: Fixture): ToolReadout {
   const readout = tool!.getReadout?.(fixture.ctx)
   expect(readout).toBeTruthy()
   return readout!
+}
+
+/** 读取 text 控件的快捷符号数量（非 text 控件返回 0） */
+function chipsOf(control: ToolControl | undefined): number {
+  return control && control.kind === 'text' ? (control.chips?.length ?? 0) : 0
 }
 
 beforeEach(() => {
@@ -160,6 +171,7 @@ describe('tools/tangent: 切线', () => {
 
     const controls = tool.getControls!(f.ctx)
     expect(controls[0]).toMatchObject({ kind: 'text', id: 'x' })
+    expect(chipsOf(controls[0])).toBeGreaterThan(0)
 
     tool.onControl!('x', 'pi/2', f.ctx)
     const rows = readoutOf(f).rows
@@ -288,6 +300,38 @@ describe('tools/integral: 定积分', () => {
     expect(canvas.ops).toContain('fill')
     expect(canvas.ops).toContain('lineTo')
   })
+
+  it('输入/chips 设置区间端点（支持常量表达式）', () => {
+    const f = createFixture([createIntegralTool()])
+    f.store.addCurve({ kind: 'explicit', expr: 'x^2' })
+    f.registry.activate('integral')
+    const tool = f.registry.getActive()!
+
+    const controls = tool.getControls!(f.ctx)
+    expect(controls[0]).toMatchObject({ kind: 'text', id: 'a' })
+    expect(controls[1]).toMatchObject({ kind: 'text', id: 'b' })
+    expect(chipsOf(controls[0])).toBeGreaterThan(0)
+
+    // a = π、b = 0 → 区间排序后 [0, π]，∫x² = π³/3
+    tool.onControl!('a', 'pi', f.ctx)
+    tool.onControl!('b', '0', f.ctx)
+    const rows = readoutOf(f).rows
+    expect(rows[1]!.value).toBe('[0, 3.14159]')
+    expect(Number(rows[2]!.value)).toBeCloseTo(Math.PI ** 3 / 3, 6)
+
+    // 非法输入：提示且保留上次有效区间
+    tool.onControl!('a', 'oops', f.ctx)
+    expect(readoutOf(f).note).toContain('无法解析')
+    expect(readoutOf(f).rows[1]!.value).toBe('[0, 3.14159]')
+
+    // 拖动端点后输入框回落到数值显示，错误提示清除
+    // （a=π 的屏幕位置在 x≈651，从该处按下拖动）
+    expect(f.registry.handlePointerDown(pointerEvent(f.store, Math.PI, 0))).toBe(true)
+    f.registry.handlePointerMove(pointerEvent(f.store, -3, 0))
+    f.registry.handlePointerUp(pointerEvent(f.store, -3, 0))
+    expect(tool.getControls!(f.ctx)[0]).toMatchObject({ value: '-3' })
+    expect(readoutOf(f).note).not.toContain('无法解析')
+  })
 })
 
 describe('tools/riemann: 黎曼和', () => {
@@ -383,6 +427,7 @@ describe('tools/taylor: 泰勒展开', () => {
 
     const controls = tool.getControls!(f.ctx)
     expect(controls[0]).toMatchObject({ kind: 'text', id: 'x0', value: '' })
+    expect(chipsOf(controls[0])).toBeGreaterThan(0)
 
     tool.onControl!('x0', '1', f.ctx)
     let rows = readoutOf(f).rows

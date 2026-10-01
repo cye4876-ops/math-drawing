@@ -217,10 +217,11 @@
     getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
   />
   <div class="main">
-    <div class="stage" bind:this={stageElement}>
+    <div class="stage" bind:this={stageElement}></div>
+    <div class="side-column">
+      <CurveList {store} />
       <ToolsPanel {registry} />
     </div>
-    <CurveList {store} />
   </div>
   <StatusBar {cursor} {scale} {coordType} />
 </div>

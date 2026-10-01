@@ -3,12 +3,13 @@
  * 系数来自 v0.2 符号求导：c_k = f⁽ᵏ⁾(x₀)/k!。公式为纯文本（KaTeX 排版在 v0.6）。
  */
 import { createProjector, unitRangeSamples } from '../core/transform'
-import { formatNum, getFs, parseCoordinate, type ExplicitCurveFs } from './helpers'
+import { COORD_CHIPS, formatNum, getFs, parseCoordinate, type ExplicitCurveFs } from './helpers'
 import { getDerivativeFn } from './curve-access'
 import type { Tool } from './tool-registry'
 
 const MAX_ORDER = 15
-const ANIMATION_STEP_MS = 450
+/** 动画每升一阶的间隔（放慢便于观察逼近过程） */
+const ANIMATION_STEP_MS = 800
 
 interface CoeffSet {
   x0: number
@@ -114,6 +115,7 @@ export function createTaylorTool(): Tool {
           label: '展开点 x₀',
           value: inputText,
           placeholder: '输入 x 坐标，如 0、pi/2',
+          chips: COORD_CHIPS,
         },
         {
           kind: 'slider',

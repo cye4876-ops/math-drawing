@@ -296,13 +296,14 @@
 
 <style>
   .curve-panel {
-    width: 300px;
-    flex: 0 0 auto;
+    width: 100%;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     border-left: 1px solid var(--border);
     background: var(--bg);
     min-height: 0;
+    box-sizing: border-box;
   }
 
   .panel-header {
