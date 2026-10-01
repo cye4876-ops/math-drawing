@@ -1,7 +1,11 @@
 <script lang="ts">
-  import type { Point2 } from '../state/types'
+  import type { CoordType, Point2 } from '../state/types'
 
-  let { cursor, scale }: { cursor: Point2 | null; scale: number } = $props()
+  let {
+    cursor,
+    scale,
+    coordType = 'rect',
+  }: { cursor: Point2 | null; scale: number; coordType?: CoordType } = $props()
 
   function format(value: number): string {
     if (value === 0) return '0'
@@ -15,5 +19,7 @@
   <span data-testid="cursor-pos">
     光标：{cursor ? `(${format(cursor.x)}, ${format(cursor.y)})` : '—'}
   </span>
-  <span data-testid="scale-readout">缩放：{format(scale)} px/单位</span>
+  <span data-testid="scale-readout"
+    >缩放：{format(scale)} {coordType === 'log' ? 'px/十倍程' : 'px/单位'}</span
+  >
 </footer>

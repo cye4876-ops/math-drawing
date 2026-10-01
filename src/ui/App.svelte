@@ -133,6 +133,7 @@
   const pendingRange = preloadFromUrl(store)
 
   let scale = $state(store.getView().scaleX)
+  let coordType = $state(store.getView().coordType)
 
   onMount(() => {
     // 分层渲染：Canvas 层（网格 + 曲线 + 工具覆盖层）+ DOM 覆盖层（标记点与面板）
@@ -157,6 +158,7 @@
       canUndo = store.canUndo()
       canRedo = store.canRedo()
       scale = state.view.scaleX
+      coordType = state.view.coordType
       canvasLayer.requestRender()
     })
 
@@ -220,5 +222,5 @@
     </div>
     <CurveList {store} />
   </div>
-  <StatusBar {cursor} {scale} />
+  <StatusBar {cursor} {scale} {coordType} />
 </div>

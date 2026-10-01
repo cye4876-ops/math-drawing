@@ -179,3 +179,51 @@ export function withEqualAspect(view: ViewTransform, equalAspect: boolean): View
   if (!equalAspect) return { ...view, equalAspect }
   return { ...view, equalAspect, scaleY: view.scaleX }
 }
+
+/**
+ * 在数学区间 [a, b] 上生成 steps+1 个采样点：
+ * - 线性模式：均匀分布；
+ * - 对数模式：按十倍程（单位空间）均匀——等价于屏幕空间均匀，
+ *   避免数学空间线性采样在对数坐标下左端过疏（屏幕大段无采样）。
+ * 对数模式下 a ≤ 0（无定义）时返回空数组。
+ */
+export function unitRangeSamples(
+  view: ViewTransform,
+  a: number,
+  b: number,
+  steps: number,
+): number[] {
+  const out: number[] = []
+  if (view.coordType === 'log') {
+    if (!(a > 0) || !(b > 0)) return out
+    const ua = Math.log10(a)
+    const ub = Math.log10(b)
+    for (let i = 0; i <= steps; i++) out.push(10 ** (ua + ((ub - ua) * i) / steps))
+    return out
+  }
+  for (let i = 0; i <= steps; i++) out.push(a + ((b - a) * i) / steps)
+  return out
+}
+
+/**
+ * 视图归一化：对数坐标要求 center 与轴位置为正（log10 无定义；
+ * 否则 centerUnit 会被钳到 -300，视图瞬间跑到 1e-300 量级）。
+ * 非正/非有限值替换为 1；其余字段原样（无改动时返回原对象，便于引用相等判断）。
+ */
+export function sanitizeView(view: ViewTransform): ViewTransform {
+  if (view.coordType !== 'log') return view
+  const fix = (v: number): number => (Number.isFinite(v) && v > 0 ? v : 1)
+  const centerX = fix(view.centerX)
+  const centerY = fix(view.centerY)
+  const axisX = fix(view.axisX)
+  const axisY = fix(view.axisY)
+  if (
+    centerX === view.centerX &&
+    centerY === view.centerY &&
+    axisX === view.axisX &&
+    axisY === view.axisY
+  ) {
+    return view
+  }
+  return { ...view, centerX, centerY, axisX, axisY }
+}

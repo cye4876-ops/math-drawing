@@ -9,7 +9,9 @@ import {
   mathToScreen,
   mathToUnitSpace,
   panBy,
+  sanitizeView,
   screenToMath,
+  unitRangeSamples,
   viewBounds,
   viewCenterUnits,
   withEqualAspect,
@@ -342,5 +344,61 @@ describe('transform: 投影器与单位空间辅助', () => {
     const linear = createView(5, -5, 80)
     expect(mathToUnitSpace(linear, { x: 5, y: -5 })).toEqual({ x: 5, y: -5 })
     expect(viewCenterUnits(linear)).toEqual({ x: 5, y: -5 })
+  })
+})
+
+describe('transform: sanitizeView 视图归一化（对数坐标）', () => {
+  it('线性模式：所有字段原样，返回同一引用', () => {
+    const view = createView(0, 0, 80)
+    expect(sanitizeView(view)).toBe(view)
+  })
+
+  it('对数模式：非正/非有限 center 与轴位置归一为 1（回归：不得跑到 1e-300）', () => {
+    const broken = makeView(0, -5, 80, {
+      coordType: 'log',
+      axisX: 0,
+      axisY: -2,
+    })
+    const fixed = sanitizeView(broken)
+    expect(fixed.centerX).toBe(1)
+    expect(fixed.centerY).toBe(1)
+    expect(fixed.axisX).toBe(1)
+    expect(fixed.axisY).toBe(1)
+    // 归一后可见范围落在合理量级（而非 1e-300）
+    const bounds = viewBounds(fixed, size)
+    expect(bounds.minX).toBeGreaterThan(1e-10)
+    expect(bounds.maxX).toBeLessThan(1e10)
+
+    const nanCenter = makeView(Number.NaN, Number.POSITIVE_INFINITY, 80, { coordType: 'log' })
+    expect(sanitizeView(nanCenter).centerX).toBe(1)
+    expect(sanitizeView(nanCenter).centerY).toBe(1)
+  })
+
+  it('对数模式下已为正值时不改动（同一引用）', () => {
+    const view = makeView(10, 100, 80, { coordType: 'log', axisX: 1, axisY: 1 })
+    expect(sanitizeView(view)).toBe(view)
+  })
+})
+
+describe('transform: unitRangeSamples 采样生成', () => {
+  it('线性模式：区间均匀分布，含两端点', () => {
+    const view = createView()
+    const samples = unitRangeSamples(view, -2, 4, 3)
+    expect(samples).toEqual([-2, 0, 2, 4])
+  })
+
+  it('对数模式：按十倍程均匀（屏幕空间均匀）', () => {
+    const view = { ...createView(1, 1, 80), coordType: 'log' as const }
+    const samples = unitRangeSamples(view, 0.01, 100, 4)
+    // log10 均匀：0.01, 0.1, 1, 10, 100
+    for (let i = 0; i < samples.length; i++) {
+      expect(samples[i]).toBeCloseTo(10 ** (-2 + i), 9)
+    }
+  })
+
+  it('对数模式下非正端点返回空数组', () => {
+    const view = { ...createView(1, 1, 80), coordType: 'log' as const }
+    expect(unitRangeSamples(view, -1, 10, 4)).toEqual([])
+    expect(unitRangeSamples(view, 0, 10, 4)).toEqual([])
   })
 })

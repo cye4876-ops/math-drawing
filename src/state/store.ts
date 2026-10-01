@@ -7,7 +7,7 @@ import type {
   SceneObject,
   ViewTransform,
 } from './types'
-import { createView } from '../core/transform'
+import { createView, sanitizeView } from '../core/transform'
 
 /** 撤销历史最大深度 */
 export const HISTORY_LIMIT = 100
@@ -128,9 +128,9 @@ export class AppStore {
     this.emit()
   }
 
-  /** 更新视图：不进撤销历史（规格要求：视图缩放/平移不入历史） */
+  /** 更新视图：不进撤销历史（规格要求：视图缩放/平移不入历史）；对数坐标下中心/轴位置非正时自动归一化 */
   setView(view: ViewTransform): void {
-    this.view = view
+    this.view = sanitizeView(view)
     this.emit()
   }
 
@@ -219,7 +219,7 @@ export class AppStore {
     if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift()
     this.redoStack = []
     this.doc = doc
-    if (view) this.view = view
+    if (view) this.view = sanitizeView(view)
     this.emit()
   }
 

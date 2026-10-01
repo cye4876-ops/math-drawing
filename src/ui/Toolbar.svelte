@@ -49,11 +49,21 @@
     viewError = ''
     if (showView) {
       const view = store.getView()
-      range = {
-        minX: view.centerX - 10,
-        maxX: view.centerX + 10,
-        minY: view.centerY - 5,
-        maxY: view.centerY + 5,
+      if (view.coordType === 'log' && view.centerX > 0 && view.centerY > 0) {
+        // 对数下以「±2 个十倍程」预填，避免线性范围（可能含非正数）
+        range = {
+          minX: 10 ** (Math.log10(view.centerX) - 2),
+          maxX: 10 ** (Math.log10(view.centerX) + 2),
+          minY: 10 ** (Math.log10(view.centerY) - 2),
+          maxY: 10 ** (Math.log10(view.centerY) + 2),
+        }
+      } else {
+        range = {
+          minX: view.centerX - 10,
+          maxX: view.centerX + 10,
+          minY: view.centerY - 5,
+          maxY: view.centerY + 5,
+        }
       }
     }
   }
@@ -76,12 +86,8 @@
   }
 
   function setCoordType(value: string): void {
-    const view = store.getView()
-    const coordType = value as CoordType
-    // 切换到对数坐标时，若轴位置为非正数则移到 1（否则轴不可见）
-    const axisX = coordType === 'log' && view.axisX <= 0 ? 1 : view.axisX
-    const axisY = coordType === 'log' && view.axisY <= 0 ? 1 : view.axisY
-    store.setView({ ...view, coordType, axisX, axisY })
+    // 中心/轴位置在对数坐标下非正时由 store.setView → sanitizeView 统一归一化
+    store.setView({ ...store.getView(), coordType: value as CoordType })
   }
 
   function exportJson(): void {
