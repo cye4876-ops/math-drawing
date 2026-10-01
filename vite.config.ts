@@ -27,6 +27,7 @@ export default defineConfig({
         'src/state/**',
         'src/math/numeric/**',
         'src/tools/**',
+        'src/graph/**',
       ],
       reporter: ['text', 'html'],
       thresholds: {
@@ -60,6 +61,12 @@ export default defineConfig({
           branches: 55,
           functions: 80,
           lines: 80,
+        },
+        'src/graph/**': {
+          statements: 90,
+          branches: 85,
+          functions: 90,
+          lines: 90,
         },
       },
     },

@@ -53,5 +53,9 @@
     "*.{json,css,html,yml,yaml}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.1"
   }
 }
