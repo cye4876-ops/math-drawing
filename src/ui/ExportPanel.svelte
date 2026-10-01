@@ -22,7 +22,7 @@
     onClose,
   }: {
     store: AppStore
-    mode: 'plot' | 'graph' | 'stats'
+    mode: 'plot' | 'graph' | 'stats' | 'space'
     getStageSize: () => { width: number; height: number }
     onClose: () => void
   } = $props()
@@ -293,9 +293,18 @@
         透明背景
       </label>
     </div>
-    <button type="button" class="run" data-testid="export-png-run" disabled={busy} onclick={doPng}>
+    <button
+      type="button"
+      class="run"
+      data-testid="export-png-run"
+      disabled={busy || mode === 'space'}
+      onclick={doPng}
+    >
       导出 PNG
     </button>
+    {#if mode === 'space'}
+      <div class="hint">3D 场景的导出请使用右侧「3D 与场」面板（截图 PNG / 旋转 GIF）</div>
+    {/if}
   {:else if tab === 'svg'}
     <div class="row">
       <span class="dim-label">尺寸</span>
@@ -324,10 +333,12 @@
       class="run"
       data-testid="export-svg-run"
       onclick={doSvg}
-      disabled={mode === 'stats'}>导出 SVG</button
+      disabled={mode === 'stats' || mode === 'space'}>导出 SVG</button
     >
     {#if mode === 'stats'}
       <div class="hint">统计图当前仅支持 PNG 导出（SVG/TikZ 面向曲线与图）</div>
+    {:else if mode === 'space'}
+      <div class="hint">3D 场景的导出请使用右侧「3D 与场」面板（截图 PNG / 旋转 GIF）</div>
     {/if}
   {:else if tab === 'tikz'}
     <div class="row">
@@ -353,10 +364,12 @@
       class="run"
       data-testid="export-tikz-run"
       onclick={doTikz}
-      disabled={mode === 'stats'}>导出 .tex</button
+      disabled={mode === 'stats' || mode === 'space'}>导出 .tex</button
     >
     {#if mode === 'stats'}
       <div class="hint">统计图当前仅支持 PNG 导出（SVG/TikZ 面向曲线与图）</div>
+    {:else if mode === 'space'}
+      <div class="hint">3D 场景的导出请使用右侧「3D 与场」面板（截图 PNG / 旋转 GIF）</div>
     {/if}
   {:else if tab === 'animation'}
     <div class="row">
@@ -467,7 +480,9 @@
       type="button"
       class="run"
       data-testid="export-animation-run"
-      disabled={busy || (animationSource === 'algorithm' ? !graph : explicitCurves.length === 0)}
+      disabled={busy ||
+        mode === 'space' ||
+        (animationSource === 'algorithm' ? !graph : explicitCurves.length === 0)}
       onclick={doAnimation}
     >
       {busy ? '导出中…' : `导出 ${animationFormat.toUpperCase()}`}

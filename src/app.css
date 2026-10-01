@@ -58,6 +58,12 @@ body {
   touch-action: none;
 }
 
+/* 3D 模式：隐藏 2D 画布层（SpaceView 覆盖其上） */
+.stage.hidden2d .canvas-layer,
+.stage.hidden2d .dom-layer {
+  visibility: hidden;
+}
+
 .stage.dragging {
   cursor: grabbing;
 }

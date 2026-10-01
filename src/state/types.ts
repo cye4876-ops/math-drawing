@@ -82,7 +82,111 @@ export interface MarkerPoint {
   y: number
 }
 
-export type SceneObject = MarkerPoint | Curve | GraphObject | Dataset
+/** ---------- v0.8：3D 与场 ---------- */
+
+/** 3D 曲面类型：显式 / 参数 / 隐式（MC）/ 旋转体 / 正多面体（three 内置几何） */
+export type Surface3DKind = 'explicit' | 'parametric' | 'implicit' | 'revolve' | 'polyhedron'
+
+/**
+ * 3D 曲面对象。
+ * 区间字段复用命名：
+ * - explicit：xMin..yMax 为定义域；
+ * - implicit：xMin..zMax 为包围盒；
+ * - parametric：xMin..yMax 为 u × v 参数区间；
+ * - revolve：xMin..xMax 为母线定义域；
+ * - polyhedron：expr 为预设 id（tetrahedron/cube/octahedron/dodecahedron/icosahedron/prismN/pyramidN）。
+ */
+export interface Surface3D {
+  id: string
+  type: 'surface3d'
+  name: string
+  kind: Surface3DKind
+  /** explicit: f(x,y)；implicit: F(x,y,z)；parametric: x(u,v)；revolve: r(x)；polyhedron: 预设 id */
+  expr: string
+  /** parametric: y(u,v) */
+  expr2?: string
+  /** parametric: z(u,v) */
+  expr3?: string
+  xMin: number
+  xMax: number
+  yMin: number
+  yMax: number
+  zMin: number
+  zMax: number
+  color: string
+  /** 不透明度 0.1~1（1 = 不透明） */
+  opacity: number
+  /** 网格分辨率（每轴分段数） */
+  resolution: number
+  visible: boolean
+}
+
+/** 3D 空间曲线：参数曲线或洛伦兹吸引子轨迹 */
+export interface Curve3D {
+  id: string
+  type: 'curve3d'
+  name: string
+  kind: 'parametric' | 'lorenz'
+  /** parametric: x(t)；lorenz 忽略 */
+  expr: string
+  expr2?: string
+  expr3?: string
+  /** parametric 的 t 区间（lorenz 忽略） */
+  tMin: number
+  tMax: number
+  /** 采样点数（parametric）或积分步数（lorenz） */
+  steps: number
+  color: string
+  visible: boolean
+}
+
+/** 向量场对象：3D 场或 z=0 平面上的 2D 场（方向场/相图） */
+export interface Field3D {
+  id: string
+  type: 'field3d'
+  name: string
+  space: 'plane' | 'space'
+  /** 分量 u（plane 时即 2D 场的 x 分量） */
+  expr: string
+  expr2?: string
+  /** space 使用的第三分量 */
+  expr3?: string
+  xMin: number
+  xMax: number
+  yMin: number
+  yMax: number
+  zMin: number
+  zMax: number
+  /** 每轴箭头数（plane: cols×rows；space: divisions³） */
+  divisions: number
+  /** 箭头长度比例（相对格距） */
+  scale: number
+  /** 场性质着色：无 / 散度 / 旋度（按值映射色图） */
+  colorMode: 'none' | 'divergence' | 'curl'
+  /** 流线种子数（0 = 关闭） */
+  streamSeeds: number
+  color: string
+  visible: boolean
+}
+
+/** 一阶 ODE 解曲线（v0.8，在 z=0 平面渲染）：y' = f(x, y)，欧拉/改进/RK4 同图对比 */
+export interface Ode2D {
+  id: string
+  type: 'ode2d'
+  name: string
+  expr: string
+  x0: number
+  y0: number
+  xEnd: number
+  steps: number
+  /** 叠加方向场（斜率场） */
+  directionField: boolean
+  visible: boolean
+}
+
+export type SpaceObject = Surface3D | Curve3D | Field3D | Ode2D
+
+export type SceneObject = MarkerPoint | Curve | GraphObject | Dataset | SpaceObject
 
 /** 文档状态：进入撤销历史的部分 */
 export interface DocState {

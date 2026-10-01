@@ -22,8 +22,8 @@
     canRedo: boolean
     getStageSize: () => Size
     registry: ToolRegistry
-    mode: 'plot' | 'graph' | 'stats'
-    onModeChange: (mode: 'plot' | 'graph' | 'stats') => void
+    mode: 'plot' | 'graph' | 'stats' | 'space'
+    onModeChange: (mode: 'plot' | 'graph' | 'stats' | 'space') => void
   } = $props()
 
   let currentView = $state<ViewTransform | null>(null)
@@ -157,6 +157,14 @@
       aria-selected={mode === 'stats'}
       class:active={mode === 'stats'}
       onclick={() => onModeChange('stats')}>统计与数据</button
+    >
+    <button
+      type="button"
+      role="tab"
+      data-testid="mode-space"
+      aria-selected={mode === 'space'}
+      class:active={mode === 'space'}
+      onclick={() => onModeChange('space')}>3D 与场</button
     >
   </div>
   <span class="divider"></span>

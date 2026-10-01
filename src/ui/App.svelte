@@ -25,6 +25,8 @@
   import CurveList from './CurveList.svelte'
   import GraphPanel from './GraphPanel.svelte'
   import StatsPanel from './StatsPanel.svelte'
+  import SpacePanel from './SpacePanel.svelte'
+  import SpaceView from './SpaceView.svelte'
   import MarkerLayer from './MarkerLayer.svelte'
   import StatusBar from './StatusBar.svelte'
   import MarkerList from './MarkerList.svelte'
@@ -33,6 +35,7 @@
   import type { SceneHighlight } from '../render/element-registry'
   import { clearSampleCache } from '../render/curve-renderer'
   import { decodeSharedState, SHARE_PARAM } from '../export/url-state'
+  import { SPACE_OBJECT_TYPES } from '../export/frame'
 
   const store = createStore()
   let canvasLayerRef: CanvasLayer | null = null
@@ -93,7 +96,7 @@
     return null
   }
 
-  let sharedPreloadMode: 'plot' | 'graph' | 'stats' | null = null
+  let sharedPreloadMode: 'plot' | 'graph' | 'stats' | 'space' | null = null
 
   function preloadFromUrl(target: AppStore): ViewRangeInput | null {
     if (typeof location === 'undefined') return null
@@ -185,39 +188,47 @@
   // 预载必须在组件状态初始化之前执行（否则初始 UI 状态捕获不到）
   const pendingRange = preloadFromUrl(store)
 
-  /** 界面模式（工具条左上角切换）：plot / graph / stats；?mode= 可指定 */
-  function initialModeFromUrl(): 'plot' | 'graph' | 'stats' {
+  /** 界面模式（工具条左上角切换）：plot / graph / stats / space；?mode= 可指定 */
+  function initialModeFromUrl(): 'plot' | 'graph' | 'stats' | 'space' {
     if (typeof location === 'undefined') return 'plot'
     const modeParam = readRawParam(location.search, 'mode')
     if (modeParam === 'graph') return 'graph'
     if (modeParam === 'stats') return 'stats'
+    if (modeParam === 'space') return 'space'
     if (modeParam === null && readRawParam(location.search, 'graph') !== null) return 'graph'
     return 'plot'
   }
-  const initialMode: 'plot' | 'graph' | 'stats' = sharedPreloadMode ?? initialModeFromUrl()
+  const initialMode: 'plot' | 'graph' | 'stats' | 'space' =
+    sharedPreloadMode ?? initialModeFromUrl()
 
-  let mode = $state<'plot' | 'graph' | 'stats'>(initialMode)
+  let mode = $state<'plot' | 'graph' | 'stats' | 'space'>(initialMode)
 
   /**
-   * 三种模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
+   * 四种模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
    * 页面初始视图归属于初始模式；未访问过的模式回落到标准默认视图。
    */
-  const savedViews: Record<'plot' | 'graph' | 'stats', ViewTransform | null> = {
+  const savedViews: Record<'plot' | 'graph' | 'stats' | 'space', ViewTransform | null> = {
     plot: initialMode === 'plot' ? { ...store.getView() } : null,
     graph: initialMode === 'graph' ? { ...store.getView() } : null,
     stats: initialMode === 'stats' ? { ...store.getView() } : null,
+    space: initialMode === 'space' ? { ...store.getView() } : null,
   }
 
-  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集 */
+  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集，3D 不画 2D */
   function visibleObjectsOf(state: { doc: { objects: SceneObject[] } }): SceneObject[] {
+    if (mode === 'space') return []
     return state.doc.objects.filter((object) => {
       if (mode === 'graph') return object.type === 'graph'
       if (mode === 'stats') return object.type === 'dataset'
-      return object.type !== 'graph' && object.type !== 'dataset'
+      return (
+        object.type !== 'graph' &&
+        object.type !== 'dataset' &&
+        !(SPACE_OBJECT_TYPES as readonly string[]).includes(object.type)
+      )
     })
   }
 
-  function setMode(next: 'plot' | 'graph' | 'stats'): void {
+  function setMode(next: 'plot' | 'graph' | 'stats' | 'space'): void {
     if (mode === next) return
     savedViews[mode] = store.getView()
     mode = next
@@ -338,19 +349,23 @@
     getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
   />
   <div class="main">
-    <div class="stage" bind:this={stageElement}></div>
+    <div class="stage" bind:this={stageElement} class:hidden2d={mode === 'space'}>
+      <SpaceView {store} active={mode === 'space'} />
+    </div>
     <div class="side-column">
       {#if mode === 'plot'}
         <CurveList {store} />
         <MarkerList {store} />
       {:else if mode === 'graph'}
         <GraphPanel {store} onHighlight={handleGraphHighlight} />
-      {:else}
+      {:else if mode === 'stats'}
         <StatsPanel
           {store}
           getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
           requestRender={() => canvasLayerRef?.requestRender()}
         />
+      {:else}
+        <SpacePanel {store} />
       {/if}
       <ToolsPanel {registry} />
     </div>

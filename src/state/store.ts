@@ -7,6 +7,7 @@ import type {
   GraphObject,
   MarkerPoint,
   SceneObject,
+  SpaceObject,
   ViewTransform,
 } from './types'
 import type { GraphEdgeData, GraphNodeData } from '../graph/model'
@@ -281,6 +282,54 @@ export class AppStore {
   removeDataset(id: string): void {
     this.commit((doc) => ({
       objects: doc.objects.filter((object) => !(object.type === 'dataset' && object.id === id)),
+    }))
+  }
+
+  /** 文档中的 3D 空间对象（v0.8：曲面/空间曲线/向量场/ODE） */
+  getSpaceObjects(): SpaceObject[] {
+    return this.doc.objects.filter(
+      (object): object is SpaceObject =>
+        object.type === 'surface3d' ||
+        object.type === 'curve3d' ||
+        object.type === 'field3d' ||
+        object.type === 'ode2d',
+    )
+  }
+
+  /** 添加 3D 对象 */
+  addSpaceObject<T extends SpaceObject>(object: T): T {
+    this.commit((doc) => ({ objects: [...doc.objects, object] }))
+    return object
+  }
+
+  /** 更新 3D 对象（一次提交 = 一个撤销步；patch 字段由调用方按类型保证） */
+  updateSpaceObject(id: string, patch: Record<string, unknown>): void {
+    this.commit((doc) => ({
+      objects: doc.objects.map((object) => {
+        if (
+          object.type !== 'surface3d' &&
+          object.type !== 'curve3d' &&
+          object.type !== 'field3d' &&
+          object.type !== 'ode2d'
+        )
+          return object
+        return object.id === id ? ({ ...object, ...patch } as SpaceObject) : object
+      }),
+    }))
+  }
+
+  removeSpaceObject(id: string): void {
+    this.commit((doc) => ({
+      objects: doc.objects.filter(
+        (object) =>
+          !(
+            object.id === id &&
+            (object.type === 'surface3d' ||
+              object.type === 'curve3d' ||
+              object.type === 'field3d' ||
+              object.type === 'ode2d')
+          ),
+      ),
     }))
   }
 

@@ -17,12 +17,23 @@ export type ExportRange =
 /** 导出层共用的场景渲染器（曲线采样缓存在模块级，跨帧复用） */
 const exportScene = createSceneRenderer()
 
+/** v0.8：仅在 3D 视图渲染的对象类型（2D 导出与画布不参与） */
+export const SPACE_OBJECT_TYPES = ['surface3d', 'curve3d', 'field3d', 'ode2d'] as const
+
 /** 按模式过滤画布对象（与 App 的可见性规则一致） */
-export function objectsOfMode(doc: DocState, mode: 'plot' | 'graph' | 'stats'): SceneObject[] {
+export function objectsOfMode(
+  doc: DocState,
+  mode: 'plot' | 'graph' | 'stats' | 'space',
+): SceneObject[] {
+  if (mode === 'space') return []
   return doc.objects.filter((object) => {
     if (mode === 'graph') return object.type === 'graph'
     if (mode === 'stats') return object.type === 'dataset'
-    return object.type !== 'graph' && object.type !== 'dataset'
+    return (
+      object.type !== 'graph' &&
+      object.type !== 'dataset' &&
+      !(SPACE_OBJECT_TYPES as readonly string[]).includes(object.type)
+    )
   })
 }
 
@@ -99,7 +110,7 @@ export interface FrameRenderOptions {
 export function renderFrame(
   ctx: CanvasRenderingContext2D,
   doc: DocState,
-  mode: 'plot' | 'graph' | 'stats',
+  mode: 'plot' | 'graph' | 'stats' | 'space',
   view: ViewTransform,
   size: Size,
   options: FrameRenderOptions,

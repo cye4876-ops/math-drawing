@@ -1,11 +1,16 @@
 import type {
   Curve,
+  Curve3D,
   CurveKind,
   Dataset,
   DocState,
+  Field3D,
   GraphObject,
   LineStyle,
+  Ode2D,
   SceneObject,
+  Surface3D,
+  Surface3DKind,
   ViewTransform,
 } from './types'
 import { createView } from '../core/transform'
@@ -120,6 +125,143 @@ function parseDataset(raw: Record<string, unknown>, position: number): Dataset {
   }
 }
 
+const SURFACE3D_KINDS: readonly Surface3DKind[] = [
+  'explicit',
+  'parametric',
+  'implicit',
+  'revolve',
+  'polyhedron',
+]
+
+/** 有限数字读取（带夹取） */
+function numField(
+  raw: Record<string, unknown>,
+  key: string,
+  fallback: number,
+  min?: number,
+  max?: number,
+): number {
+  const value = raw[key]
+  let result = typeof value === 'number' && Number.isFinite(value) ? value : fallback
+  if (min !== undefined) result = Math.max(min, result)
+  if (max !== undefined) result = Math.min(max, result)
+  return result
+}
+
+function parseSurface3D(raw: Record<string, unknown>, position: number): Surface3D {
+  const id = raw['id']
+  const kind = raw['kind']
+  const expr = raw['expr']
+  if (typeof id !== 'string' || id === '')
+    throw new DocFormatError(`第 ${position} 个对象缺少合法 id`)
+  if (typeof kind !== 'string' || !SURFACE3D_KINDS.includes(kind as Surface3DKind))
+    throw new DocFormatError(`第 ${position} 个对象曲面类型无效`)
+  if (typeof expr !== 'string' || expr === '')
+    throw new DocFormatError(`第 ${position} 个曲面缺少表达式`)
+  const surface: Surface3D = {
+    id,
+    type: 'surface3d',
+    name: typeof raw['name'] === 'string' && raw['name'] !== '' ? raw['name'] : expr,
+    kind: kind as Surface3DKind,
+    expr,
+    xMin: numField(raw, 'xMin', -5),
+    xMax: numField(raw, 'xMax', 5),
+    yMin: numField(raw, 'yMin', -5),
+    yMax: numField(raw, 'yMax', 5),
+    zMin: numField(raw, 'zMin', -5),
+    zMax: numField(raw, 'zMax', 5),
+    color: typeof raw['color'] === 'string' && raw['color'] !== '' ? raw['color'] : '#2563eb',
+    opacity: numField(raw, 'opacity', 1, 0.1, 1),
+    resolution: Math.round(numField(raw, 'resolution', 64, 4, 256)),
+    visible: typeof raw['visible'] === 'boolean' ? raw['visible'] : true,
+  }
+  if (typeof raw['expr2'] === 'string') surface.expr2 = raw['expr2']
+  if (typeof raw['expr3'] === 'string') surface.expr3 = raw['expr3']
+  return surface
+}
+
+function parseCurve3D(raw: Record<string, unknown>, position: number): Curve3D {
+  const id = raw['id']
+  const kind = raw['kind']
+  const expr = raw['expr']
+  if (typeof id !== 'string' || id === '')
+    throw new DocFormatError(`第 ${position} 个对象缺少合法 id`)
+  if (kind !== 'parametric' && kind !== 'lorenz')
+    throw new DocFormatError(`第 ${position} 个空间曲线类型无效`)
+  if (typeof expr !== 'string') throw new DocFormatError(`第 ${position} 个空间曲线缺少表达式`)
+  const curve: Curve3D = {
+    id,
+    type: 'curve3d',
+    name: typeof raw['name'] === 'string' && raw['name'] !== '' ? raw['name'] : expr,
+    kind,
+    expr,
+    tMin: numField(raw, 'tMin', 0),
+    tMax: numField(raw, 'tMax', Math.PI * 6),
+    steps: Math.round(numField(raw, 'steps', 600, 2, 200_000)),
+    color: typeof raw['color'] === 'string' && raw['color'] !== '' ? raw['color'] : '#dc2626',
+    visible: typeof raw['visible'] === 'boolean' ? raw['visible'] : true,
+  }
+  if (typeof raw['expr2'] === 'string') curve.expr2 = raw['expr2']
+  if (typeof raw['expr3'] === 'string') curve.expr3 = raw['expr3']
+  return curve
+}
+
+function parseField3D(raw: Record<string, unknown>, position: number): Field3D {
+  const id = raw['id']
+  const space = raw['space']
+  const expr = raw['expr']
+  if (typeof id !== 'string' || id === '')
+    throw new DocFormatError(`第 ${position} 个对象缺少合法 id`)
+  if (space !== 'plane' && space !== 'space')
+    throw new DocFormatError(`第 ${position} 个向量场空间类型无效`)
+  if (typeof expr !== 'string' || expr === '')
+    throw new DocFormatError(`第 ${position} 个向量场缺少分量表达式`)
+  const colorMode = raw['colorMode']
+  const field: Field3D = {
+    id,
+    type: 'field3d',
+    name: typeof raw['name'] === 'string' && raw['name'] !== '' ? raw['name'] : expr,
+    space,
+    expr,
+    xMin: numField(raw, 'xMin', -3),
+    xMax: numField(raw, 'xMax', 3),
+    yMin: numField(raw, 'yMin', -3),
+    yMax: numField(raw, 'yMax', 3),
+    zMin: numField(raw, 'zMin', -3),
+    zMax: numField(raw, 'zMax', 3),
+    divisions: Math.round(numField(raw, 'divisions', 6, 2, 24)),
+    scale: numField(raw, 'scale', 1.6, 0.1, 5),
+    colorMode: colorMode === 'divergence' || colorMode === 'curl' ? colorMode : ('none' as const),
+    streamSeeds: Math.round(numField(raw, 'streamSeeds', 0, 0, 64)),
+    color: typeof raw['color'] === 'string' && raw['color'] !== '' ? raw['color'] : '#0891b2',
+    visible: typeof raw['visible'] === 'boolean' ? raw['visible'] : true,
+  }
+  if (typeof raw['expr2'] === 'string') field.expr2 = raw['expr2']
+  if (typeof raw['expr3'] === 'string') field.expr3 = raw['expr3']
+  return field
+}
+
+function parseOde2D(raw: Record<string, unknown>, position: number): Ode2D {
+  const id = raw['id']
+  const expr = raw['expr']
+  if (typeof id !== 'string' || id === '')
+    throw new DocFormatError(`第 ${position} 个对象缺少合法 id`)
+  if (typeof expr !== 'string' || expr === '')
+    throw new DocFormatError(`第 ${position} 个 ODE 对象缺少表达式`)
+  return {
+    id,
+    type: 'ode2d',
+    name: typeof raw['name'] === 'string' && raw['name'] !== '' ? raw['name'] : expr,
+    expr,
+    x0: numField(raw, 'x0', 0),
+    y0: numField(raw, 'y0', 1),
+    xEnd: numField(raw, 'xEnd', 3),
+    steps: Math.round(numField(raw, 'steps', 30, 1, 20_000)),
+    directionField: typeof raw['directionField'] === 'boolean' ? raw['directionField'] : true,
+    visible: typeof raw['visible'] === 'boolean' ? raw['visible'] : true,
+  }
+}
+
 function parseView(raw: unknown): ViewTransform {
   const base = createView()
   if (raw === null || typeof raw !== 'object') return base
@@ -176,6 +318,10 @@ export function deserializeDocument(json: string): { doc: DocState; view: ViewTr
     else if (raw['type'] === 'marker') objects.push(parseMarker(raw, index))
     else if (raw['type'] === 'graph') objects.push(parseGraph(raw, index))
     else if (raw['type'] === 'dataset') objects.push(parseDataset(raw, index))
+    else if (raw['type'] === 'surface3d') objects.push(parseSurface3D(raw, index))
+    else if (raw['type'] === 'curve3d') objects.push(parseCurve3D(raw, index))
+    else if (raw['type'] === 'field3d') objects.push(parseField3D(raw, index))
+    else if (raw['type'] === 'ode2d') objects.push(parseOde2D(raw, index))
     else throw new DocFormatError(`第 ${index} 个对象类型未知：${String(raw['type'])}`)
   })
 
