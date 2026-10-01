@@ -12,5 +12,22 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    // 将"是否处于覆盖率模式"透传给测试（性能基准需要区分插桩与否）
+    env: {
+      EXPR_COVERAGE: process.argv.includes('--coverage') ? 'true' : 'false',
+    },
+    coverage: {
+      provider: 'v8',
+      include: ['src/expr/**'],
+      reporter: ['text', 'html'],
+      thresholds: {
+        'src/expr/**': {
+          statements: 90,
+          branches: 85,
+          functions: 90,
+          lines: 90,
+        },
+      },
+    },
   },
 })

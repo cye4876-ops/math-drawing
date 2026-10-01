@@ -5,7 +5,7 @@
     "target": "es2023",
     "module": "esnext",
     "noUncheckedIndexedAccess": true,
-    "types": ["svelte", "vite/client"],
+    "types": ["svelte", "vite/client", "node"],
     "allowArbitraryExtensions": true,
     "noEmit": true,
     /**
