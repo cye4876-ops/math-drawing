@@ -41,6 +41,7 @@
 
   let algorithmId = $state('bfs')
   let startId = $state('')
+  let endId = $state('')
   let steps = $state<AlgorithmStep[]>([])
   let result = $state<AlgorithmResult | null>(null)
   let index = $state(-1)
@@ -95,7 +96,7 @@
   function runSelected(): void {
     if (!graph) return
     stopPlayback()
-    const output = runAlgorithm(algorithmId, graph, startId || undefined)
+    const output = runAlgorithm(algorithmId, graph, startId || undefined, endId || undefined)
     steps = output.steps
     result = output.result
     index = steps.length > 0 ? 0 : -1
@@ -190,6 +191,30 @@
         items: [`剩余节点：${(res.remaining ?? []).map(label).join('、')}`],
       }
     }
+    if ('maxFlow' in res) {
+      const items = [
+        `源 ${label(res.start)} → 汇 ${label(res.end)}`,
+        ...res.flows.map(
+          (edge) =>
+            `${label(edge.source)} → ${label(edge.target)}：${edge.flow} / ${edge.capacity}`,
+        ),
+      ]
+      return { title: `最大流 = ${res.maxFlow}`, items }
+    }
+    if ('componentOf' in res) {
+      return {
+        title: `强连通分量（${res.count} 个）`,
+        items: res.components.map(
+          (component, index) => `#${index + 1}：${component.map(label).join('、')}`,
+        ),
+      }
+    }
+    if ('pairs' in res) {
+      return {
+        title: `最大匹配（${res.size} 对）`,
+        items: res.pairs.map((pair) => `${label(pair.left)} ↔ ${label(pair.right)}`),
+      }
+    }
     if ('start' in res) {
       const items = Object.entries(res.distance).map(([id, distance]) => {
         const text = distance === null ? '∞' : String(distance)
@@ -261,6 +286,23 @@
             onchange={(event) => (startId = (event.currentTarget as HTMLSelectElement).value)}
           >
             <option value="">（第一个顶点）</option>
+            {#each graph.nodes as node (node.id)}
+              <option value={node.id}>{node.label}</option>
+            {/each}
+          </select>
+        </label>
+      </div>
+    {/if}
+    {#if info?.requiresEnd}
+      <div class="row">
+        <label class="start-label">
+          汇点
+          <select
+            data-testid="algorithm-end-select"
+            value={endId}
+            onchange={(event) => (endId = (event.currentTarget as HTMLSelectElement).value)}
+          >
+            <option value="">（最后一个顶点）</option>
             {#each graph.nodes as node (node.id)}
               <option value={node.id}>{node.label}</option>
             {/each}

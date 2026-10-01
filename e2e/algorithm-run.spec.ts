@@ -136,4 +136,39 @@ test.describe('v0.5 算法 UI 播放器（阶段 5b）', () => {
     const end = await countTrailPixels(page)
     expect(end).toBeGreaterThan(first)
   })
+
+  test('强连通分量：两环夹一桥得 2 个分量', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('A->B, B->A, B->C, C->D, D->C'))
+    await page.getByTestId('algorithm-select').selectOption('scc')
+    await page.getByTestId('algorithm-run').click()
+    await page.getByTestId('algorithm-end').click()
+    await expect(page.getByTestId('algorithm-result')).toContainText('强连通分量（2 个）')
+  })
+
+  test('二分匹配：K3,3 得 3 对；非二分图拒绝执行', async ({ page }) => {
+    const K33 = '1-4, 1-5, 1-6, 2-4, 2-5, 2-6, 3-4, 3-5, 3-6'
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent(K33))
+    await page.getByTestId('algorithm-select').selectOption('matching')
+    await page.getByTestId('algorithm-run').click()
+    await page.getByTestId('algorithm-end').click()
+    await expect(page.getByTestId('algorithm-result')).toContainText('最大匹配（3 对）')
+
+    // 换成三角形（非二分）→ 拒绝并提示
+    await page.getByTestId('graph-dsl').fill('1-2, 2-3, 3-1')
+    await page.getByTestId('algorithm-select').selectOption('matching')
+    await page.getByTestId('algorithm-run').click()
+    await expect(page.getByTestId('algorithm-result')).toContainText('非二分')
+  })
+
+  test('最大流：汇点选择控件 + 经典网络得 5 与流量表', async ({ page }) => {
+    await page.goto(
+      '/?mode=graph&graph=' + encodeURIComponent('A->B:3, A->C:2, B->C:1, B->D:2, C->D:3'),
+    )
+    await page.getByTestId('algorithm-select').selectOption('max-flow')
+    await expect(page.getByTestId('algorithm-end-select')).toBeVisible()
+    await page.getByTestId('algorithm-run').click()
+    await page.getByTestId('algorithm-end').click()
+    await expect(page.getByTestId('algorithm-result')).toContainText('最大流 = 5')
+    await expect(page.getByTestId('algorithm-result')).toContainText('B → D：2 / 2')
+  })
 })

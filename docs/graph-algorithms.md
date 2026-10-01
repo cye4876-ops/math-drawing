@@ -36,6 +36,9 @@
 | **贪心着色（度数降序）** | 色数上界 | $O(V^2+E)$ | 逐点取最小可用色 |
 | **DSATUR 着色** | 饱和度贪心（小图通常最优） | $O(V^2 \cdot \Delta)$ | 饱和度最高的点优先着色 |
 | **二分判定** | 二着色存在性 | $O(V+E)$ | 二色分层；失败时给出冲突边 |
+| **强连通分量（Tarjan）** | 有向图分解 | $O(V+E)$ | 入栈 dfn、分量发现高亮；无向图 = 连通分量 |
+| **二分匹配（匈牙利）** | 二分图最大匹配 | $O(VE)$ | 逐个左点寻找增广路，匹配对逐步成型 |
+| **最大流（Edmonds-Karp）** | 网络最大流 | $O(VE^2)$ | BFS 增广路径逐步推流；**容量取边权重**（缺省 1） |
 
 > 说明：最短路径与遍历的起点由 UI 指定（缺省第一个顶点）；拓扑/着色/二分无需起点。
 
@@ -69,8 +72,9 @@
 ```ts
 import { ALGORITHMS, runAlgorithm, reconstructPath } from '../graph/algorithms'
 
-// 一次性运行（步骤数组 + 结果）
+// 一次性运行（步骤数组 + 结果）；最大流可指定汇点（endId）
 const { steps, result } = runAlgorithm('dijkstra', graphObject, startId)
+const flow = runAlgorithm('max-flow', graphObject, startId, endId)
 
 // 或直接消费生成器（单步/回退由播放器管理索引）
 import { dijkstraSteps } from '../graph/algorithms/shortest-path'

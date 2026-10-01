@@ -7,7 +7,14 @@ import { describe, expect, it } from 'vitest'
 import { graphObjectFromDsl } from '../dsl-to-doc'
 import type { GraphObject } from '../model'
 import { dsaturColoring, greedyColoring, isBipartite, verifyColoring } from './coloring'
-import { ALGORITHMS, reconstructPath, runAlgorithm } from './index'
+import {
+  ALGORITHMS,
+  reconstructPath,
+  runAlgorithm,
+  type MatchingResult,
+  type MaxFlowResult,
+  type SccResult,
+} from './index'
 import { dijkstraSteps } from './shortest-path'
 import { computeTrail } from './trail'
 import type { AlgorithmFailure, ShortestPathResult, TraversalResult } from './types'
@@ -246,9 +253,10 @@ describe('v0.5 算法：二分判定（规格关键项）', () => {
 })
 
 describe('v0.5 算法：注册与统一入口', () => {
-  it('ALGORITHMS 元数据完整（10 项）且 runAlgorithm 全部可用', () => {
-    expect(ALGORITHMS).toHaveLength(10)
-    const graph = make('A-B:1, B-C:2, C->A:1')
+  it('ALGORITHMS 元数据完整（13 项）且 runAlgorithm 全部可用', () => {
+    expect(ALGORITHMS).toHaveLength(13)
+    // 二分路径图：所有算法都可运行（matching 需要二分图，奇环图上报错属规格行为）
+    const graph = make('A-B:1, B-C:2')
     for (const info of ALGORITHMS) {
       const { result } = runAlgorithm(info.id, graph)
       expect('error' in result, `${info.id} 不应报错`).toBe(false)
@@ -277,6 +285,89 @@ describe('v0.5 算法：注册与统一入口', () => {
     const graph = make(PETERSEN)
     expect(runAlgorithm('bfs', graph).steps.length).toBeLessThan(200)
     expect(runAlgorithm('bellman-ford', graph).steps.length).toBeLessThan(1000)
+  })
+})
+
+describe('v0.5 算法：强连通分量（Tarjan）', () => {
+  it('有向链：每点一个分量；有向环：一个分量', () => {
+    const chain = runAlgorithm('scc', make('A->B, B->C')).result as SccResult
+    expect(chain.count).toBe(3)
+    const cycle = runAlgorithm('scc', make('A->B, B->C, C->A')).result as SccResult
+    expect(cycle.count).toBe(1)
+  })
+
+  it('两环夹一桥：两个分量（各 2 点）', () => {
+    const graph = make('A->B, B->A, B->C, C->D, D->C')
+    const result = runAlgorithm('scc', graph).result as SccResult
+    expect(result.count).toBe(2)
+    const sizes = result.components.map((component) => component.length).sort()
+    expect(sizes).toEqual([2, 2])
+  })
+
+  it('无向连通图（双向语义）= 单分量；不连通 = 多分量；空图 0 分量', () => {
+    expect((runAlgorithm('scc', make('A-B, B-C')).result as SccResult).count).toBe(1)
+    expect((runAlgorithm('scc', make('A-B, C-D')).result as SccResult).count).toBe(2)
+    expect((runAlgorithm('scc', EMPTY).result as SccResult).count).toBe(0)
+  })
+
+  it('Petersen：单分量', () => {
+    expect((runAlgorithm('scc', make(PETERSEN)).result as SccResult).count).toBe(1)
+  })
+})
+
+describe('v0.5 算法：二分匹配（匈牙利）', () => {
+  it('K3,3：完美匹配 3 对', () => {
+    const result = runAlgorithm('matching', make(K33)).result as MatchingResult
+    expect(result.size).toBe(3)
+  })
+
+  it('K2,3：饱和左部 2 对；星图 1 对', () => {
+    const k23 = '1-4, 1-5, 1-6, 2-4, 2-5, 2-6'
+    expect((runAlgorithm('matching', make(k23)).result as MatchingResult).size).toBe(2)
+    expect((runAlgorithm('matching', make('c-1, c-2, c-3')).result as MatchingResult).size).toBe(1)
+  })
+
+  it('非二分图：拒绝并报错', () => {
+    const { result, steps } = runAlgorithm('matching', make('1-2, 2-3, 3-1'))
+    expect('error' in result).toBe(true)
+    expect((result as AlgorithmFailure).error).toContain('非二分')
+    expect(steps[0]?.kind).toBe('reject')
+  })
+
+  it('路径图与空图边界', () => {
+    expect((runAlgorithm('matching', make('A-B, B-C')).result as MatchingResult).size).toBe(1)
+    expect((runAlgorithm('matching', EMPTY).result as MatchingResult).size).toBe(0)
+  })
+})
+
+describe('v0.5 算法：最大流（Edmonds-Karp，容量=权重）', () => {
+  it('经典网络：最大流 5（含绕行路径）', () => {
+    const graph = make('A->B:3, A->C:2, B->C:1, B->D:2, C->D:3')
+    const result = runAlgorithm('max-flow', graph).result as MaxFlowResult
+    expect(result.maxFlow).toBe(5)
+  })
+
+  it('无向边双向容量：A-B:3 → 流 3', () => {
+    const result = runAlgorithm('max-flow', make('A-B:3')).result as MaxFlowResult
+    expect(result.maxFlow).toBe(3)
+  })
+
+  it('不连通 0；平行边容量累加；无权边容量 1', () => {
+    expect((runAlgorithm('max-flow', make('1-2, 3-4')).result as MaxFlowResult).maxFlow).toBe(0)
+    expect((runAlgorithm('max-flow', make('A->B:2, A->B:3')).result as MaxFlowResult).maxFlow).toBe(
+      5,
+    )
+    expect((runAlgorithm('max-flow', make('A->B, B->C')).result as MaxFlowResult).maxFlow).toBe(1)
+  })
+
+  it('显式源汇参数；源=汇报错', () => {
+    const graph = make('S->A:2, A->T:1, S->T:1')
+    const sId = graph.nodes.find((node) => node.label === 'S')!.id
+    const tId = graph.nodes.find((node) => node.label === 'T')!.id
+    const result = runAlgorithm('max-flow', graph, sId, tId).result as MaxFlowResult
+    expect(result.maxFlow).toBe(2)
+    const bad = runAlgorithm('max-flow', graph, sId, sId).result
+    expect('error' in bad).toBe(true)
   })
 })
 

@@ -5,6 +5,9 @@
  */
 import type { GraphObject } from '../model'
 import { dsaturColoring, greedyColoring, isBipartite } from './coloring'
+import { stronglyConnectedSteps, type SccResult } from './connectivity'
+import { maxFlowSteps, type MaxFlowResult } from './flow'
+import { bipartiteMatchingSteps, type MatchingResult } from './matching'
 import { topologicalSteps } from './ordering'
 import { bellmanFordSteps, dijkstraSteps } from './shortest-path'
 import { kruskalSteps, primSteps, type MstResult } from './spanning-tree'
@@ -23,6 +26,9 @@ export type { AlgorithmStep, StepKind } from './types'
 export { collectSteps } from './types'
 export { reconstructPath } from './shortest-path'
 export type { MstEdge, MstResult } from './spanning-tree'
+export type { SccResult } from './connectivity'
+export type { MatchingResult } from './matching'
+export type { FlowEdge, MaxFlowResult } from './flow'
 
 export type AlgorithmResult =
   | TraversalResult
@@ -31,6 +37,9 @@ export type AlgorithmResult =
   | ColoringResult
   | BipartiteResult
   | MstResult
+  | SccResult
+  | MatchingResult
+  | MaxFlowResult
   | AlgorithmFailure
 
 export interface AlgorithmInfo {
@@ -39,6 +48,8 @@ export interface AlgorithmInfo {
   name: string
   /** 是否需要选择起点 */
   requiresStart: boolean
+  /** 是否需要选择汇点（最大流） */
+  requiresEnd?: boolean
   /** 一句话说明 */
   description: string
 }
@@ -99,6 +110,25 @@ export const ALGORITHMS: AlgorithmInfo[] = [
     requiresStart: false,
     description: '二着色判定，并给出冲突证据',
   },
+  {
+    id: 'scc',
+    name: '强连通分量（Tarjan）',
+    requiresStart: false,
+    description: '有向图分解为强连通分量（无向图 = 连通分量）',
+  },
+  {
+    id: 'matching',
+    name: '二分匹配（匈牙利）',
+    requiresStart: false,
+    description: '在二分图上求最大匹配',
+  },
+  {
+    id: 'max-flow',
+    name: '最大流（Edmonds-Karp）',
+    requiresStart: true,
+    requiresEnd: true,
+    description: '容量取边权重（缺省 1）；BFS 增广',
+  },
 ]
 
 /** 运行算法：生成器算法收集全部步骤；判定/着色类返回结果（步骤为空数组） */
@@ -106,6 +136,7 @@ export function runAlgorithm(
   id: string,
   graph: GraphObject,
   startId?: string,
+  endId?: string,
 ): { steps: AlgorithmStep[]; result: AlgorithmResult } {
   const collect = <T extends AlgorithmResult>(
     generator: Generator<AlgorithmStep, T, void>,
@@ -139,6 +170,12 @@ export function runAlgorithm(
       return { steps: [], result: dsaturColoring(graph) }
     case 'bipartite':
       return { steps: [], result: isBipartite(graph) }
+    case 'scc':
+      return collect(stronglyConnectedSteps(graph))
+    case 'matching':
+      return collect(bipartiteMatchingSteps(graph))
+    case 'max-flow':
+      return collect(maxFlowSteps(graph, startId, endId))
     default:
       return { steps: [], result: { error: `未知算法：${id}` } }
   }
