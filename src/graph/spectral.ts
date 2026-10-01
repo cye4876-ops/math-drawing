@@ -207,6 +207,9 @@ export interface GraphSpectrum {
   symmetric: boolean
   /** 全特征值（降序）；非对称邻接阵或超出规模上限时为 null */
   eigenvalues: number[] | null
+  /** 拉普拉斯谱（升序，近零归一为 0）；非对称/超限时为 null。
+   *  0 的重数 = 连通分量数；λ₂（升序第二个值）= 代数连通度。 */
+  laplacianEigenvalues: number[] | null
   /** 谱半径（Perron 根） */
   spectralRadius: number
   /** Perron 向量（最大分量 = 1，非负） */
@@ -214,7 +217,7 @@ export interface GraphSpectrum {
   perronConverged: boolean
 }
 
-/** 计算图的谱（矩阵 + 全谱（如适用）+ 谱半径与 Perron 向量） */
+/** 计算图的谱（矩阵 + 全谱（如适用）+ 拉普拉斯谱 + 谱半径与 Perron 向量） */
 export function computeSpectrum(
   graph: GraphObject,
   options: { maxFullSpectrumSize?: number } = {},
@@ -223,14 +226,20 @@ export function computeSpectrum(
   const n = adjacency.matrix.length
   const maxFull = options.maxFullSpectrumSize ?? 64
   let eigenvalues: number[] | null = null
+  let laplacianEigenvalues: number[] | null = null
   if (adjacency.symmetric && n > 0 && n <= maxFull) {
     eigenvalues = jacobiEigenSymmetric(adjacency.matrix).values
+    laplacianEigenvalues = jacobiEigenSymmetric(buildLaplacianMatrix(adjacency))
+      .values.slice()
+      .reverse()
+      .map((value) => (Math.abs(value) < 1e-9 ? 0 : value))
   }
   const perron = perronVector(graph)
   return {
     adjacency,
     symmetric: adjacency.symmetric,
     eigenvalues,
+    laplacianEigenvalues,
     spectralRadius: perron.eigenvalue,
     perron: perron.vector,
     perronConverged: perron.converged,

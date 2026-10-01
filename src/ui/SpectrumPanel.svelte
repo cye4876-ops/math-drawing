@@ -10,6 +10,7 @@
   import type { SceneHighlight } from '../render/element-registry'
   import { buildLaplacianMatrix, computeSpectrum, type GraphSpectrum } from '../graph/spectral'
   import { structuralKey } from '../graph/structural-key'
+  import { getMatrixFocus } from '../state/matrix-focus.svelte'
 
   let {
     graph,
@@ -98,6 +99,39 @@
   })
 
   const matrixSize = $derived(spectrum?.adjacency.matrix.length ?? 0)
+
+  /** 算法播放器（Floyd）标记的当前顶点 → 矩阵行/列高亮 */
+  const focusId = $derived(getMatrixFocus())
+  const focusIndex = $derived(
+    focusId === null || !spectrum
+      ? -1
+      : spectrum.adjacency.labels.findIndex((item) => item.id === focusId),
+  )
+
+  /** 拉普拉斯谱按重数聚合（升序） */
+  const groupedLaplacian = $derived.by(() => {
+    const values = spectrum?.laplacianEigenvalues
+    if (!values) return []
+    const groups: { value: number; count: number }[] = []
+    for (const value of values) {
+      const last = groups[groups.length - 1]
+      if (last && Math.abs(last.value - value) < 1e-6) last.count += 1
+      else groups.push({ value, count: 1 })
+    }
+    return groups
+  })
+
+  /** 0 的重数 = 连通分量数 */
+  const laplacianZeroCount = $derived(
+    spectrum?.laplacianEigenvalues?.filter((value) => Math.abs(value) < 1e-6).length ?? 0,
+  )
+
+  /** λ₂ = 升序第二个特征值（代数连通度；不连通时为 0） */
+  const laplacianLambda2 = $derived.by(() => {
+    const values = spectrum?.laplacianEigenvalues
+    if (!values || values.length < 2) return null
+    return values[1]!
+  })
 </script>
 
 <div class="spectrum" data-testid="spectrum-panel">
@@ -155,6 +189,7 @@
                       class="cell"
                       class:nonzero={cellValue(i, j) !== 0}
                       class:selected={selected?.i === i && selected?.j === j}
+                      class:focused={focusIndex >= 0 && (i === focusIndex || j === focusIndex)}
                       data-testid={`matrix-cell-${i}-${j}`}
                       title={`${rowLabel.label} → ${colLabel.label}`}
                       onclick={() => toggleCell(i, j)}
@@ -170,7 +205,27 @@
       </div>
     {/if}
 
-    {#if spectrum.eigenvalues}
+    {#if matrixKind === 'laplacian' && spectrum.laplacianEigenvalues}
+      <div class="line" data-testid="laplacian-eigenvalues">
+        <span class="dim">L 的谱（升序）：</span>
+        {#each groupedLaplacian as group, index (index)}
+          <span class="chip"
+            >{formatValue(group.value)}{group.count > 1 ? `×${group.count}` : ''}</span
+          >
+        {/each}
+      </div>
+      <div class="line" data-testid="laplacian-connectivity">
+        <span class="dim">0 的重数（连通分量数）：</span><b>{laplacianZeroCount}</b>
+        <span class="dim">；代数连通度 λ₂ =</span>
+        <b
+          >{laplacianLambda2 === null
+            ? '—'
+            : Math.abs(laplacianLambda2) < 1e-6
+              ? '0（图不连通）'
+              : formatValue(laplacianLambda2)}</b
+        >
+      </div>
+    {:else if spectrum.eigenvalues}
       <div class="line" data-testid="eigenvalues">
         <span class="dim">特征值：</span>
         {#each groupedEigenvalues as group, index (index)}
@@ -296,6 +351,10 @@
   .cell.selected {
     border-color: #f59e0b;
     background: rgba(245, 158, 11, 0.18);
+  }
+
+  .cell.focused {
+    background: rgba(245, 158, 11, 0.12);
   }
 
   .chip {

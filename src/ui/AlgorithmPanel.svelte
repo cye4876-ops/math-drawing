@@ -9,6 +9,7 @@
   import { onDestroy } from 'svelte'
   import type { GraphObject } from '../graph/model'
   import type { SceneHighlight } from '../render/element-registry'
+  import { setMatrixFocus } from '../state/matrix-focus.svelte'
   import {
     ALGORITHMS,
     reconstructPath,
@@ -76,6 +77,12 @@
   $effect(() => {
     const step = currentStep
     const fills = coloringFills
+    // Floyd 单步播放 → 谱面板矩阵行列焦点（当前中间点 k）；重播结束/重置时清空
+    if (algorithmId === 'floyd' && !finished && step?.node && result && 'labels' in result) {
+      setMatrixFocus(step.node)
+    } else {
+      setMatrixFocus(null)
+    }
     if (!step && !fills) {
       onHighlight(null)
       return

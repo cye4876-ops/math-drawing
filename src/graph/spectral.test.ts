@@ -261,3 +261,38 @@ describe('v0.5 谱：computeSpectrum 高层入口', () => {
     expect(spectrum.perron).toEqual([])
   })
 })
+
+describe('v0.5 谱：computeSpectrum 拉普拉斯谱（0 的重数与代数连通度）', () => {
+  it('P3：升序 [0, 1, 3]（λ₂=1）', () => {
+    const values = computeSpectrum(make('1-2, 2-3')).laplacianEigenvalues
+    expect(values).not.toBeNull()
+    expect(values!).toHaveLength(3)
+    expect(values![0]!).toBeCloseTo(0, 6)
+    expect(values![1]!).toBeCloseTo(1, 6)
+    expect(values![2]!).toBeCloseTo(3, 6)
+  })
+
+  it('K3：升序 [0, 3, 3]（0 重数 1）', () => {
+    const values = computeSpectrum(make('1-2, 2-3, 3-1')).laplacianEigenvalues!
+    expect(values[0]!).toBeCloseTo(0, 6)
+    expect(values[1]!).toBeCloseTo(3, 6)
+    expect(values[2]!).toBeCloseTo(3, 6)
+  })
+
+  it('不连通（两条独立边）：0 的重数 = 2（= 连通分量数）', () => {
+    const values = computeSpectrum(make('A-B, C-D')).laplacianEigenvalues!
+    expect(values.filter((value) => Math.abs(value) < 1e-6)).toHaveLength(2)
+  })
+
+  it('带权路径 A-B:2, B-C:3：谱 [0, 5−√7, 5+√7]', () => {
+    // 特征方程 −λ(λ²−10λ+18) → 0 与 5±√7
+    const values = computeSpectrum(make('A-B:2, B-C:3')).laplacianEigenvalues!
+    expect(values[0]!).toBeCloseTo(0, 6)
+    expect(values[1]!).toBeCloseTo(5 - Math.sqrt(7), 5)
+    expect(values[2]!).toBeCloseTo(5 + Math.sqrt(7), 5)
+  })
+
+  it('有向图：拉普拉斯谱为 null（非对称）', () => {
+    expect(computeSpectrum(make('A->B, B->C')).laplacianEigenvalues).toBeNull()
+  })
+})

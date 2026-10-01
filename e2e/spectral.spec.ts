@@ -101,4 +101,42 @@ test.describe('v0.5 邻接矩阵与谱（特征值 / Perron 向量）', () => {
     await expect(page.getByTestId('spectral-radius')).toContainText('ρ = 3')
     await expect(page.getByTestId('eigenvalues')).toContainText('-1×3')
   })
+
+  test('拉普拉斯谱：L 谱、0 的重数（连通分量）与代数连通度 λ₂', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('1-2, 2-3'))
+    await page.getByTestId('matrix-kind-laplacian').click()
+    // P3：L 谱 [0, 1, 3]；0 重数 1；λ₂=1
+    await expect(page.getByTestId('laplacian-eigenvalues')).toContainText('3')
+    await expect(page.getByTestId('laplacian-eigenvalues')).toContainText('1')
+    await expect(page.getByTestId('laplacian-connectivity')).toContainText('1')
+    await expect(page.getByTestId('laplacian-connectivity')).toContainText('λ₂ = 1')
+
+    // 不连通（两条独立边）：0 重数 2、λ₂=0
+    await page.getByTestId('graph-dsl').fill('A-B, C-D')
+    await expect(page.getByTestId('laplacian-connectivity')).toContainText('2')
+    await expect(page.getByTestId('laplacian-connectivity')).toContainText('不连通')
+  })
+
+  test('Floyd 单步：矩阵行列焦点随中间点移动，结束清空', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('1-2, 2-3, 3-1'))
+    await page.getByTestId('algorithm-select').selectOption('floyd')
+    await page.getByTestId('algorithm-run').click()
+
+    // 第 1 步为初始化说明（无中间点）→ 无焦点
+    await expect(page.getByTestId('matrix-cell-1-1')).not.toHaveClass(/focused/)
+
+    // 下一步：k = 顶点 1（索引 0）→ 第 0 行/列聚焦
+    await page.getByTestId('algorithm-step').click()
+    await expect(page.getByTestId('matrix-cell-0-1')).toHaveClass(/focused/)
+    await expect(page.getByTestId('matrix-cell-1-1')).not.toHaveClass(/focused/)
+
+    // 再一步：焦点移到索引 1
+    await page.getByTestId('algorithm-step').click()
+    await expect(page.getByTestId('matrix-cell-1-2')).toHaveClass(/focused/)
+    await expect(page.getByTestId('matrix-cell-0-2')).not.toHaveClass(/focused/)
+
+    // 跳到结尾（完成）：焦点清空
+    await page.getByTestId('algorithm-end').click()
+    await expect(page.getByTestId('matrix-cell-1-2')).not.toHaveClass(/focused/)
+  })
 })
