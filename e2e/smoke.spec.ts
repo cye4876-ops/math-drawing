@@ -46,8 +46,9 @@ test.describe('v0.1 冒烟测试', () => {
     expect(before).not.toBeNull()
     expect(canvas).not.toBeNull()
 
-    const startX = canvas!.x + canvas!.width / 2
-    const startY = canvas!.y + canvas!.height / 2
+    // 起点避开坐标轴（画布中心是轴交叉点，会触发 v0.3 的"拖动坐标轴"交互）
+    const startX = canvas!.x + canvas!.width / 2 + 150
+    const startY = canvas!.y + canvas!.height / 2 + 120
     await page.mouse.move(startX, startY)
     await page.mouse.down()
     await page.mouse.move(startX - 100, startY - 60, { steps: 5 })

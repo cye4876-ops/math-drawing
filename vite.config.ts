@@ -18,10 +18,29 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      include: ['src/expr/**'],
+      include: [
+        'src/expr/**',
+        'src/core/**',
+        'src/render/samplers/**',
+        'src/render/viewport.ts',
+        'src/render/curve-renderer.ts',
+        'src/state/**',
+      ],
       reporter: ['text', 'html'],
       thresholds: {
         'src/expr/**': {
+          statements: 90,
+          branches: 85,
+          functions: 90,
+          lines: 90,
+        },
+        'src/render/samplers/**': {
+          statements: 90,
+          branches: 85,
+          functions: 90,
+          lines: 90,
+        },
+        'src/core/**': {
           statements: 90,
           branches: 85,
           functions: 90,

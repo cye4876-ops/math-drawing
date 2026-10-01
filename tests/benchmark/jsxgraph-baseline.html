@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>loading</title>
+    <!-- 直接从 node_modules 加载 JSXGraph（生成基准图时临时安装：pnpm add -D jsxgraph@1.13.3） -->
+    <script src="../../node_modules/jsxgraph/distrib/jsxgraphcore.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
+      }
+      #board {
+        width: 800px;
+        height: 600px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="board"></div>
+    <script>
+      const params = new URLSearchParams(location.search)
+      const fn = params.get('fn') ?? 'Math.sin(x)'
+      const bounds = (params.get('view') ?? '-8,8,-5,5').split(',').map(Number)
+      const [minX, maxX, minY, maxY] = bounds
+
+      const board = JXG.JSXGraph.initBoard('board', {
+        boundingbox: [minX, maxY, maxX, minY],
+        axis: true,
+        showNavigation: false,
+        showCopyright: false,
+        keepAspectRatio: false,
+        grid: false,
+      })
+      // eslint-disable-next-line no-new-func
+      board.create('functiongraph', [new Function('x', 'return ' + fn)], {
+        strokeColor: '#c32222',
+        strokeWidth: 2,
+      })
+      requestAnimationFrame(() => requestAnimationFrame(() => (document.title = 'ready')))
+    </script>
+  </body>
+</html>
