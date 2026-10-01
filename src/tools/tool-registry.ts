@@ -11,6 +11,7 @@
  */
 import type { AppStore } from '../state/store'
 import type { Point2, Size, ViewTransform } from '../state/types'
+import type { ElementHit } from '../render/element-registry'
 
 /** 转发给工具的指针事件（屏幕坐标 + 数学坐标 + 原始事件） */
 export interface ToolPointerEvent {
@@ -30,6 +31,8 @@ export interface ToolContext {
   requestRender(): void
   /** 通知 UI 刷新读数/控件（工具的交互状态变化时调用） */
   notify(): void
+  /** 全场景命中检测（元素注册制，v0.5）：返回最近命中的元素部件 */
+  hitTest(screen: Point2, maxDistancePx?: number): ElementHit | null
 }
 
 /** 工具读数面板内容 */

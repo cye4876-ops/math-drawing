@@ -1,7 +1,7 @@
 <script lang="ts">
   import { mount, onMount, unmount } from 'svelte'
   import { createCanvasLayer, type CanvasLayer } from '../render/canvas-layer'
-  import { createSceneRenderer } from '../render/scene'
+  import { createSceneRenderer, type SceneRenderer } from '../render/scene'
   import { graphObjectFromDsl } from '../graph/dsl-to-doc'
   import { createDomLayer } from '../render/dom-layer'
   import { drawGrid } from '../render/grid-renderer'
@@ -11,6 +11,7 @@
   import type { Point2 } from '../state/types'
   import {
     ToolRegistry,
+    createGraphTool,
     createIntegralTool,
     createIntersectionTool,
     createRiemannTool,
@@ -29,14 +30,25 @@
 
   const store = createStore()
   let canvasLayerRef: CanvasLayer | null = null
+  let sceneRef: SceneRenderer | null = null
 
-  // 工具注册表（v0.4）：ctx 延迟绑定到画布层
+  // 工具注册表（v0.4）：ctx 延迟绑定到画布层与场景渲染器
   const registry = new ToolRegistry({
     store,
     getView: () => store.getView(),
     getSize: () => canvasLayerRef?.getSize() ?? { width: 0, height: 0 },
     requestRender: () => canvasLayerRef?.requestRender(),
     notify: () => registry.notify(),
+    hitTest: (screen, maxDistancePx) => {
+      const size = canvasLayerRef?.getSize()
+      if (!sceneRef || !size || size.width <= 0) return null
+      return sceneRef.hitTest(
+        store.getState().doc.objects,
+        screen,
+        { view: store.getView(), size },
+        maxDistancePx,
+      )
+    },
   })
   registry
     .register(createTraceCursorTool())
@@ -46,6 +58,7 @@
     .register(createIntegralTool())
     .register(createRiemannTool())
     .register(createTaylorTool())
+    .register(createGraphTool())
 
   /**
    * URL 预载（自动化测试与基准截图用）：
@@ -147,6 +160,7 @@
   onMount(() => {
     // 分层渲染：Canvas 层（网格 + 场景元素 + 工具覆盖层）+ DOM 覆盖层（标记点与面板）
     const scene = createSceneRenderer()
+    sceneRef = scene
     let boundLayer: CanvasLayer | null = null
     const canvasLayer = createCanvasLayer(stageElement, (ctx, size, dpr) => {
       const state = store.getState()
@@ -171,6 +185,8 @@
       scale = view.scaleX
       coordType = view.coordType
       canvasLayer.requestRender()
+      // 文档变化时刷新工具读数/控件（如撤销恢复图、拖动预览中的顶点/边统计）
+      registry.notify()
     }
     const unsubscribe = store.subscribe(syncUi)
     // 订阅后立即同步一次（URL 预载等「订阅前已提交」的操作也要反映到 UI）
@@ -218,6 +234,7 @@
       unmount(markers)
       domLayer.destroy()
       canvasLayer.destroy()
+      sceneRef = null
     }
   })
 </script>

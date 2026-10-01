@@ -22,6 +22,7 @@ function createFixture(): Fixture {
       renders.count++
     },
     notify: () => registry.notify(),
+    hitTest: () => null,
   }
   const registry = new ToolRegistry(ctx)
   return { store, registry, renders }

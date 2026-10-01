@@ -189,11 +189,38 @@ export class AppStore {
 
   /** 更新图对象的顶点集（布局或拖动写回坐标时使用） */
   updateGraphNodes(id: string, nodes: GraphNodeData[]): void {
+    this.updateGraph(id, { nodes })
+  }
+
+  /** 更新图对象（顶点与/或边；一次提交 = 一个撤销步） */
+  updateGraph(id: string, patch: { nodes?: GraphNodeData[]; edges?: GraphEdgeData[] }): void {
     this.commit((doc) => ({
-      objects: doc.objects.map((object) =>
-        object.id === id && object.type === 'graph' ? { ...object, nodes } : object,
-      ),
+      objects: doc.objects.map((object) => {
+        if (object.id !== id || object.type !== 'graph') return object
+        return {
+          ...object,
+          nodes: patch.nodes ?? object.nodes,
+          edges: patch.edges ?? object.edges,
+        }
+      }),
     }))
+  }
+
+  /**
+   * 预览更新：直接替换文档但不入撤销历史（拖动过程的实时预览）。
+   * 交互结束时用 commitPreview(before) 把拖动前快照追认为一个撤销步。
+   */
+  preview(mutate: (doc: DocState) => DocState): void {
+    this.doc = mutate(this.doc)
+    this.emit()
+  }
+
+  /** 预览结束的追认：before 入栈（当前文档即"之后"状态，一步撤销回到拖动前） */
+  commitPreview(before: DocState): void {
+    this.undoStack.push(before)
+    if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift()
+    this.redoStack = []
+    this.emit()
   }
 
   /** 添加曲线：颜色默认按已有曲线数量从色环分配 */

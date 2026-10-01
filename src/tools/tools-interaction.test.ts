@@ -43,6 +43,7 @@ function createFixture(tools: Tool[]): Fixture {
       renders.count++
     },
     notify: () => registry.notify(),
+    hitTest: () => null,
   }
   const registry = new ToolRegistry(ctx)
   for (const tool of tools) registry.register(tool)

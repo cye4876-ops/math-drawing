@@ -61,10 +61,15 @@ export function attachInteractions(options: InteractionOptions): () => void {
   }
 
   const onPointerDown = (event: PointerEvent): void => {
-    if (event.button !== 0) return
     // 仅画布区域响应：点击叠加面板/控件（DOM 层）不应触发工具或平移，
     // 也不调用 setPointerCapture（否则按钮的真实点击会因 capture 重定向而丢失）。
     if (!isCanvasTarget(event.target)) return
+    if (event.button === 2) {
+      // 右键：仅转发给工具（如删除图元素）；消费则阻止默认菜单
+      if (toolHooks?.down?.(buildToolEvent(event))) event.preventDefault()
+      return
+    }
+    if (event.button !== 0) return
     // 工具优先：消费后不再触发平移
     if (toolHooks?.down?.(buildToolEvent(event))) return
     dragging = true
@@ -110,6 +115,9 @@ export function attachInteractions(options: InteractionOptions): () => void {
   container.addEventListener('pointerdown', onPointerDown)
   container.addEventListener('pointermove', onPointerMove)
   container.addEventListener('pointerup', endDrag)
+  // canvas 上的右键由工具处理（删除等），禁用浏览器默认菜单
+  const onContextMenu = (event: Event): void => event.preventDefault()
+  container.addEventListener('contextmenu', onContextMenu)
   container.addEventListener('pointercancel', endDrag)
   container.addEventListener('pointerleave', onPointerLeave)
 
@@ -120,6 +128,7 @@ export function attachInteractions(options: InteractionOptions): () => void {
     container.removeEventListener('pointerup', endDrag)
     container.removeEventListener('pointercancel', endDrag)
     container.removeEventListener('pointerleave', onPointerLeave)
+    container.removeEventListener('contextmenu', onContextMenu)
   }
 }
 

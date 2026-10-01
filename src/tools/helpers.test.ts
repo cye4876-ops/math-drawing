@@ -14,6 +14,7 @@ function makeCtx(store: ReturnType<typeof createStore>): ToolContext {
     getSize: () => SIZE,
     requestRender: () => {},
     notify: () => {},
+    hitTest: () => null,
   }
 }
 
