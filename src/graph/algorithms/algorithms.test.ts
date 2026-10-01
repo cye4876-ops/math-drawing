@@ -245,8 +245,8 @@ describe('v0.5 算法：二分判定（规格关键项）', () => {
 })
 
 describe('v0.5 算法：注册与统一入口', () => {
-  it('ALGORITHMS 元数据完整（8 项）且 runAlgorithm 全部可用', () => {
-    expect(ALGORITHMS).toHaveLength(8)
+  it('ALGORITHMS 元数据完整（10 项）且 runAlgorithm 全部可用', () => {
+    expect(ALGORITHMS).toHaveLength(10)
     const graph = make('A-B:1, B-C:2, C->A:1')
     for (const info of ALGORITHMS) {
       const { result } = runAlgorithm(info.id, graph)

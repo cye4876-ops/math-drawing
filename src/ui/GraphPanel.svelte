@@ -12,6 +12,7 @@
   import type { GraphObject } from '../graph/model'
   import type { SceneHighlight } from '../render/element-registry'
   import SpectrumPanel from './SpectrumPanel.svelte'
+  import AlgorithmPanel from './AlgorithmPanel.svelte'
   import {
     DEFAULT_PARAMS,
     FAMILIES,
@@ -360,6 +361,10 @@
 
   <div class="section">
     <SpectrumPanel {graph} {onHighlight} />
+  </div>
+
+  <div class="section">
+    <AlgorithmPanel {graph} {onHighlight} />
   </div>
 </aside>
 

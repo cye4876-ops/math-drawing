@@ -7,6 +7,7 @@ import { graphObjectFromDsl } from './dsl-to-doc'
 import type { GraphObject } from './model'
 import {
   buildAdjacencyMatrix,
+  buildLaplacianMatrix,
   computeSpectrum,
   jacobiEigenSymmetric,
   perronVector,
@@ -193,6 +194,38 @@ describe('v0.5 谱：Perron 向量与谱半径', () => {
   it('有向链（Jordan 型，慢收敛）：ρ 近似 0', () => {
     const result = perronVector(make('A->B, B->C'))
     expect(result.eigenvalue).toBeLessThan(0.2)
+  })
+})
+
+describe('v0.5 谱：拉普拉斯矩阵 L = D − A', () => {
+  it('K3：L 行和为 0；Jacobi 谱为 [3, 3, 0]', () => {
+    const graph = make('1-2, 2-3, 3-1')
+    const laplacian = buildLaplacianMatrix(buildAdjacencyMatrix(graph))
+    expectMatrixClose(laplacian, [
+      [2, -1, -1],
+      [-1, 2, -1],
+      [-1, -1, 2],
+    ])
+    for (const row of laplacian) {
+      expect(row.reduce((sum, value) => sum + value, 0)).toBeCloseTo(0, 9)
+    }
+    const { values } = jacobiEigenSymmetric(laplacian)
+    expect(values[0]).toBeCloseTo(3, 9)
+    expect(values[1]).toBeCloseTo(3, 9)
+    expect(values[2]).toBeCloseTo(0, 9)
+  })
+
+  it('带权路径：对角 = 加权度和，行和 0', () => {
+    const laplacian = buildLaplacianMatrix(buildAdjacencyMatrix(make('A-B:1.5, B-C:2.5')))
+    expectMatrixClose(laplacian, [
+      [1.5, -1.5, 0],
+      [-1.5, 4, -2.5],
+      [0, -2.5, 2.5],
+    ])
+  })
+
+  it('空图安全', () => {
+    expect(buildLaplacianMatrix(buildAdjacencyMatrix(EMPTY))).toEqual([])
   })
 })
 

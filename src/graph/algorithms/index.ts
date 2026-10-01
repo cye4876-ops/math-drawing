@@ -7,6 +7,7 @@ import type { GraphObject } from '../model'
 import { dsaturColoring, greedyColoring, isBipartite } from './coloring'
 import { topologicalSteps } from './ordering'
 import { bellmanFordSteps, dijkstraSteps } from './shortest-path'
+import { kruskalSteps, primSteps, type MstResult } from './spanning-tree'
 import { bfsSteps, dfsSteps } from './traversal'
 import type {
   AlgorithmFailure,
@@ -21,6 +22,7 @@ import type {
 export type { AlgorithmStep, StepKind } from './types'
 export { collectSteps } from './types'
 export { reconstructPath } from './shortest-path'
+export type { MstEdge, MstResult } from './spanning-tree'
 
 export type AlgorithmResult =
   | TraversalResult
@@ -28,6 +30,7 @@ export type AlgorithmResult =
   | TopologicalResult
   | ColoringResult
   | BipartiteResult
+  | MstResult
   | AlgorithmFailure
 
 export interface AlgorithmInfo {
@@ -65,6 +68,18 @@ export const ALGORITHMS: AlgorithmInfo[] = [
     name: '拓扑排序（Kahn）',
     requiresStart: false,
     description: '有向无环图输出线性序；有环则报告',
+  },
+  {
+    id: 'prim',
+    name: 'Prim 最小生成树',
+    requiresStart: true,
+    description: '从起点生长：每轮选横跨切的最小权边',
+  },
+  {
+    id: 'kruskal',
+    name: 'Kruskal 最小生成树',
+    requiresStart: false,
+    description: '按权重升序选边，并查集判环',
   },
   {
     id: 'greedy-color',
@@ -114,6 +129,10 @@ export function runAlgorithm(
       return collect(bellmanFordSteps(graph, startId))
     case 'topological':
       return collect(topologicalSteps(graph))
+    case 'prim':
+      return collect(primSteps(graph, startId))
+    case 'kruskal':
+      return collect(kruskalSteps(graph))
     case 'greedy-color':
       return { steps: [], result: greedyColoring(graph) }
     case 'dsatur-color':

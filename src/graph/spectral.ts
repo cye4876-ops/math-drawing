@@ -192,6 +192,15 @@ export function perronVector(
   return { eigenvalue, vector: x, converged }
 }
 
+/** 构建拉普拉斯矩阵 L = D − A（D 取加权度对角；行和恒为 0） */
+export function buildLaplacianMatrix(adjacency: AdjacencyMatrix): number[][] {
+  return adjacency.matrix.map((row, i) => {
+    let degree = 0
+    for (const value of row) degree += value
+    return row.map((value, j) => (i === j ? degree - value : -value))
+  })
+}
+
 /** 高层谱结果（UI 与计算统一入口） */
 export interface GraphSpectrum {
   adjacency: AdjacencyMatrix

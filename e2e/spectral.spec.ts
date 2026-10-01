@@ -80,6 +80,19 @@ test.describe('v0.5 邻接矩阵与谱（特征值 / Perron 向量）', () => {
     await expect(page.getByTestId('perron-0')).toBeVisible()
   })
 
+  test('矩阵视图切换：邻接 ⇄ 拉普拉斯（L = D − A）', async ({ page }) => {
+    await page.goto('/?mode=graph&graph=' + encodeURIComponent('1-2, 2-3, 3-1'))
+    await expect(page.getByTestId('matrix-cell-0-1')).toHaveText('1')
+
+    await page.getByTestId('matrix-kind-laplacian').click()
+    // K3 拉普拉斯：对角 2、非对角 -1
+    await expect(page.getByTestId('matrix-cell-0-0')).toHaveText('2')
+    await expect(page.getByTestId('matrix-cell-0-1')).toHaveText('-1')
+
+    await page.getByTestId('matrix-kind-adjacency').click()
+    await expect(page.getByTestId('matrix-cell-0-0')).toHaveText('0')
+  })
+
   test('无图占位；DSL 生成 K4 后自动更新（ρ=3、特征值 -1×3）', async ({ page }) => {
     await page.goto('/?mode=graph')
     await expect(page.getByTestId('spectrum-panel')).toContainText('暂无图')

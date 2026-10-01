@@ -8,7 +8,8 @@
    */
   import type { GraphObject } from '../graph/model'
   import type { SceneHighlight } from '../render/element-registry'
-  import { computeSpectrum, type GraphSpectrum } from '../graph/spectral'
+  import { buildLaplacianMatrix, computeSpectrum, type GraphSpectrum } from '../graph/spectral'
+  import { structuralKey } from '../graph/structural-key'
 
   let {
     graph,
@@ -23,18 +24,8 @@
 
   let spectrum = $state<GraphSpectrum | null>(null)
   let selected = $state<{ i: number; j: number } | null>(null)
+  let matrixKind = $state<'adjacency' | 'laplacian'>('adjacency')
   let lastKey: string | null = null
-
-  /** 结构签名（标签 + 边）：坐标变化不改变签名 → 不触发重算 */
-  function structuralKey(value: GraphObject): string {
-    const nodes = value.nodes.map((node) => node.label).join('|')
-    const edges = value.edges
-      .map(
-        (edge) => `${edge.source}${edge.directed ? '>' : '-'}${edge.target}:${edge.weight ?? ''}`,
-      )
-      .join(';')
-    return `${nodes}#${edges}`
-  }
 
   const structureKey = $derived(graph ? structuralKey(graph) : '')
 
@@ -59,6 +50,18 @@
     return spectrum?.adjacency.matrix[i]?.[j] ?? 0
   }
 
+  /** 当前显示的矩阵（邻接 / 拉普拉斯） */
+  const displayMatrix = $derived.by(() => {
+    if (!spectrum) return []
+    return matrixKind === 'adjacency'
+      ? spectrum.adjacency.matrix
+      : buildLaplacianMatrix(spectrum.adjacency)
+  })
+
+  function displayValue(i: number, j: number): number {
+    return displayMatrix[i]?.[j] ?? 0
+  }
+
   /** 点击矩阵格子：切换高亮（点击已选格或零格取消；对角为自环） */
   function toggleCell(i: number, j: number): void {
     const current = spectrum
@@ -71,7 +74,8 @@
       onHighlight(null)
       return
     }
-    if (cellValue(i, j) === 0 && i !== j) {
+    // 以邻接矩阵判定是否有对应边（拉普拉斯视图下语义一致：非对角非零 ⇔ 有边）
+    if (cellValue(i, j) === 0) {
       selected = null
       onHighlight(null)
       return
@@ -110,6 +114,21 @@
       {/if}
     </div>
 
+    <div class="row kinds">
+      <button
+        type="button"
+        class:active={matrixKind === 'adjacency'}
+        data-testid="matrix-kind-adjacency"
+        onclick={() => (matrixKind = 'adjacency')}>邻接</button
+      >
+      <button
+        type="button"
+        class:active={matrixKind === 'laplacian'}
+        data-testid="matrix-kind-laplacian"
+        onclick={() => (matrixKind = 'laplacian')}>拉普拉斯</button
+      >
+    </div>
+
     {#if matrixSize > MAX_MATRIX_DISPLAY}
       <div class="hint" data-testid="matrix-omitted">
         图较大（{matrixSize} 顶点）：矩阵显示已省略，仅给出谱信息
@@ -140,7 +159,7 @@
                       title={`${rowLabel.label} → ${colLabel.label}`}
                       onclick={() => toggleCell(i, j)}
                     >
-                      {formatValue(cellValue(i, j))}
+                      {formatValue(displayValue(i, j))}
                     </button>
                   </td>
                 {/each}
@@ -199,6 +218,16 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 4px;
+  }
+
+  .row.kinds {
+    display: flex;
+    gap: 4px;
+  }
+
+  .row.kinds button.active {
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
   .dim {
