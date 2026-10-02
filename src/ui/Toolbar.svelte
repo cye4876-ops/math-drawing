@@ -7,6 +7,9 @@
   import { type ViewRangeInput, exactView } from '../render/viewport'
   import { DocFormatError, deserializeDocument, serializeDocument } from '../state/serialize'
   import ExportPanel from './ExportPanel.svelte'
+  import { themeState, toggleTheme } from './theme.svelte'
+  import { markSaved } from './save-state.svelte'
+  import { togglePresentation } from '../teaching/presentation.svelte'
 
   let {
     store,
@@ -18,6 +21,8 @@
     onModeChange,
     sidebarCollapsed,
     onToggleSidebar,
+    onOpenExamples,
+    onOpenShortcuts,
   }: {
     store: AppStore
     canUndo: boolean
@@ -30,6 +35,8 @@
     ) => void
     sidebarCollapsed: boolean
     onToggleSidebar: () => void
+    onOpenExamples: () => void
+    onOpenShortcuts: () => void
   } = $props()
 
   let currentView = $state<ViewTransform | null>(null)
@@ -117,6 +124,7 @@
     a.download = 'math-drawing.json'
     a.click()
     URL.revokeObjectURL(url)
+    markSaved(store)
   }
 
   async function importJson(event: Event): Promise<void> {
@@ -129,6 +137,7 @@
       const { doc, view } = deserializeDocument(text)
       store.loadState(doc, view)
       clearSampleCache()
+      markSaved(store)
     } catch (error) {
       ioError =
         error instanceof DocFormatError ? `导入失败：${error.message}` : '导入失败：无法读取文件'
@@ -318,6 +327,24 @@
     onclick={() => store.redo()}>重做</button
   >
   <span class="divider"></span>
+  <button
+    type="button"
+    data-testid="open-examples"
+    title="示例项目：从示例开始"
+    onclick={onOpenExamples}>示例</button
+  >
+  <button type="button" data-testid="shortcuts-help" title="快捷键提示" onclick={onOpenShortcuts}
+    >快捷键</button
+  >
+  <button
+    type="button"
+    data-testid="enter-presentation"
+    title="课堂演示模式（放大展示，Esc 退出）"
+    onclick={() => void togglePresentation()}>演示</button
+  >
+  <button type="button" data-testid="toggle-theme" title="切换浅色 / 深色主题" onclick={toggleTheme}
+    >{themeState.theme === 'light' ? '深色主题' : '浅色主题'}</button
+  >
   <button
     type="button"
     data-testid="toggle-sidebar"

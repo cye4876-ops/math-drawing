@@ -70,7 +70,7 @@ function sampleCurveForSvg(curve: Curve, view: ViewTransform, size: Size) {
     case 'explicit': {
       const fn = compileCurveExpr(curve.expr)
       if (!fn) return null
-      const scope: Record<string, number> = { x: 0 }
+      const scope: Record<string, number> = { ...curve.params, x: 0 }
       const f = (x: number): number => {
         scope['x'] = x
         return fn(scope)
@@ -89,7 +89,7 @@ function sampleCurveForSvg(curve: Curve, view: ViewTransform, size: Size) {
     case 'implicit': {
       const fn = compileCurveExpr(curve.expr)
       if (!fn) return null
-      const scope: Record<string, number> = { x: 0, y: 0 }
+      const scope: Record<string, number> = { ...curve.params, x: 0, y: 0 }
       const F = (x: number, y: number): number => {
         scope['x'] = x
         scope['y'] = y
@@ -110,7 +110,7 @@ function sampleCurveForSvg(curve: Curve, view: ViewTransform, size: Size) {
       const fnX = compileCurveExpr(curve.expr)
       const fnY = compileCurveExpr(curve.expr2)
       if (!fnX || !fnY) return null
-      const scope: Record<string, number> = { t: 0 }
+      const scope: Record<string, number> = { ...curve.params, t: 0 }
       return sampleParametric(
         (t) => {
           scope['t'] = t
@@ -131,7 +131,7 @@ function sampleCurveForSvg(curve: Curve, view: ViewTransform, size: Size) {
     case 'polar': {
       const fn = compileCurveExpr(curve.expr)
       if (!fn) return null
-      const scope: Record<string, number> = { theta: 0 }
+      const scope: Record<string, number> = { ...curve.params, theta: 0 }
       const r = (theta: number): number => {
         scope['theta'] = theta
         return fn(scope)

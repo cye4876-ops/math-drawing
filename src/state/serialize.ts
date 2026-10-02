@@ -79,6 +79,14 @@ function parseCurve(raw: Record<string, unknown>, position: number): Curve {
   }
   const expr2 = raw['expr2']
   if (typeof expr2 === 'string') curve.expr2 = expr2
+  const paramsRaw = raw['params']
+  if (paramsRaw !== null && typeof paramsRaw === 'object') {
+    const params: Record<string, number> = {}
+    for (const [key, value] of Object.entries(paramsRaw as Record<string, unknown>)) {
+      if (typeof value === 'number' && Number.isFinite(value)) params[key] = value
+    }
+    curve.params = params
+  }
   return curve
 }
 

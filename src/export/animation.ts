@@ -81,7 +81,7 @@ export function buildRiemannFrames(
   if (!curve || !(source.b > source.a)) return []
   const compiled = compileCurveExpr(curve.expr)
   if (!compiled) return []
-  const scope: Record<string, number> = { x: 0 }
+  const scope: Record<string, number> = { ...curve.params, x: 0 }
   const f = (x: number): number => {
     scope['x'] = x
     return compiled(scope)

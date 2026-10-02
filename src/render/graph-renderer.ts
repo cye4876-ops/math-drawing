@@ -95,11 +95,22 @@ function groupEdges(edges: GraphEdgeData[]): Map<string, GraphEdgeData[]> {
   return groups
 }
 
+import { getGridTheme } from './grid-renderer'
+
+/** 图论节点/标签配色随网格主题切换（v2.5：浅色主题下白描边不可见） */
+function nodeLabelColor(): string {
+  return getGridTheme() === 'light' ? '#475569' : '#cbd5e1'
+}
+
+function nodeStrokeColor(): string {
+  return getGridTheme() === 'light' ? '#64748b' : '#ffffff'
+}
+
 function drawNodeLabel(ctx: CanvasRenderingContext2D, node: GraphNodeData, s: NodeScreen): void {
   ctx.font = LABEL_FONT
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
-  ctx.fillStyle = '#cbd5e1'
+  ctx.fillStyle = nodeLabelColor()
   ctx.fillText(node.label, s.cx, s.cy + s.radius + 4)
 }
 
@@ -178,7 +189,7 @@ export const graphElementRenderer: ElementRenderer<GraphObject> = {
       drawNodeShape(ctx, s, node.shape)
       ctx.fillStyle = highlight?.fills?.[node.id] ?? node.color
       ctx.fill()
-      ctx.strokeStyle = highlighted ? HIGHLIGHT_COLOR : inTrail ? TRAIL_COLOR : '#ffffff'
+      ctx.strokeStyle = highlighted ? HIGHLIGHT_COLOR : inTrail ? TRAIL_COLOR : nodeStrokeColor()
       ctx.lineWidth = highlighted ? 3.5 : inTrail ? 2.8 : 2
       ctx.stroke()
       drawNodeLabel(ctx, node, s)

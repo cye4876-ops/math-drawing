@@ -137,6 +137,21 @@ describe('store: 曲线管理', () => {
     expect(curve.expr2).toBe('sin(t)')
   })
 
+  it('参数识别：addCurve 自动提取自由参数并给默认值', () => {
+    const curve = store.addCurve({ kind: 'explicit', expr: 'a * sin(b * x)' })
+    expect(curve.params).toEqual({ a: 1, b: 1 })
+  })
+
+  it('参数值保留与更新：同名参数保留、新参数补默认、删除后剔除', () => {
+    const curve = store.addCurve({ kind: 'explicit', expr: 'a * x', params: { a: 3 } })
+    expect(curve.params).toEqual({ a: 3 })
+    store.updateCurve(curve.id, { params: { a: 5 } })
+    store.updateCurve(curve.id, { expr: 'a * x + b' })
+    expect(store.getCurves()[0]?.params).toEqual({ a: 5, b: 1 })
+    store.updateCurve(curve.id, { expr: 'x + b' })
+    expect(store.getCurves()[0]?.params).toEqual({ b: 1 })
+  })
+
   it('色环分配：前 8 条曲线颜色互不相同', () => {
     for (let i = 0; i < 8; i++) store.addCurve({ kind: 'explicit', expr: `x^${i + 1}` })
     const colors = store.getCurves().map((c) => c.color)

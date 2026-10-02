@@ -14,10 +14,17 @@ let GRID_COLOR = DARK_PALETTE.grid
 let MINOR_GRID_COLOR = DARK_PALETTE.minor
 let AXIS_COLOR = DARK_PALETTE.axis
 let LABEL_COLOR = DARK_PALETTE.label
+let currentTheme: GridTheme = 'dark'
+
+/** 当前网格主题（导出管线临时切换后恢复；图论节点配色随主题联动） */
+export function getGridTheme(): GridTheme {
+  return currentTheme
+}
 
 /** 切换网格配色（v2.0）：屏幕渲染默认 dark；导出管线临时切 light 保持打印友好的浅色。
  *  渲染为同步绘制，调用方在 try/finally 中切回即可。 */
 export function setGridTheme(theme: GridTheme): void {
+  currentTheme = theme
   const palette = theme === 'light' ? LIGHT_PALETTE : DARK_PALETTE
   GRID_COLOR = palette.grid
   MINOR_GRID_COLOR = palette.minor

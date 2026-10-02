@@ -2,7 +2,7 @@
  * 导出共享层（v0.6）：范围解析 + 单帧渲染。
  * PNG（离屏画布）、动画帧（GIF/视频）共用；SVG/TikZ 另走矢量管线。
  */
-import { drawGrid, setGridTheme, type GridTheme } from '../render/grid-renderer'
+import { drawGrid, getGridTheme, setGridTheme, type GridTheme } from '../render/grid-renderer'
 import { createSceneRenderer } from '../render/scene'
 import { mathToScreen } from '../core/transform'
 import type { SceneHighlight } from '../render/element-registry'
@@ -132,11 +132,12 @@ export function renderFrame(
   syncPluginElements()
   const objects = objectsOfMode(doc, mode)
   if (mode !== 'graph' && options.withGrid) {
+    const previousTheme = getGridTheme()
     setGridTheme(options.theme ?? 'dark')
     try {
       drawGrid(ctx, view, size, 1)
     } finally {
-      setGridTheme('dark')
+      setGridTheme(previousTheme)
     }
   }
   exportScene.draw(ctx, objects, { view, size }, options.highlight)

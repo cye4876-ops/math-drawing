@@ -6,6 +6,15 @@
     <link rel="apple-touch-icon" href="./icon-192.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <meta name="theme-color" content="#2563eb" />
+    <script>
+      // 主题预应用（v2.5）：避免首帧闪错主题；默认浅色
+      try {
+        document.documentElement.dataset.theme =
+          localStorage.getItem('md.theme') === 'dark' ? 'dark' : 'light'
+      } catch {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Math Drawing</title>
   </head>

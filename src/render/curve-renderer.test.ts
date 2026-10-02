@@ -92,6 +92,29 @@ describe('curve-renderer: 四类曲线采样', () => {
     expect(result?.segments[0]?.length ?? 0).toBeGreaterThan(50)
   })
 
+  it('显函数参数：a·sin(b·x) 注入 params（调参改变折线）', () => {
+    const maxAbsY = (points: { y: number }[]): number =>
+      points.reduce((acc, point) => Math.max(acc, Math.abs(point.y)), 0)
+    clearSampleCache()
+    const one = sampleCurveForTest(
+      makeCurve({ expr: 'a * sin(b * x)', params: { a: 1, b: 1 } }),
+      createView(0, 0, 80),
+      size,
+    )
+    clearSampleCache()
+    const two = sampleCurveForTest(
+      makeCurve({ expr: 'a * sin(b * x)', params: { a: 2, b: 1 } }),
+      createView(0, 0, 80),
+      size,
+    )
+    expect(one).not.toBeNull()
+    expect(two).not.toBeNull()
+    const y1 = maxAbsY(one?.segments.flat() ?? [])
+    const y2 = maxAbsY(two?.segments.flat() ?? [])
+    expect(y1).toBeGreaterThan(0.9)
+    expect(y2 / y1).toBeCloseTo(2, 1)
+  })
+
   it('隐函数：圆有多段线段', () => {
     const result = sampleCurveForTest(
       makeCurve({ kind: 'implicit', expr: 'x^2+y^2-4' }),

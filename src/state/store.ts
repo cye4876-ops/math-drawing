@@ -12,52 +12,32 @@ import type {
 } from './types'
 import type { GraphEdgeData, GraphNodeData } from '../graph/model'
 import { createView, sanitizeView } from '../core/transform'
+import { extractParameters, parseProgram } from '../expr'
 
 /** 撤销历史最大深度 */
 export const HISTORY_LIMIT = 100
 
-/** 曲线自动取色的色相间隔（黄金角，保证相邻曲线颜色可区分） */
-const COLOR_HUE_STEP = 137.508
+/**
+ * 曲线默认配色（v2.5）：10 色高对比调色板（色相拉开、深浅交替，浅/深主题下均可辨）；用完循环。
+ * 首色沿用原红 #c32222（历史文档/像素断言兼容），节点蓝相近色 #1d4ed8 置末避免与图节点色混淆。
+ */
+const CURVE_PALETTE: readonly string[] = [
+  '#c32222',
+  '#15803d',
+  '#7c3aed',
+  '#c2410c',
+  '#0e7490',
+  '#be185d',
+  '#4d7c0f',
+  '#92400e',
+  '#475569',
+  '#1d4ed8',
+]
 
-/** 按序号分配曲线颜色（色环，可被用户覆盖），输出 #rrggbb 以便颜色选择器使用 */
+/** 按序号分配曲线颜色（调色板循环，可被用户覆盖），输出 #rrggbb 以便颜色选择器使用 */
 export function colorForIndex(index: number): string {
-  const hue = (((index * COLOR_HUE_STEP) % 360) + 360) % 360
-  return hslToHex(hue, 0.7, 0.45)
-}
-
-/** HSL（h 角度、s/l 0..1）→ #rrggbb */
-function hslToHex(hDeg: number, s: number, l: number): string {
-  const c = (1 - Math.abs(2 * l - 1)) * s
-  const hp = (((hDeg % 360) + 360) % 360) / 60
-  const x = c * (1 - Math.abs((hp % 2) - 1))
-  let r = 0
-  let g = 0
-  let b = 0
-  if (hp < 1) {
-    r = c
-    g = x
-  } else if (hp < 2) {
-    r = x
-    g = c
-  } else if (hp < 3) {
-    g = c
-    b = x
-  } else if (hp < 4) {
-    g = x
-    b = c
-  } else if (hp < 5) {
-    r = x
-    b = c
-  } else {
-    r = c
-    b = x
-  }
-  const m = l - c / 2
-  const to255 = (v: number): string =>
-    Math.round((v + m) * 255)
-      .toString(16)
-      .padStart(2, '0')
-  return `#${to255(r)}${to255(g)}${to255(b)}`
+  const size = CURVE_PALETTE.length
+  return CURVE_PALETTE[((index % size) + size) % size] ?? '#c32222'
 }
 
 export function isCurve(object: SceneObject): object is Curve {
@@ -71,6 +51,27 @@ export interface AddCurveInput {
   expr2?: string
   name?: string
   color?: string
+  /** 初始参数值（缺省时参数取表达式推导的默认值） */
+  params?: Record<string, number>
+}
+
+/** 从表达式推导参数值表：识别自由参数（a/b/c…）；已有值按名保留、新参数补默认值、不再使用的参数剔除 */
+export function curveParameterValues(
+  expr: string,
+  expr2: string | undefined,
+  existing?: Record<string, number>,
+): Record<string, number> {
+  const values: Record<string, number> = {}
+  try {
+    const programs = parseProgram(expr)
+    if (expr2 !== undefined && expr2.trim() !== '') programs.push(...parseProgram(expr2))
+    for (const parameter of extractParameters(programs)) {
+      values[parameter.name] = existing?.[parameter.name] ?? parameter.value
+    }
+  } catch {
+    return existing ? { ...existing } : values
+  }
+  return values
 }
 
 type Listener = (state: AppState) => void
@@ -249,18 +250,24 @@ export class AppStore {
       lineStyle: 'solid',
       quality: 3,
       visible: true,
+      params: curveParameterValues(input.expr, input.expr2, input.params),
     }
     if (input.expr2 !== undefined) curve.expr2 = input.expr2
     this.commit((doc) => ({ objects: [...doc.objects, curve] }))
     return curve
   }
 
-  /** 更新曲线属性（表达式/颜色/线型/精度/可见性/名称） */
+  /** 更新曲线属性（表达式/颜色/线型/精度/可见性/名称/参数） */
   updateCurve(id: string, patch: Partial<Omit<Curve, 'id' | 'type'>>): void {
     this.commit((doc) => ({
-      objects: doc.objects.map((object) =>
-        object.type === 'curve' && object.id === id ? { ...object, ...patch } : object,
-      ),
+      objects: doc.objects.map((object) => {
+        if (object.type !== 'curve' || object.id !== id) return object
+        const next = { ...object, ...patch }
+        if ('expr' in patch || 'expr2' in patch) {
+          next.params = curveParameterValues(next.expr, next.expr2, object.params)
+        }
+        return next
+      }),
     }))
   }
 

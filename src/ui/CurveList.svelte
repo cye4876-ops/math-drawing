@@ -1,8 +1,8 @@
 <script lang="ts">
   import { tick } from 'svelte'
   import type { AppStore } from '../state/store'
-  import type { AppState, Curve, CurveKind, LineStyle } from '../state/types'
-  import { parse } from '../expr'
+  import type { AppState, Curve, CurveKind, DocState, LineStyle } from '../state/types'
+  import { DEFAULT_PARAMETER_BOUNDS, extractParameters, parse, parseProgram } from '../expr'
 
   let { store }: { store: AppStore } = $props()
 
@@ -106,6 +106,54 @@
   function update(id: string, patch: Partial<Omit<Curve, 'id' | 'type'>>): void {
     store.updateCurve(id, patch)
   }
+
+  /** 参数滑块：拖动走 preview（不入历史），松手提交为一步撤销 */
+  let paramBefore: DocState | null = null
+
+  function previewParam(id: string, name: string, value: number): void {
+    if (paramBefore === null) paramBefore = store.getDoc()
+    store.preview((doc) => ({
+      objects: doc.objects.map((object) =>
+        object.type === 'curve' && object.id === id
+          ? { ...object, params: { ...object.params, [name]: value } }
+          : object,
+      ),
+    }))
+  }
+
+  function commitParam(): void {
+    if (paramBefore !== null) {
+      store.commitPreview(paramBefore)
+      paramBefore = null
+    }
+  }
+
+  function formatParam(value: number): string {
+    return String(Number(value.toFixed(2)))
+  }
+
+  /** 输入反馈（v2.5）：草稿表达式的实时校验与参数识别提示（不阻断添加，错误仍可入列表修正） */
+  const draftError = $derived(
+    draftExpr.trim() === ''
+      ? null
+      : draftKind === 'parametric'
+        ? (parseError(draftExpr) ??
+          (draftExpr2.trim() === '' ? '请输入 y(t) 表达式' : parseError(draftExpr2)))
+        : parseError(draftExpr),
+  )
+
+  const draftParams = $derived.by(() => {
+    if (draftError !== null) return [] as string[]
+    try {
+      const programs = parseProgram(draftExpr)
+      if (draftKind === 'parametric' && draftExpr2.trim() !== '') {
+        programs.push(...parseProgram(draftExpr2))
+      }
+      return extractParameters(programs).map((parameter) => parameter.name)
+    } catch {
+      return [] as string[]
+    }
+  })
 </script>
 
 <aside class="curve-panel" aria-label="曲线列表">
@@ -164,6 +212,17 @@
         >
       {/each}
     </div>
+    {#if draftExpr.trim() !== ''}
+      {#if draftError}
+        <div class="draft-feedback error" data-testid="draft-error">✗ {draftError}</div>
+      {:else}
+        <div class="draft-feedback ok" data-testid="draft-ok">
+          ✓ 表达式有效{draftParams.length > 0
+            ? ` · 参数 ${draftParams.join('、')}（添加后用滑块调值）`
+            : ''}
+        </div>
+      {/if}
+    {/if}
     <button type="button" class="btn-primary" data-testid="curve-add" onclick={addCurve}
       >添加曲线</button
     >
@@ -258,6 +317,34 @@
           <div class="error" data-testid="curve-error">{curveError(curve)}</div>
         {/if}
 
+        {#if curve.params && Object.keys(curve.params).length > 0}
+          <div class="param-row" data-testid="curve-params">
+            {#each Object.entries(curve.params).sort( ([a], [b]) => a.localeCompare(b) ) as [name, value] (name)}
+              <label class="param">
+                <span class="param-name">{name}</span>
+                <input
+                  type="range"
+                  data-testid={`curve-param-${name}`}
+                  min={DEFAULT_PARAMETER_BOUNDS.min}
+                  max={DEFAULT_PARAMETER_BOUNDS.max}
+                  step={DEFAULT_PARAMETER_BOUNDS.step}
+                  {value}
+                  oninput={(e) =>
+                    previewParam(
+                      curve.id,
+                      name,
+                      Number((e.currentTarget as HTMLInputElement).value),
+                    )}
+                  onchange={commitParam}
+                />
+                <span class="param-value" data-testid={`curve-param-value-${name}`}
+                  >{formatParam(value)}</span
+                >
+              </label>
+            {/each}
+          </div>
+        {/if}
+
         <div class="row options-row">
           <label>
             线型
@@ -334,7 +421,7 @@
   .curve-item input,
   .curve-item select {
     font: inherit;
-    font-size: 13px;
+    font-size: 14px;
     padding: 3px 6px;
     border: 1px solid var(--border);
     border-radius: 5px;
@@ -418,7 +505,7 @@
 
   .curve-item button {
     font: inherit;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1;
     padding: 4px 6px;
     border: 1px solid var(--border);
@@ -434,7 +521,7 @@
 
   .prefix {
     color: var(--text-dim);
-    font-size: 12px;
+    font-size: 13px;
     white-space: nowrap;
   }
 
@@ -445,7 +532,59 @@
 
   .error {
     color: #dc2626;
-    font-size: 12px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .param-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
+
+  .param {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .param-name {
+    width: 14px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .param input[type='range'] {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    accent-color: var(--accent);
+  }
+
+  .param-value {
+    width: 44px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .draft-feedback {
+    font-size: 13px;
+  }
+
+  .draft-feedback.ok {
+    color: var(--success);
+  }
+
+  .draft-feedback.error {
+    color: #dc2626;
     white-space: pre-wrap;
     word-break: break-all;
   }
@@ -454,7 +593,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-dim);
   }
 

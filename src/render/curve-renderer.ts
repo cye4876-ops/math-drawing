@@ -69,6 +69,15 @@ function viewKey(view: ViewTransform, size: Size): string {
   return `${view.coordType}|${view.centerX}|${view.centerY}|${view.scaleX}|${view.scaleY}|${size.width}x${size.height}`
 }
 
+/** 参数值表 → 稳定字符串（参与采样缓存 key：调参即时重采样重绘） */
+function paramsKey(params: Record<string, number> | undefined): string {
+  if (!params) return ''
+  return Object.keys(params)
+    .sort()
+    .map((name) => `${name}=${params[name]}`)
+    .join(',')
+}
+
 /** 清空采样缓存（测试与导入新文档时使用） */
 export function clearSampleCache(): void {
   sampleCache.clear()
@@ -83,7 +92,7 @@ function computeSample(curve: Curve, view: ViewTransform, size: Size): SampledPo
     case 'explicit': {
       const fn = compileCurveExpr(curve.expr)
       if (!fn) return null
-      const scope: Record<string, number> = { ...ambientParameters, x: 0 }
+      const scope: Record<string, number> = { ...ambientParameters, ...curve.params, x: 0 }
       const f = (x: number): number => {
         scope['x'] = x
         return fn(scope)
@@ -102,7 +111,7 @@ function computeSample(curve: Curve, view: ViewTransform, size: Size): SampledPo
     case 'implicit': {
       const fn = compileCurveExpr(curve.expr)
       if (!fn) return null
-      const scope: Record<string, number> = { ...ambientParameters, x: 0, y: 0 }
+      const scope: Record<string, number> = { ...ambientParameters, ...curve.params, x: 0, y: 0 }
       const F = (x: number, y: number): number => {
         scope['x'] = x
         scope['y'] = y
@@ -123,7 +132,7 @@ function computeSample(curve: Curve, view: ViewTransform, size: Size): SampledPo
       const fnX = compileCurveExpr(curve.expr)
       const fnY = compileCurveExpr(curve.expr2)
       if (!fnX || !fnY) return null
-      const scope: Record<string, number> = { ...ambientParameters, t: 0 }
+      const scope: Record<string, number> = { ...ambientParameters, ...curve.params, t: 0 }
       const fx = (t: number): number => {
         scope['t'] = t
         return fnX(scope)
@@ -142,7 +151,7 @@ function computeSample(curve: Curve, view: ViewTransform, size: Size): SampledPo
     case 'polar': {
       const fn = compileCurveExpr(curve.expr)
       if (!fn) return null
-      const scope: Record<string, number> = { ...ambientParameters, theta: 0 }
+      const scope: Record<string, number> = { ...ambientParameters, ...curve.params, theta: 0 }
       const r = (theta: number): number => {
         scope['theta'] = theta
         return fn(scope)
@@ -161,7 +170,7 @@ function computeSample(curve: Curve, view: ViewTransform, size: Size): SampledPo
 
 /** 采样（带缓存：key 覆盖表达式/精度/视图/画布尺寸/环境参数版本，视图不变则零开销） */
 function sampleCurve(curve: Curve, view: ViewTransform, size: Size): SampledPolyline | null {
-  const key = `${curve.kind}|${curve.expr}|${curve.expr2 ?? ''}|${curve.quality}|${viewKey(view, size)}|p${ambientRevision}`
+  const key = `${curve.kind}|${curve.expr}|${curve.expr2 ?? ''}|${curve.quality}|${paramsKey(curve.params)}|${viewKey(view, size)}|p${ambientRevision}`
   const cached = sampleCache.get(curve.id)
   if (cached && cached.key === key) return cached.polyline
 

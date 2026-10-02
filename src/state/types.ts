@@ -72,6 +72,8 @@ export interface Curve {
   /** 采样精度 1（低）~ 5（高），默认 3 */
   quality: number
   visible: boolean
+  /** 自由参数值表（a/b/c…：从表达式自动识别；面板滑块调值；随文档保存与分享） */
+  params?: Record<string, number>
 }
 
 /** 标记点（v0.1 场景对象，保留） */

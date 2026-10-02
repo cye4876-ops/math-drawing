@@ -37,6 +37,11 @@
   import { getPluginElements, getPluginTools } from '../plugin/registry.svelte'
   import { exitPresentation, isPresentationMode } from '../teaching/presentation.svelte'
   import WelcomeOverlay from './WelcomeOverlay.svelte'
+  import { themeState } from './theme.svelte'
+  import ExamplesDialog from './ExamplesDialog.svelte'
+  import ShortcutsDialog from './ShortcutsDialog.svelte'
+  import { initSaveState } from './save-state.svelte'
+  import type { TeachingExample } from '../teaching/examples'
 
   // 懒加载（v1.0 PWA）：three / katex 等大依赖只在首次进入对应模式时下载
   function lazy<M>(factory: () => Promise<M>): () => Promise<M> {
@@ -303,12 +308,18 @@
     return store.subscribe(update)
   })
 
+  // 主题切换（v2.5）：网格配色已由主题模块同步，这里触发画布重绘（含图论模式）
+  $effect(() => {
+    void themeState.theme
+    canvasLayerRef?.requestRender()
+  })
+
   function welcomeDrawFunction(): void {
     store.addCurve({ kind: 'explicit', expr: 'sin(x)' })
   }
 
   function welcomeParamDemo(): void {
-    store.addCurve({ kind: 'explicit', expr: 'a * sin(b * x)' })
+    store.addCurve({ kind: 'explicit', expr: 'a * sin(b * x)', params: { a: 1.5, b: 2 } })
   }
 
   async function welcomeOpenExample(): Promise<void> {
@@ -316,6 +327,16 @@
     const example = TEACHING_EXAMPLES.find((item) => item.id === 'sine')
     if (!example) return
     example.apply(store, { activateTool: (id) => registry.activate(id) })
+  }
+
+  /** 示例项目对话框（v2.5）：应用示例（必要时先切换模式）并关闭 */
+  let examplesOpen = $state(false)
+  let shortcutsOpen = $state(false)
+
+  function applyExample(example: TeachingExample): void {
+    if (mode !== example.mode) setMode(example.mode)
+    example.apply(store, { activateTool: (id) => registry.activate(id) })
+    examplesOpen = false
   }
 
   /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集，3D/进阶/矩阵/Notebook 不画 2D */
@@ -391,6 +412,8 @@
       registry.notify()
     }
     const unsubscribe = store.subscribe(syncUi)
+    // 保存状态（v2.5）：建立初始保存点，文档变化后标记“未保存”
+    const unbindSaveState = initSaveState(store)
     // 订阅后立即同步一次（URL 预载等「订阅前已提交」的操作也要反映到 UI）
     syncUi()
 
@@ -436,6 +459,7 @@
     return () => {
       unbindKeyboard()
       unbindInteractions()
+      unbindSaveState()
       unsubscribe()
       unmount(markers)
       domLayer.destroy()
@@ -455,6 +479,8 @@
     onModeChange={setMode}
     {sidebarCollapsed}
     onToggleSidebar={toggleSidebar}
+    onOpenExamples={() => (examplesOpen = true)}
+    onOpenShortcuts={() => (shortcutsOpen = true)}
     getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
   />
   <div class="main" class:sidebar-collapsed={sidebarCollapsed}>
@@ -514,6 +540,13 @@
         {#await spacePanelLazy() then spacePanelModule}
           {@const SpacePanel = spacePanelModule.default}
           <SpacePanel {store} />
+        {:catch}
+          <div class="lazy-error">
+            模块加载失败（页面版本可能已更新）。<button
+              type="button"
+              onclick={() => window.location.reload()}>重新加载</button
+            >
+          </div>
         {/await}
       {:else if mode === 'notebook'}
         {#await notebookPanelLazy() then notebookPanelModule}
@@ -525,22 +558,49 @@
             onOpenMode={setMode}
             onPluginsChanged={handlePluginsChanged}
           />
+        {:catch}
+          <div class="lazy-error">
+            模块加载失败（页面版本可能已更新）。<button
+              type="button"
+              onclick={() => window.location.reload()}>重新加载</button
+            >
+          </div>
         {/await}
       {:else if mode === 'matrix'}
         {#await matrixPanelLazy() then matrixPanelModule}
           {@const MatrixPanel = matrixPanelModule.default}
           <MatrixPanel />
+        {:catch}
+          <div class="lazy-error">
+            模块加载失败（页面版本可能已更新）。<button
+              type="button"
+              onclick={() => window.location.reload()}>重新加载</button
+            >
+          </div>
         {/await}
       {:else}
         {#await advancedPanelLazy() then advancedPanelModule}
           {@const AdvancedPanel = advancedPanelModule.default}
           <AdvancedPanel />
+        {:catch}
+          <div class="lazy-error">
+            模块加载失败（页面版本可能已更新）。<button
+              type="button"
+              onclick={() => window.location.reload()}>重新加载</button
+            >
+          </div>
         {/await}
       {/if}
       <ToolsPanel {registry} />
     </div>
   </div>
   <StatusBar {cursor} {scale} {coordType} />
+  <ExamplesDialog
+    open={examplesOpen}
+    onClose={() => (examplesOpen = false)}
+    onApply={applyExample}
+  />
+  <ShortcutsDialog open={shortcutsOpen} onClose={() => (shortcutsOpen = false)} />
   {#if presenting}
     <button
       type="button"

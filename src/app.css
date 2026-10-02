@@ -1,9 +1,39 @@
 :root {
-  /* v2.0 深色设计系统（docs/design-system.md）：Dark Mode 数据工具风 */
+  /* v2.5 浅色优先（评审方案 03/VISUAL SYSTEM）：浅灰页面、白色面板与画布 */
+  --text: #1f2937;
+  --text-dim: #6b7280;
+  --bg: #f3f4f6;
+  --bg-chrome: #ffffff; /* 工具栏/状态栏 */
+  --bg-panel: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-input: #ffffff;
+  --border: #d1d5db;
+  --border-strong: #9ca3af;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --warning: #d97706;
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --scroll-thumb: #cbd5e1;
+  --selection-bg: rgba(37, 99, 235, 0.22);
+
+  --sans: system-ui, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  font-family: var(--sans);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: light;
+}
+
+/* 深色主题（保留，v2.0 设计系统）：html[data-theme='dark'] 覆盖令牌 */
+html[data-theme='dark'] {
   --text: #f1f5f9;
   --text-dim: #94a3b8;
   --bg: #0f172a;
-  --bg-chrome: #0b1220; /* 工具栏/状态栏：略深于背景建立层级 */
+  --bg-chrome: #0b1220;
   --bg-panel: #1b2336;
   --bg-elevated: #1e293b;
   --bg-input: #151e30;
@@ -15,25 +45,19 @@
   --danger: #ef4444;
   --warning: #f59e0b;
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
-
-  --sans: system-ui, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
-
-  font-family: var(--sans);
-  line-height: 1.5;
-  color: var(--text);
-  background: var(--bg);
+  --scroll-thumb: #334155;
+  --selection-bg: rgba(59, 130, 246, 0.35);
   color-scheme: dark;
 }
 
-/* 深色主题全局细节：选区/滚动条/focus 环 */
+/* 主题全局细节：选区/滚动条/focus 环 */
 ::selection {
-  background: rgba(59, 130, 246, 0.35);
+  background: var(--selection-bg);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+  scrollbar-color: var(--scroll-thumb) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -42,7 +66,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--scroll-thumb);
   border-radius: 6px;
   border: 2px solid transparent;
   background-clip: content-box;
@@ -91,6 +115,162 @@ body {
 /* 侧栏收起（v2.4 工作台改版）：画布获得完整宽度 */
 .main.sidebar-collapsed .side-column {
   display: none;
+}
+
+/* 懒加载失败兜底（部署切换时旧页面加载新 chunk 失败） */
+.lazy-error {
+  margin: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lazy-error button {
+  font: inherit;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.lazy-error button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 对话框（v2.5：示例项目 / 快捷键提示） */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.dialog {
+  width: min(640px, 94vw);
+  max-height: min(72vh, 640px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(2, 6, 23, 0.35);
+  overflow: hidden;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dialog-header strong {
+  font-size: 16px;
+}
+
+.dialog-sub {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.dialog-close {
+  margin-left: auto;
+  font: inherit;
+  padding: 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.dialog-close:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.dialog-body {
+  padding: 12px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.example-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  text-align: left;
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.example-item:hover {
+  border-color: var(--accent);
+}
+
+.example-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.example-mode {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--text-dim);
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.example-desc {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.shortcut-row {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 4px 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.shortcut-row:nth-child(odd) {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.shortcut-keys {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.shortcut-desc {
+  font-size: 13px;
 }
 
 /* 窄窗口（v2.4）：画布在上、编辑面板在下（改变布局而非缩小文字） */

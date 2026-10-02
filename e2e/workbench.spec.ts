@@ -23,6 +23,37 @@ test.describe('v2.4 工作台改版（布局 / 首屏引导 / 命名）', () => 
     await expect(page.getByTestId('curve-expr').first()).toHaveValue('a * sin(b * x)')
   })
 
+  test('参数滑块：探索参数变化后可直接调值（预览→提交→一步撤销）', async ({ page }) => {
+    await page.goto('/?mode=plot')
+    await page.getByTestId('welcome-params').click()
+    await expect(page.getByTestId('curve-param-a')).toBeVisible()
+    await expect(page.getByTestId('curve-param-b')).toBeVisible()
+    await expect(page.getByTestId('curve-param-value-a')).toHaveText('1.5')
+    await expect(page.getByTestId('curve-param-value-b')).toHaveText('2')
+
+    const slider = page.getByTestId('curve-param-a')
+    await slider.evaluate((element) => {
+      const input = element as HTMLInputElement
+      input.value = '3'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await slider.evaluate((element) => {
+      element.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await expect(page.getByTestId('curve-param-value-a')).toHaveText('3')
+
+    await page.getByTestId('undo').click()
+    await expect(page.getByTestId('curve-param-value-a')).toHaveText('1.5')
+    await expect(page.getByTestId('curve-error')).toHaveCount(0)
+  })
+
+  test('矩阵模式：画布可见且计算可出结果（防主区域空白回归）', async ({ page }) => {
+    await page.goto('/?mode=matrix')
+    await expect(page.getByTestId('matrix-canvas')).toBeVisible()
+    await page.getByTestId('matrix-run').click()
+    await expect(page.getByTestId('matrix-results')).toBeVisible()
+  })
+
   test('入口「打开示例项目」：应用正弦曲线入门示例', async ({ page }) => {
     await page.goto('/?mode=plot')
     await page.getByTestId('welcome-example').click()
@@ -76,5 +107,61 @@ test.describe('v2.4 工作台改版（布局 / 首屏引导 / 命名）', () => 
       .locator('.main')
       .evaluate((element) => getComputedStyle(element).flexDirection)
     expect(direction).toBe('column')
+  })
+
+  test('主题：默认浅色，可切换深色并持久化', async ({ page }) => {
+    await page.goto('/?mode=plot')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    await page.getByTestId('toggle-theme').click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await page.reload()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  })
+
+  test('示例项目：工具栏打开画廊并一键应用', async ({ page }) => {
+    await page.goto('/?mode=plot')
+    await page.getByTestId('open-examples').click()
+    await expect(page.getByTestId('examples-dialog')).toBeVisible()
+    await page.getByTestId('example-sine').click()
+    await expect(page.getByTestId('examples-dialog')).toHaveCount(0)
+    await expect(page.getByTestId('curve-item')).toHaveCount(1)
+  })
+
+  test('快捷键提示：打开与关闭', async ({ page }) => {
+    await page.goto('/?mode=plot')
+    await page.getByTestId('shortcuts-help').click()
+    await expect(page.getByTestId('shortcuts-dialog')).toBeVisible()
+    await page.getByTestId('shortcuts-close').click()
+    await expect(page.getByTestId('shortcuts-dialog')).toHaveCount(0)
+  })
+
+  test('保存状态：默认已保存 → 编辑转未保存 → 保存项目后恢复', async ({ page }) => {
+    await page.goto('/?mode=plot')
+    await expect(page.getByTestId('save-state')).toContainText('已保存')
+    await page.getByTestId('welcome-draw').click()
+    await expect(page.getByTestId('save-state')).toContainText('未保存')
+    const download = page.waitForEvent('download')
+    await page.getByTestId('export-json').click()
+    await download
+    await expect(page.getByTestId('save-state')).toContainText('已保存')
+    await expect(page.getByTestId('save-state')).not.toContainText('未保存')
+  })
+
+  test('输入反馈：草稿表达式实时校验与参数提示', async ({ page }) => {
+    await page.goto('/?mode=plot')
+    await page.getByTestId('curve-expr-input').fill('a * sin(b * x)')
+    await expect(page.getByTestId('draft-ok')).toContainText('参数 a、b')
+    await page.getByTestId('curve-expr-input').fill('sin(')
+    await expect(page.getByTestId('draft-error')).toBeVisible()
+    await expect(page.getByTestId('draft-ok')).toHaveCount(0)
+  })
+
+  test('课堂演示模式：进入与 Esc 退出', async ({ page }) => {
+    await page.goto('/?mode=plot')
+    await page.getByTestId('enter-presentation').click()
+    await expect(page.locator('body')).toHaveClass(/presentation-mode/)
+    await expect(page.getByTestId('presentation-exit')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('body')).not.toHaveClass(/presentation-mode/)
   })
 })
