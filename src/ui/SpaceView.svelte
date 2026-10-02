@@ -17,6 +17,7 @@
     getExportRequest,
     getGifFps,
     getGifFrames,
+    getIntegralRegion,
     getSpaceOptions,
     getSpaceRevision,
     isSpaceExporting,
@@ -55,6 +56,7 @@
     const state = appState
     if (!scene || !state) return
     scene.update(state.doc.objects.filter(isSpaceObject) as SpaceObject[], getSpaceOptions())
+    scene.setIntegralRegion(getIntegralRegion())
   }
 
   function resizeScene(): void {

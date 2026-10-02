@@ -71,6 +71,23 @@ export function setTangentPoint(x: number, y: number): void {
   revision++
 }
 
+/** 二重积分区域显示（v2.1）：null 隐藏；亮框+四角竖线提示积分区域 */
+export interface IntegralRegion {
+  x0: number
+  x1: number
+  y0: number
+  y1: number
+}
+let integralRegion = $state<IntegralRegion | null>(null)
+
+export function getIntegralRegion(): IntegralRegion | null {
+  return integralRegion
+}
+export function setIntegralRegion(region: IntegralRegion | null): void {
+  integralRegion = region
+  revision++
+}
+
 /** 汇总为场景选项 */
 export function getSpaceOptions(): SpaceOptions {
   return {

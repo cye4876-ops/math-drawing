@@ -67,6 +67,8 @@ export interface SpaceScene {
   /** 抓取当前帧像素（行序已翻转为左上原点；RGBA） */
   captureFrame(): { data: Uint8ClampedArray; width: number; height: number }
   snapshot(): Promise<Blob | null>
+  /** 二重积分区域显示（v2.1）：null 清除；坐标非法时不显示 */
+  setIntegralRegion(region: { x0: number; x1: number; y0: number; y1: number } | null): void
   dispose(): void
   setOnContextEvent(callback: (lost: boolean) => void): void
 }
@@ -101,14 +103,14 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
   const scene = new THREE.Scene()
   scene.background = new THREE.Color(BACKGROUND)
 
-  const persp = new THREE.PerspectiveCamera(50, 1, 0.05, 500)
+  const persp = new THREE.PerspectiveCamera(55, 1, 0.05, 500)
   const ortho = new THREE.OrthographicCamera(-8, 8, 6, -6, 0.05, 500)
   persp.up.set(0, 0, 1)
   ortho.up.set(0, 0, 1)
   let camera: THREE.Camera = persp
   let cameraKind: CameraKind = 'persp'
-  persp.position.set(9, -11, 7)
-  ortho.position.set(9, -11, 7)
+  persp.position.set(13.5, -16.5, 10.5)
+  ortho.position.set(13.5, -16.5, 10.5)
 
   const controls = new OrbitControls(persp, canvas)
   controls.enableDamping = true
@@ -126,8 +128,9 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
   scene.add(ambient, key, fill)
 
   // 常驻元素：坐标轴 + 网格（z=0 平面）
+  // 注：x/y 轴抬高 0.02 避免与网格中心线同面（z=0）产生深度冲突被遮盖
   const staticGroup = new THREE.Group()
-  const axisLines: number[] = [0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 10]
+  const axisLines: number[] = [0, 0, 0.02, 9, 0, 0.02, 0, 0, 0.02, 0, 9, 0.02, 0, 0, 0.02, 0, 0, 9]
   const axisGeometry = new THREE.BufferGeometry()
   axisGeometry.setAttribute('position', new THREE.Float32BufferAttribute(axisLines, 3))
   const axisMaterial = new THREE.LineBasicMaterial({ vertexColors: true })
@@ -143,14 +146,57 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
   )
   const negative = new THREE.LineSegments(axisGeometry, axisMaterial)
   // 负半轴（细灰）
-  const negLines: number[] = [-10, 0, 0, 0, 0, 0, 0, -10, 0, 0, 0, 0, 0, 0, -10, 0, 0, 0]
+  const negLines: number[] = [
+    -9, 0, 0.02, 0, 0, 0.02, 0, -9, 0.02, 0, 0, 0.02, 0, 0, -9, 0, 0, 0.02,
+  ]
   const negGeometry = new THREE.BufferGeometry()
   negGeometry.setAttribute('position', new THREE.Float32BufferAttribute(negLines, 3))
-  const negMaterial = new THREE.LineBasicMaterial({ color: 0xc7ced8 })
+  const negMaterial = new THREE.LineBasicMaterial({ color: 0x475569 })
   const negativeAxes = new THREE.LineSegments(negGeometry, negMaterial)
-  const grid = new THREE.GridHelper(20, 20, 0xcdd5df, 0xe2e8f0)
+  const grid = new THREE.GridHelper(20, 20, 0x2e3a52, 0x1a2438)
   grid.rotation.x = Math.PI / 2
   staticGroup.add(negative, negativeAxes, grid)
+  // 正半轴箭头锥头（与轴线同色，指向轴正向）+ 轴端 x/y/z 标签
+  for (const [px, py, pz, color] of [
+    [9, 0, 0.02, 0xdb2626],
+    [0, 9, 0.02, 0x21a638],
+    [0, 0, 9, 0x3366e6],
+  ] as const) {
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.2, 0.75, 16),
+      new THREE.MeshBasicMaterial({ color }),
+    )
+    cone.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(px, py, pz).normalize(),
+    )
+    cone.position.set(px, py, pz)
+    staticGroup.add(cone)
+  }
+  for (const [text, color, lx, ly, lz] of [
+    ['x', 0xdb2626, 9.6, 0, 0.45],
+    ['y', 0x21a638, 0, 9.6, 0.45],
+    ['z', 0x3366e6, 0, 0.5, 9.6],
+  ] as const) {
+    const labelCanvas = document.createElement('canvas')
+    labelCanvas.width = 64
+    labelCanvas.height = 64
+    const labelContext = labelCanvas.getContext('2d')
+    if (labelContext) {
+      labelContext.font = 'bold 44px sans-serif'
+      labelContext.fillStyle = `#${color.toString(16).padStart(6, '0')}`
+      labelContext.textAlign = 'center'
+      labelContext.textBaseline = 'middle'
+      labelContext.fillText(text, 32, 33)
+      const texture = new THREE.CanvasTexture(labelCanvas)
+      const sprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }),
+      )
+      sprite.scale.set(0.9, 0.9, 1)
+      sprite.position.set(lx, ly, lz)
+      staticGroup.add(sprite)
+    }
+  }
   scene.add(staticGroup)
 
   const items = new Map<string, SceneItem>()
@@ -978,16 +1024,102 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
   canvas.addEventListener('webglcontextlost', onContextLost)
   canvas.addEventListener('webglcontextrestored', onContextRestored)
 
+  // ── 二重积分区域显示（v2.1）─────────────────────────
+  let integralRegionObject: THREE.Group | null = null
+
+  function clearIntegralRegion(): void {
+    if (!integralRegionObject) return
+    staticGroup.remove(integralRegionObject)
+    integralRegionObject.traverse((child) => {
+      const mesh = child as THREE.Mesh
+      if (mesh.geometry) mesh.geometry.dispose()
+      const materials = Array.isArray(mesh.material)
+        ? mesh.material
+        : mesh.material
+          ? [mesh.material]
+          : []
+      for (const material of materials) material.dispose()
+    })
+    integralRegionObject = null
+  }
+
+  function setIntegralRegion(
+    region: { x0: number; x1: number; y0: number; y1: number } | null,
+  ): void {
+    clearIntegralRegion()
+    if (!region) return
+    const { x0, x1, y0, y1 } = region
+    if (![x0, x1, y0, y1].every((value) => Number.isFinite(value))) return
+    if (x1 <= x0 || y1 <= y0) return
+
+    const group = new THREE.Group()
+    // 半透明底面（z=0 网格平面上方 0.005，避免闪烁）
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(x1 - x0, y1 - y0),
+      new THREE.MeshBasicMaterial({
+        color: 0x3b82f6,
+        transparent: true,
+        opacity: 0.16,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    )
+    plane.position.set((x0 + x1) / 2, (y0 + y1) / 2, 0.005)
+    group.add(plane)
+
+    // 矩形边界 + 四角竖线（高度随区域尺寸自适应）
+    const height = Math.max(0.5, Math.min((x1 - x0 + y1 - y0) * 0.06, 1.6))
+    const corners: Array<[number, number]> = [
+      [x0, y0],
+      [x1, y0],
+      [x1, y1],
+      [x0, y1],
+    ]
+    const points: number[] = []
+    for (let i = 0; i < corners.length; i++) {
+      const [ax, ay] = corners[i]!
+      const [bx, by] = corners[(i + 1) % corners.length]!
+      points.push(ax, ay, 0, bx, by, 0)
+      points.push(ax, ay, 0, ax, ay, height)
+    }
+    const borderGeometry = new THREE.BufferGeometry()
+    borderGeometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3))
+    group.add(
+      new THREE.LineSegments(
+        borderGeometry,
+        new THREE.LineBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.9 }),
+      ),
+    )
+
+    integralRegionObject = group
+    staticGroup.add(group)
+  }
+
+  function disposeStaticChildren(): void {
+    staticGroup.traverse((child) => {
+      const mesh = child as THREE.Mesh
+      if (mesh.geometry) mesh.geometry.dispose()
+      const materials = Array.isArray(mesh.material)
+        ? mesh.material
+        : mesh.material
+          ? [mesh.material]
+          : []
+      for (const material of materials) {
+        const texture = (material as THREE.SpriteMaterial).map
+        if (texture) texture.dispose()
+        material.dispose()
+      }
+    })
+  }
+
   function dispose(): void {
     canvas.removeEventListener('webglcontextlost', onContextLost)
     canvas.removeEventListener('webglcontextrestored', onContextRestored)
+    clearIntegralRegion()
     for (const item of items.values()) disposeItem(item)
     items.clear()
     controls.dispose()
-    axisGeometry.dispose()
-    axisMaterial.dispose()
-    negGeometry.dispose()
-    negMaterial.dispose()
+    disposeStaticChildren()
     renderer.dispose()
   }
 
@@ -1004,6 +1136,7 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
     captureFrame,
     snapshot,
     dispose,
+    setIntegralRegion,
     setOnContextEvent(callback) {
       contextCallback = callback
     },

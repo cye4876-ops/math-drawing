@@ -31,6 +31,7 @@
   } from '../render3d/objects'
   import { compileDerivative, compileExpr } from '../render3d/compile'
   import { tangentPlaneAt } from '../render3d/tangent'
+  import { doubleIntegral } from '../math/numeric/double-integral'
   import {
     getCamera,
     getColormapName,
@@ -48,6 +49,7 @@
     setContourCount,
     setGifFps,
     setGifFrames,
+    setIntegralRegion,
     setShading,
     setTangentEnabled,
   } from '../state/space-state.svelte'
@@ -232,6 +234,44 @@
   function format(value: number): string {
     if (!Number.isFinite(value)) return '—'
     return Math.abs(value) < 1e5 ? value.toPrecision(5) : value.toExponential(3)
+  }
+
+  // ---------- 二重积分（v2.1） ----------
+  let integralExpr = $state('x^2 + y^2')
+  let integralX0 = $state(-1)
+  let integralX1 = $state(1)
+  let integralY0 = $state(-1)
+  let integralY1 = $state(1)
+  let integralMessage = $state('')
+  let integralError = $state('')
+
+  function runIntegral(): void {
+    integralError = ''
+    integralMessage = ''
+    const f = compileExpr(integralExpr, ['x', 'y'])
+    if (!f) {
+      integralError = '表达式无法解析（变量为 x、y）'
+      return
+    }
+    const x0 = Number(integralX0)
+    const x1 = Number(integralX1)
+    const y0 = Number(integralY0)
+    const y1 = Number(integralY1)
+    if (![x0, x1, y0, y1].every(Number.isFinite) || x1 <= x0 || y1 <= y0) {
+      integralError = '积分范围需满足 x₁ > x₀ 且 y₁ > y₀'
+      return
+    }
+    const result = doubleIntegral((x, y) => f(x, y), x0, x1, y0, y1)
+    setIntegralRegion({ x0, x1, y0, y1 })
+    const reliability =
+      result.invalidSamples > 0 ? `；${result.invalidSamples} 个采样非有限，结果不可靠` : ''
+    integralMessage = `∬f dA ≈ ${format(result.value)}（区域 x∈[${formatParam(x0)}, ${formatParam(x1)}]，y∈[${formatParam(y0)}, ${formatParam(y1)}]；${result.samples} 采样${reliability}）`
+  }
+
+  function clearIntegral(): void {
+    setIntegralRegion(null)
+    integralMessage = ''
+    integralError = ''
   }
 </script>
 
@@ -771,6 +811,40 @@
   </div>
 
   <div class="section">
+    <div class="section-title">二重积分 ∬f dA（矩形区域）</div>
+    <div class="row">
+      <span class="dim">f(x, y) =</span>
+      <input
+        type="text"
+        class="expr"
+        data-testid="integral-f"
+        placeholder="如 x^2 + y^2"
+        bind:value={integralExpr}
+      />
+    </div>
+    <div class="row">
+      <span class="dim">x ∈</span>
+      <input type="number" step="any" data-testid="integral-x0" bind:value={integralX0} />
+      <span class="dim">～</span>
+      <input type="number" step="any" data-testid="integral-x1" bind:value={integralX1} />
+      <span class="dim">，y ∈</span>
+      <input type="number" step="any" data-testid="integral-y0" bind:value={integralY0} />
+      <span class="dim">～</span>
+      <input type="number" step="any" data-testid="integral-y1" bind:value={integralY1} />
+    </div>
+    <div class="row">
+      <button type="button" data-testid="integral-run" onclick={runIntegral}>计算 ∬f dA</button>
+      <button type="button" data-testid="integral-clear" onclick={clearIntegral}>清除区域</button>
+    </div>
+    {#if integralError}
+      <div class="integral-error" data-testid="integral-error">{integralError}</div>
+    {/if}
+    {#if integralMessage}
+      <div class="integral-readout" data-testid="integral-result">{integralMessage}</div>
+    {/if}
+  </div>
+
+  <div class="section">
     <div class="row">
       <span class="dim">GIF 帧数</span>
       <input
@@ -927,6 +1001,23 @@
     border-radius: 6px;
     padding: 6px 8px;
     background: rgba(245, 158, 11, 0.12);
+  }
+
+  .integral-readout {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    background: rgba(59, 130, 246, 0.12);
+  }
+
+  .integral-error {
+    font-size: 12px;
+    color: #fca5a5;
   }
 
   .hint {

@@ -240,4 +240,24 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
     await page.keyboard.press('Control+z')
     await expect(page.getByTestId('space-empty')).toBeVisible()
   })
+
+  test('二重积分：∬(x²+y²) 在 [-1,1]² 上计算（≈8/3）并显示区域与采样数', async ({ page }) => {
+    await page.goto('/?mode=space')
+    await page.getByTestId('integral-f').fill('x^2 + y^2')
+    await page.getByTestId('integral-run').click()
+    const result = page.getByTestId('integral-result')
+    await expect(result).toBeVisible()
+    await expect(result).toContainText('2.6667')
+    await expect(result).toContainText('x∈[-1, 1]')
+    await expect(result).toContainText('y∈[-1, 1]')
+    await expect(result).toContainText('16641 采样')
+    // 清除区域与读数
+    await page.getByTestId('integral-clear').click()
+    await expect(result).toHaveCount(0)
+    // 非法范围（x₀ ≥ x₁）：错误提示且不出结果
+    await page.getByTestId('integral-x0').fill('2')
+    await page.getByTestId('integral-run').click()
+    await expect(page.getByTestId('integral-error')).toBeVisible()
+    await expect(result).toHaveCount(0)
+  })
 })
