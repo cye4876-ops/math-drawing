@@ -909,6 +909,9 @@
     flex-direction: column;
     gap: 8px;
     padding: 8px 10px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .section {

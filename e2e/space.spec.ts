@@ -74,6 +74,7 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
   }) => {
     await page.goto('/?mode=space')
     await page.getByTestId('space-add').click()
+    await page.getByTestId('space-tangent').scrollIntoViewIfNeeded()
     await page.getByTestId('space-tangent').check()
     await expect(page.getByTestId('tangent-readout')).toBeVisible()
     await expect(page.getByTestId('tangent-dx')).toContainText('1.0000')
