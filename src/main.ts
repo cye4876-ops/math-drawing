@@ -20,12 +20,23 @@ const app = mount(App, {
 
 // 应用成功启动：清除自愈标记，保证下次部署仍可自动恢复
 sessionStorage.removeItem('md.preload-reload')
+sessionStorage.removeItem('md.sw-reload')
 
 // PWA（v1.0）：仅生产构建注册 Service Worker（dev 下注册会干扰 HMR 资源加载）
 // 注册路径基于构建的 base（自适应子路径部署，如 GitHub Pages）
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  const hadController = Boolean(navigator.serviceWorker.controller)
+  // 新版本 Service Worker 接管（= 部署完成）时刷新一次：避免旧页面引用已删除资源
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return
+    if (sessionStorage.getItem('md.sw-reload') === '1') return
+    sessionStorage.setItem('md.sw-reload', '1')
+    window.location.reload()
+  })
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, {
+      updateViaCache: 'none',
+    })
   })
 }
 

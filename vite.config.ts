@@ -1,10 +1,36 @@
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { defineConfig } from 'vitest/config'
+import type { Plugin } from 'vite'
+
+/**
+ * 构建时把 public/sw.js 的 `__SW_VERSION__` 占位符替换为部署标识（时间戳）：
+ * sw.js 字节变化 ⇒ 浏览器每次部署都会安装新 SW ⇒ 触发升级自愈（清理旧缓存 + 导航已打开页面）。
+ */
+function stampServiceWorker(): Plugin {
+  return {
+    name: 'stamp-service-worker',
+    apply: 'build',
+    writeBundle(options) {
+      const dir = options.dir ?? 'dist'
+      const file = join(dir, 'sw.js')
+      try {
+        writeFileSync(
+          file,
+          readFileSync(file, 'utf8').replaceAll('__SW_VERSION__', Date.now().toString(36)),
+        )
+      } catch {
+        // dist/sw.js 不存在（理论不会发生）：忽略
+      }
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   base: process.env['BASE_PATH'] ?? '/',
-  plugins: [svelte()],
+  plugins: [svelte(), stampServiceWorker()],
   server: {
     host: '127.0.0.1',
     port: 5173,
