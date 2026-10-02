@@ -104,8 +104,11 @@
       {/each}
     </div>
     <div class="row">
-      <button type="button" class="run" data-testid="matrix-run" onclick={() => runMatrixOp()}
-        >计算</button
+      <button
+        type="button"
+        class="run btn-primary"
+        data-testid="matrix-run"
+        onclick={() => runMatrixOp()}>计算</button
       >
     </div>
     {#if getMatrixError()}

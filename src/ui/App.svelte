@@ -36,6 +36,7 @@
   import { SPACE_OBJECT_TYPES } from '../export/frame'
   import { getPluginElements, getPluginTools } from '../plugin/registry.svelte'
   import { exitPresentation, isPresentationMode } from '../teaching/presentation.svelte'
+  import WelcomeOverlay from './WelcomeOverlay.svelte'
 
   // 懒加载（v1.0 PWA）：three / katex 等大依赖只在首次进入对应模式时下载
   function lazy<M>(factory: () => Promise<M>): () => Promise<M> {
@@ -272,6 +273,51 @@
     matrix: initialMode === 'matrix' ? { ...store.getView() } : null,
   }
 
+  /** 侧栏收起（v2.4 工作台改版）：状态持久化（存储不可用时静默降级） */
+  function initialSidebarCollapsed(): boolean {
+    try {
+      return localStorage.getItem('md.sidebar-collapsed') === '1'
+    } catch {
+      return false
+    }
+  }
+  let sidebarCollapsed = $state(initialSidebarCollapsed())
+  function toggleSidebar(): void {
+    sidebarCollapsed = !sidebarCollapsed
+    try {
+      localStorage.setItem('md.sidebar-collapsed', sidebarCollapsed ? '1' : '0')
+    } catch {
+      // 忽略存储失败
+    }
+  }
+
+  /** 首屏引导（v2.4）：函数绘图模式无曲线时显示三个入口 */
+  let plotCurveCount = $state(0)
+  $effect(() => {
+    const update = (): void => {
+      plotCurveCount = store
+        .getState()
+        .doc.objects.filter((object) => object.type === 'curve').length
+    }
+    update()
+    return store.subscribe(update)
+  })
+
+  function welcomeDrawFunction(): void {
+    store.addCurve({ kind: 'explicit', expr: 'sin(x)' })
+  }
+
+  function welcomeParamDemo(): void {
+    store.addCurve({ kind: 'explicit', expr: 'a * sin(b * x)' })
+  }
+
+  async function welcomeOpenExample(): Promise<void> {
+    const { TEACHING_EXAMPLES } = await import('../teaching/examples')
+    const example = TEACHING_EXAMPLES.find((item) => item.id === 'sine')
+    if (!example) return
+    example.apply(store, { activateTool: (id) => registry.activate(id) })
+  }
+
   /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集，3D/进阶/矩阵/Notebook 不画 2D */
   function visibleObjectsOf(state: { doc: { objects: SceneObject[] } }): SceneObject[] {
     if (mode === 'space' || mode === 'advanced' || mode === 'matrix' || mode === 'notebook')
@@ -407,9 +453,11 @@
     {registry}
     {mode}
     onModeChange={setMode}
+    {sidebarCollapsed}
+    onToggleSidebar={toggleSidebar}
     getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
   />
-  <div class="main">
+  <div class="main" class:sidebar-collapsed={sidebarCollapsed}>
     <div
       class="stage"
       bind:this={stageElement}
@@ -442,8 +490,15 @@
           <NotebookView active={mode === 'notebook'} {store} onOpenMode={setMode} />
         {/await}
       {/if}
+      {#if mode === 'plot' && plotCurveCount === 0}
+        <WelcomeOverlay
+          onDrawFunction={welcomeDrawFunction}
+          onParamDemo={welcomeParamDemo}
+          onOpenExample={welcomeOpenExample}
+        />
+      {/if}
     </div>
-    <div class="side-column">
+    <div class="side-column" data-testid="side-column">
       {#if mode === 'plot'}
         <CurveList {store} />
         <MarkerList {store} />

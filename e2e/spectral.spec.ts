@@ -104,9 +104,10 @@ test.describe('v0.5 邻接矩阵与谱（特征值 / Perron 向量）', () => {
     await expect(page.getByTestId('matrix-cell-0-0')).toHaveText('0')
   })
 
-  test('无图占位；DSL 生成 K4 后自动更新（ρ=3、特征值 -1×3）', async ({ page }) => {
+  test('无图时折叠面板；DSL 生成 K4 后自动更新（ρ=3、特征值 -1×3）', async ({ page }) => {
     await page.goto('/?mode=graph')
-    await expect(page.getByTestId('spectrum-panel')).toContainText('暂无图')
+    await expect(page.getByTestId('graph-stats')).toContainText('暂无图')
+    await expect(page.getByTestId('spectrum-panel')).toHaveCount(0)
 
     await page.getByTestId('graph-dsl').fill('1-2, 1-3, 1-4, 2-3, 2-4, 3-4')
     await expect(page.getByTestId('spectral-radius')).toContainText('ρ = 3')

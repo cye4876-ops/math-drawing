@@ -88,6 +88,26 @@ body {
   min-height: 0;
 }
 
+/* 侧栏收起（v2.4 工作台改版）：画布获得完整宽度 */
+.main.sidebar-collapsed .side-column {
+  display: none;
+}
+
+/* 窄窗口（v2.4）：画布在上、编辑面板在下（改变布局而非缩小文字） */
+@media (max-width: 920px) {
+  .main {
+    flex-direction: column;
+  }
+  .stage {
+    min-height: 52%;
+  }
+  .side-column {
+    width: auto;
+    max-height: 46%;
+    border-top: 1px solid var(--border);
+  }
+}
+
 /* 右侧栏：曲线列表（上，占剩余空间）+ 工具面板（下，自适应） */
 .side-column {
   display: flex;
@@ -165,6 +185,21 @@ body {
 .toolbar button:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+/* 主要操作强调（v2.4）：创建/计算等关键按钮统一主色，次要操作保持默认 */
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  filter: brightness(1.08);
 }
 
 .status-bar {

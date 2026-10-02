@@ -16,6 +16,8 @@
     registry,
     mode,
     onModeChange,
+    sidebarCollapsed,
+    onToggleSidebar,
   }: {
     store: AppStore
     canUndo: boolean
@@ -26,6 +28,8 @@
     onModeChange: (
       mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
     ) => void
+    sidebarCollapsed: boolean
+    onToggleSidebar: () => void
   } = $props()
 
   let currentView = $state<ViewTransform | null>(null)
@@ -174,7 +178,7 @@
       data-testid="mode-advanced"
       aria-selected={mode === 'advanced'}
       class:active={mode === 'advanced'}
-      onclick={() => onModeChange('advanced')}>进阶</button
+      onclick={() => onModeChange('advanced')}>数学专题</button
     >
     <button
       type="button"
@@ -190,7 +194,7 @@
       data-testid="mode-notebook"
       aria-selected={mode === 'notebook'}
       class:active={mode === 'notebook'}
-      onclick={() => onModeChange('notebook')}>Notebook</button
+      onclick={() => onModeChange('notebook')}>笔记本</button
     >
   </div>
   <span class="divider"></span>
@@ -247,6 +251,7 @@
     >
       坐标轴
     </button>
+    <button type="button" data-testid="add-marker" onclick={addMarker}>添加标记点</button>
   {/if}
 
   {#if showView}
@@ -274,9 +279,9 @@
 
   <span class="spacer"></span>
 
-  <button type="button" data-testid="export-json" onclick={exportJson}>导出 JSON</button>
+  <button type="button" data-testid="export-json" onclick={exportJson}>保存项目</button>
   <button type="button" data-testid="import-json-button" onclick={() => fileInput?.click()}>
-    导入 JSON
+    打开项目
   </button>
   <button
     type="button"
@@ -298,9 +303,6 @@
 
   <span class="divider"></span>
 
-  {#if mode === 'plot'}
-    <button type="button" data-testid="add-marker" onclick={addMarker}>添加标记点</button>
-  {/if}
   <button
     type="button"
     data-testid="undo"
@@ -315,6 +317,14 @@
     disabled={!canRedo}
     onclick={() => store.redo()}>重做</button
   >
+  <span class="divider"></span>
+  <button
+    type="button"
+    data-testid="toggle-sidebar"
+    class:active={sidebarCollapsed}
+    title={sidebarCollapsed ? '展开编辑面板' : '收起编辑面板'}
+    onclick={onToggleSidebar}>{sidebarCollapsed ? '展开面板' : '收起面板'}</button
+  >
 
   {#if showExport}
     <ExportPanel {store} {mode} {getStageSize} onClose={() => (showExport = false)} />
@@ -325,6 +335,7 @@
   .toolbar {
     position: relative;
     flex-wrap: wrap;
+    row-gap: 6px;
   }
 
   .toolbar button.active {

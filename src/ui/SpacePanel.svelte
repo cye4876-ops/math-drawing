@@ -302,7 +302,9 @@
           <option value={option.id}>{option.label}</option>
         {/each}
       </select>
-      <button type="button" data-testid="space-add" onclick={addSelected}>添加</button>
+      <button type="button" class="btn-primary" data-testid="space-add" onclick={addSelected}
+        >添加</button
+      >
     </div>
   </div>
 
@@ -783,6 +785,19 @@
       <span class="value">{getContourCount() === 0 ? '关' : getContourCount()}</span>
     </div>
     <div class="row">
+      <button
+        type="button"
+        data-testid="space-reset-camera"
+        onclick={() => requestSpaceExport('reset')}
+      >
+        重置视角
+      </button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">分析</div>
+    <div class="row">
       <label class="check">
         <input
           type="checkbox"
@@ -792,13 +807,7 @@
         />
         切平面
       </label>
-      <button
-        type="button"
-        data-testid="space-reset-camera"
-        onclick={() => requestSpaceExport('reset')}
-      >
-        重置视角
-      </button>
+      <span class="dim">曲面上拖动移动切点</span>
     </div>
     {#if tangentInfo}
       <div class="tangent-readout" data-testid="tangent-readout">
@@ -845,6 +854,7 @@
   </div>
 
   <div class="section">
+    <div class="section-title">导出</div>
     <div class="row">
       <span class="dim">GIF 帧数</span>
       <input

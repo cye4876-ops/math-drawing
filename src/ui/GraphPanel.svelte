@@ -460,6 +460,7 @@
     <div class="row">
       <button
         type="button"
+        class="btn-primary"
         data-testid="family-generate"
         disabled={familyError !== null}
         onclick={generateFamily}>生成</button
@@ -471,7 +472,7 @@
   </div>
 
   <div class="section">
-    <div class="section-title">DSL</div>
+    <div class="section-title">文本建图</div>
     <textarea
       data-testid="graph-dsl"
       class="dsl-input"
@@ -532,7 +533,7 @@
       {#if graph}
         顶点 {graph.nodes.length} · 边 {graph.edges.length}
       {:else}
-        暂无图：用图族或 DSL 创建
+        暂无图：用图族或文本建图创建
       {/if}
     </div>
     <button type="button" data-testid="graph-delete" disabled={!graph} onclick={deleteGraph}>
@@ -540,21 +541,23 @@
     </button>
   </div>
 
-  <div class="section">
-    <EdgeListPanel {store} {graph} />
-  </div>
+  {#if graph}
+    <div class="section">
+      <EdgeListPanel {store} {graph} />
+    </div>
 
-  <div class="section">
-    <PropertyPanel {graph} {onHighlight} />
-  </div>
+    <div class="section">
+      <PropertyPanel {graph} {onHighlight} />
+    </div>
 
-  <div class="section">
-    <SpectrumPanel {graph} {onHighlight} />
-  </div>
+    <div class="section">
+      <SpectrumPanel {graph} {onHighlight} />
+    </div>
 
-  <div class="section">
-    <AlgorithmPanel {graph} {onHighlight} />
-  </div>
+    <div class="section">
+      <AlgorithmPanel {graph} {onHighlight} />
+    </div>
+  {/if}
 </aside>
 
 <style>

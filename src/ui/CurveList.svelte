@@ -164,7 +164,9 @@
         >
       {/each}
     </div>
-    <button type="button" data-testid="curve-add" onclick={addCurve}>添加曲线</button>
+    <button type="button" class="btn-primary" data-testid="curve-add" onclick={addCurve}
+      >添加曲线</button
+    >
   </div>
 
   <div class="curve-items">
