@@ -4,7 +4,11 @@
    */
   import {
     MATRIX_PRESETS,
+    MAX_MATRIX_SIZE,
+    MIN_MATRIX_SIZE,
     applyMatrixPreset,
+    clearMatrix,
+    fillIdentity,
     getMatrixEntry,
     getMatrixError,
     getMatrixOp,
@@ -14,14 +18,8 @@
     setMatrixOp,
     setMatrixSize,
     type MatrixOp,
-    type MatrixSize,
   } from '../state/matrix-state.svelte'
 
-  const SIZES: { id: MatrixSize; label: string }[] = [
-    { id: 2, label: '2×2' },
-    { id: 3, label: '3×3' },
-    { id: 4, label: '4×4' },
-  ]
   const OPS: { id: MatrixOp; label: string }[] = [
     { id: 'lu', label: 'LU 分解' },
     { id: 'qr', label: 'QR 分解' },
@@ -40,15 +38,18 @@
 
   <div class="section">
     <div class="row">
-      <span class="dim">尺寸</span>
-      {#each SIZES as item (item.id)}
-        <button
-          type="button"
-          class:active={size === item.id}
-          data-testid={`matrix-size-${item.id}`}
-          onclick={() => setMatrixSize(item.id)}>{item.label}</button
-        >
-      {/each}
+      <span class="dim">阶数 n</span>
+      <input
+        type="number"
+        class="size-input"
+        min={MIN_MATRIX_SIZE}
+        max={MAX_MATRIX_SIZE}
+        step="1"
+        data-testid="matrix-size-n"
+        value={getMatrixSize()}
+        oninput={(event) => setMatrixSize(Number((event.currentTarget as HTMLInputElement).value))}
+      />
+      <span class="dim">（{MIN_MATRIX_SIZE} ~ {MAX_MATRIX_SIZE} 阶）</span>
     </div>
 
     <div class="grid-wrap">
@@ -59,6 +60,7 @@
               type="number"
               step="any"
               class="cell"
+              class:compact={size >= 5}
               data-testid={`matrix-cell-${r + 1}-${c + 1}`}
               value={getMatrixEntry(index)}
               oninput={(event) =>
@@ -79,6 +81,13 @@
           onclick={() => applyMatrixPreset(preset.id)}>{preset.label}</button
         >
       {/each}
+    </div>
+    <div class="row">
+      <span class="dim">编辑</span>
+      <button type="button" data-testid="matrix-clear" onclick={() => clearMatrix()}>清零</button>
+      <button type="button" data-testid="matrix-identity" onclick={() => fillIdentity()}
+        >单位矩阵</button
+      >
     </div>
   </div>
 
@@ -103,8 +112,8 @@
       <div class="matrix-error" data-testid="matrix-error">{getMatrixError()}</div>
     {/if}
     <div class="hint">
-      画布实时显示当前矩阵对单位正方形的变换（2×2 及以上取左上 2×2
-      块）；「计算」后在右侧查看分解矩阵与验证残差。
+      画布实时显示当前矩阵的变换（阶数 ≥ 2 时取左上 2×2 块）；支持 {MIN_MATRIX_SIZE} ~ {MAX_MATRIX_SIZE}
+      阶矩阵的 LU / QR / 相似对角化 / 行列式·秩·逆；「计算」后在右侧查看结果与验证残差。
     </div>
   </div>
 </aside>
@@ -145,10 +154,6 @@
     font-size: 12px;
     padding: 4px 10px;
   }
-  .row button.active {
-    background: var(--accent);
-    color: #fff;
-  }
   .grid-wrap {
     display: flex;
     flex-direction: column;
@@ -158,12 +163,23 @@
     display: flex;
     gap: 4px;
   }
+  .size-input {
+    width: 64px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 12px;
+    text-align: center;
+  }
   .cell {
     width: 100%;
+    min-width: 0;
     max-width: 64px;
     font-family: ui-monospace, Consolas, monospace;
     font-size: 12px;
     text-align: center;
+  }
+  .cell.compact {
+    font-size: 10px;
+    padding: 0 1px;
   }
   .preset {
     font-size: 11px;

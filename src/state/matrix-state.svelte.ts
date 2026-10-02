@@ -15,7 +15,10 @@ import {
   type Matrix,
 } from '../matrix/linalg'
 
-export type MatrixSize = 2 | 3 | 4
+export const MIN_MATRIX_SIZE = 2
+export const MAX_MATRIX_SIZE = 10
+/** 矩阵阶数（2 ~ 10，实际取值由 setMatrixSize 钳制） */
+export type MatrixSize = number
 export type MatrixOp = 'lu' | 'qr' | 'eigen' | 'summary'
 
 export interface MatrixOutput {
@@ -40,6 +43,15 @@ export const MATRIX_PRESETS: MatrixPreset[] = [
   { id: 'general', label: '一般（实特征值）', size: 2, entries: [1, 2, 3, 4] },
   { id: 'shear', label: '剪切（不可对角化）', size: 2, entries: [1, 1, 0, 1] },
   { id: 'rotation', label: '旋转（复特征值）', size: 2, entries: [0, -1, 1, 0] },
+  {
+    id: 'tridiagonal6',
+    label: '三对角 6 阶',
+    size: 6,
+    entries: [
+      2, 1, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 1, 2, 1, 0,
+      0, 0, 0, 1, 2,
+    ],
+  },
 ]
 
 let size = $state<MatrixSize>(2)
@@ -58,16 +70,17 @@ export function getMatrixSize(): MatrixSize {
   return size
 }
 
-export function setMatrixSize(next: MatrixSize): void {
-  if (next === size) return
+export function setMatrixSize(next: number): void {
+  const clamped = Math.max(MIN_MATRIX_SIZE, Math.min(MAX_MATRIX_SIZE, Math.round(next)))
+  if (clamped === size) return
   // 保留左上角已有值，扩展区域补 0
-  const nextEntries = new Array<number>(next * next).fill(0)
-  for (let i = 0; i < next; i++) {
-    for (let j = 0; j < next; j++) {
-      if (i < size && j < size) nextEntries[i * next + j] = entries[i * size + j] ?? 0
+  const nextEntries = new Array<number>(clamped * clamped).fill(0)
+  for (let i = 0; i < clamped; i++) {
+    for (let j = 0; j < clamped; j++) {
+      if (i < size && j < size) nextEntries[i * clamped + j] = entries[i * size + j] ?? 0
     }
   }
-  size = next
+  size = clamped
   entries = nextEntries
   output = null
   error = ''
@@ -110,6 +123,24 @@ export function applyMatrixPreset(id: string): void {
   if (!preset) return
   size = preset.size
   entries = [...preset.entries]
+  output = null
+  error = ''
+  revision++
+}
+
+/** 清零（全零矩阵） */
+export function clearMatrix(): void {
+  entries = new Array<number>(size * size).fill(0)
+  output = null
+  error = ''
+  revision++
+}
+
+/** 单位矩阵 */
+export function fillIdentity(): void {
+  entries = Array.from({ length: size * size }, (_, index) =>
+    Math.floor(index / size) === index % size ? 1 : 0,
+  )
   output = null
   error = ''
   revision++

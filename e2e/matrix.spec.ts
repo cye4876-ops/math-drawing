@@ -68,9 +68,9 @@ test.describe('v2.3 矩阵分解（第七模式）', () => {
     await expect(results).toContainText('数值精度内')
   })
 
-  test('尺寸切换 3×3：输入格生效、行列式 24', async ({ page }) => {
+  test('n 阶参数：3 阶输入格生效、行列式 24', async ({ page }) => {
     await page.goto('/?mode=matrix')
-    await page.getByTestId('matrix-size-3').click()
+    await page.getByTestId('matrix-size-n').fill('3')
     await expect(page.getByTestId('matrix-cell-3-3')).toBeVisible()
     // 逐格填入对角矩阵 diag(2,3,4)（清掉 2×2 扩展残留的副对角 1）
     for (const [r, c, value] of [
@@ -89,5 +89,33 @@ test.describe('v2.3 矩阵分解（第七模式）', () => {
     await page.getByTestId('matrix-op-summary').click()
     await page.getByTestId('matrix-run').click()
     await expect(page.getByTestId('matrix-results')).toContainText('det A = 24')
+  })
+
+  test('n 阶参数：6 阶单位矩阵（清零→单位→det 1 + QR 机器精度）', async ({ page }) => {
+    await page.goto('/?mode=matrix')
+    await page.getByTestId('matrix-size-n').fill('6')
+    await expect(page.getByTestId('matrix-cell-6-6')).toBeVisible()
+    await page.getByTestId('matrix-clear').click()
+    await page.getByTestId('matrix-identity').click()
+    await page.getByTestId('matrix-op-summary').click()
+    await page.getByTestId('matrix-run').click()
+    await expect(page.getByTestId('matrix-results')).toContainText('det A = 1')
+    await expect(page.getByTestId('matrix-results')).toContainText('rank A = 6')
+    await page.getByTestId('matrix-op-qr').click()
+    await page.getByTestId('matrix-run').click()
+    await expect(page.getByTestId('matrix-results')).toContainText('机器精度')
+  })
+
+  test('预设：三对角 6 阶对角化（解析特征值 0.1981 / 3.8019）', async ({ page }) => {
+    await page.goto('/?mode=matrix')
+    await page.getByTestId('matrix-preset-tridiagonal6').click()
+    await page.getByTestId('matrix-op-eigen').click()
+    await page.getByTestId('matrix-run').click()
+    const results = page.getByTestId('matrix-results')
+    await expect(results).toContainText('特征值')
+    await expect(results).toContainText('0.1981')
+    await expect(results).toContainText('3.8019')
+    await expect(results).toContainText('几何重数 1')
+    await expect(results).toContainText('验证')
   })
 })
