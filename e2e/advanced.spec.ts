@@ -242,4 +242,63 @@ test.describe('v0.9 进阶（第五模式）', () => {
     await page.getByTestId('adv-op-limit').click()
     await expect(page.getByTestId('adv-symbolic-result')).toContainText('极限')
   })
+
+  test('代数·反例列举：Q₈ 全部子群正规但非交换（表高亮 + 子群报告）', async ({ page }) => {
+    await page.goto('/?mode=advanced')
+    await page.getByTestId('adv-tab-algebra').click()
+    await expect(page.getByTestId('adv-algebra-area')).toBeVisible()
+    await expect(page.getByTestId('alg-case-title')).toContainText('正规')
+    const table = page.getByTestId('alg-table-q8')
+    await expect(table).toBeVisible()
+    await expect(table.locator('td')).toHaveCount(64)
+    await expect(table.locator('[data-noncommuting="true"]')).toHaveCount(2)
+    await expect(page.getByTestId('alg-caption-q8')).toContainText('≠')
+    await expect(page.getByTestId('alg-subgroups-q8')).toContainText('全部子群均正规')
+    // 点击非交换单元格：说明栏显示具体乘积
+    await table.locator('[data-noncommuting="true"]').first().click()
+    await expect(page.getByTestId('alg-caption-q8')).toContainText('=')
+  })
+
+  test('代数·反例切换：A₄ 无 6 阶子群；C₄ 与 V₄ 同阶不同构（阶分布对比）', async ({ page }) => {
+    await page.goto('/?mode=advanced')
+    await page.getByTestId('adv-tab-algebra').click()
+    await page.getByTestId('adv-algebra-case-a4-lagrange-converse').click()
+    await expect(page.getByTestId('alg-case-title')).toContainText('拉格朗日')
+    await expect(page.getByTestId('alg-missing-a4')).toContainText('不存在 6 阶子群')
+    await page.getByTestId('adv-algebra-case-c4-v4-same-order').click()
+    await expect(page.getByTestId('alg-case-title')).toContainText('同阶')
+    await expect(page.getByTestId('alg-table-c4')).toBeVisible()
+    await expect(page.getByTestId('alg-table-v4')).toBeVisible()
+    await expect(page.getByTestId('adv-algebra-area')).toContainText('4×2')
+    await expect(page.getByTestId('adv-algebra-area')).toContainText('2×3')
+  })
+
+  test('代数·群结构探索：性质卡 + 子群格 + 点击元素显示生成子群', async ({ page }) => {
+    await page.goto('/?mode=advanced')
+    await page.getByTestId('adv-tab-algebra').click()
+    await page.getByTestId('adv-algebra-section-groups').click()
+    await expect(page.getByTestId('alg-group-facts')).toContainText('非交换')
+    await expect(page.getByTestId('alg-lattice')).toBeVisible()
+    // 默认 S₃：点击 (12) 行单元格 → 显示阶 / 逆元 / 生成子群
+    await page.getByTestId('alg-table-s3').locator('td').nth(6).click()
+    await expect(page.getByTestId('alg-element-info')).toContainText('阶')
+    await expect(page.getByTestId('alg-element-info')).toContainText('⟨')
+    // 切换 Q₈：性质卡与表格更新
+    await page.getByTestId('adv-algebra-group-q8').click()
+    await expect(page.getByTestId('alg-group-facts')).toContainText('Q₈')
+    await expect(page.getByTestId('alg-table-q8')).toBeVisible()
+  })
+
+  test('代数·环与域：ℤ₆ 单位/零因子（红格 4 处）；切到 ℤ₇ 为域', async ({ page }) => {
+    await page.goto('/?mode=advanced')
+    await page.getByTestId('adv-tab-algebra').click()
+    await page.getByTestId('adv-algebra-section-rings').click()
+    await expect(page.getByTestId('alg-ring-facts')).toContainText('1, 5')
+    await expect(page.getByTestId('alg-ring-facts')).toContainText('2, 3, 4')
+    await expect(page.getByTestId('alg-ring-mul').locator('.zero-product')).toHaveCount(4)
+    // ℤ₇：素数是域、无零因子红格
+    await page.getByTestId('adv-algebra-ring-n').selectOption('7')
+    await expect(page.getByTestId('alg-ring-facts')).toContainText('是（n 为素数）')
+    await expect(page.getByTestId('alg-ring-mul').locator('.zero-product')).toHaveCount(0)
+  })
 })

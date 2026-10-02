@@ -1,6 +1,6 @@
 # Math Drawing
 
-> 中文名：数学绘图工具。一个开源的数学可视化工具，覆盖**函数绘图**、**图论**，并向统计、3D 曲面、向量场、复变函数、数论、符号计算、交互 Notebook 延伸。
+> 中文名：数学绘图工具。一个开源的数学可视化工具，覆盖**函数绘图**、**图论**，并向统计、3D 曲面、向量场、复变函数、数论、符号计算、**近世代数**（群 / 环 / 域 + 反例列举）、交互 Notebook 延伸。
 
 形态：**网页应用**（TypeScript + 自研 Canvas 渲染器，纯静态部署，无后端），支持 **PWA 安装与离线使用**。
 
@@ -69,6 +69,7 @@ node scripts/bundle-size.mjs # 产物体积核算（gzip）
 | [docs/complex.md](docs/complex.md) | **复变可视化**（v0.9：域着色原理 / Möbius / 分支示意 / 围道积分 / 性能手段） |
 | [docs/numbertheory.md](docs/numbertheory.md) | **数论与离散**（v0.9：Ulam / Sacks / 模运算 / π(x) / Collatz / 生命游戏 / 分形） |
 | [docs/symbolic.md](docs/symbolic.md) | **符号计算**（v0.9：支持与不支持清单 / nerdamer 差分结果 / 超时保护） |
+| [docs/algebra.md](docs/algebra.md) | **近世代数模块**（v2.2：反例列举 / 有限群探索与子群格 / ℤₙ 环与域 / 实现与边界） |
 | [docs/tikz-export.md](docs/tikz-export.md) | **TikZ 导出专文**（表达式→PGFPlots 映射、可编译示例、编译验证） |
 | [tests/benchmark/pathological-functions.md](tests/benchmark/pathological-functions.md) | **病态函数基准对照**（JSXGraph 并排图） |
 
@@ -107,6 +108,7 @@ node scripts/bundle-size.mjs # 产物体积核算（gzip）
 | v1.0 Notebook 与教学 | 已完成 | 2026-10-03 | **收官，非终点**。Notebook 五类单元格（文本/图形/计算/数据/插件）+ 跨格变量拓扑级联 + 循环依赖诊断；导出（单文件交互 HTML / 打印 PDF / Markdown zip / LaTeX pgfplots / JSON）；教学（10 示例库、5 题判定、演示模式、参数动画 GIF）；**插件系统 6 类扩展点**（函数/元素/工具/视图/导出器/单元格，URL 与文件加载，错误隔离，`docs/plugin-api.md`）；**PWA**（可安装、离线可用）；性能：视图懒加载 + three/katex 分包，首屏 gzip ≈119KB（原 436KB），dist gzip ≈1.3MB；**全量 1126 单测 / 161 e2e 全绿**（含新增 notebook/teaching/plugin 模块与 20 项 Notebook e2e） |
 | v2.0 深色 UI 重设计 | 已完成 | 2026-10-02 | **UI UX Pro Max 设计系统落地**：设计令牌（OLED 深色数据工具风）、全局深色化、全部件配色适配、画布与网格主题化（导出管线保持浅色打印语义）、3D 深色背景、节点标签浅色；设计文档 `docs/design-system.md`；GitHub Pages 子路径部署上线 |
 | v2.1 二重积分 | 已完成 | 2026-10-02 | **3D 面板新增二重积分**：输入 f(x, y) 与矩形区域 [x₀,x₁]×[y₀,y₁] → 复合 Simpson（129² 采样）数值解，显示区域坐标与采样数、非有限采样警告；**场景坐标增强**：轴线 z-fight 修复（抬高 0.02）、x/y/z 箭头锥头与轴端标签、默认视角三轴全可见、深色网格；新增 7 单测 + 1 e2e（全量 1133 单测 / 162 e2e 全绿） |
+| v2.2 近世代数 | 已完成 | 2026-10-02 | **「进阶」模式新增第五子模块「代数」**：① **反例列举**—— 9 条经典近世代数反例（Q₈ 哈密顿群 / A₄ 拉格朗日之逆 / C₄≇V₄ / S₃ 子群之积 / 平凡中心 / 无限挠群 μ / ℤ[√−5] 非 UFD / GF(4) / ℂ 不可序），配 Cayley 表、子群报告、格点图等交互证据；② **群结构探索**—— 7 个有限群（C₄/V₄/C₆/S₃/D₄/Q₈/A₄）：Cayley 表点击选元素（阶/逆元/生成子群高亮）+ 子群格 Hasse 图（正规着色）+ 性质卡；③ **环与域**—— ℤₙ（n = 2~12）加减乘法表：单位/零因子标注、零积格、幂等元、φ(n)；新增 29 单测 + 4 e2e（全量 1162 单测 / 166 e2e 全绿） |
 
 ---
 

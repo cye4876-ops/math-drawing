@@ -1,5 +1,5 @@
 /**
- * 「进阶」模式共享状态（v0.9）：复变 / 数论 / 自动机 / 符号 四个子模块的视图参数、
+ * 「进阶」模式共享状态（v0.9）：复变 / 数论 / 自动机 / 符号 / 近世代数（v2.2） 五个子模块的视图参数、
  * 生命游戏模拟器实例与符号计算输出。AdvancedView（渲染）与 AdvancedPanel（控件）经模块级 runes 共享。
  */
 import type { ColormapName } from '../render3d/colormaps'
@@ -7,8 +7,9 @@ import type { ModularMode } from '../numbertheory/modular'
 import { LifeSim, LIFE_PATTERNS } from '../cellular/life'
 import { runSymbolicOperation as runSymbolic, type SymbolicOperation } from '../symbolic/run'
 import type { Interval } from '../symbolic/inequality'
+import { DEFAULT_CASE_ID } from '../algebra/counterexamples'
 
-export type AdvancedModule = 'complex' | 'numbertheory' | 'automata' | 'symbolic'
+export type AdvancedModule = 'complex' | 'numbertheory' | 'automata' | 'symbolic' | 'algebra'
 export type ComplexViewMode = 'domain' | 'mobius' | 'branch' | 'contour'
 export type NumberViz = 'ulam' | 'sacks' | 'modular' | 'collatz' | 'primes'
 export type AutomataViz = 'life' | 'mandelbrot' | 'julia'
@@ -45,6 +46,42 @@ export function getRevision(): number {
 
 function bump(): void {
   revision++
+}
+
+// ---------- 近世代数（v2.2） ----------
+export type AlgebraSection = 'counterexamples' | 'groups' | 'rings'
+let algebraSection = $state<AlgebraSection>('counterexamples')
+let algebraCaseId = $state(DEFAULT_CASE_ID)
+let algebraGroupId = $state('s3')
+let algebraRingN = $state(6)
+
+export function getAlgebraSection(): AlgebraSection {
+  return algebraSection
+}
+export function setAlgebraSection(value: AlgebraSection): void {
+  algebraSection = value
+  bump()
+}
+export function getAlgebraCase(): string {
+  return algebraCaseId
+}
+export function setAlgebraCase(value: string): void {
+  algebraCaseId = value
+  bump()
+}
+export function getAlgebraGroup(): string {
+  return algebraGroupId
+}
+export function setAlgebraGroup(value: string): void {
+  algebraGroupId = value
+  bump()
+}
+export function getAlgebraRingN(): number {
+  return algebraRingN
+}
+export function setAlgebraRingN(value: number): void {
+  algebraRingN = Math.max(2, Math.min(12, Math.round(value)))
+  bump()
 }
 
 // ---------- 复变 ----------

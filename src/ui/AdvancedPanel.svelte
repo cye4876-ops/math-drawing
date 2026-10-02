@@ -64,7 +64,16 @@
     getSymbolicLimitPoint,
     setSymbolicLimitPoint,
     runSymbolicOperation,
+    getAlgebraSection,
+    setAlgebraSection,
+    getAlgebraCase,
+    setAlgebraCase,
+    getAlgebraGroup,
+    setAlgebraGroup,
+    getAlgebraRingN,
+    setAlgebraRingN,
     type AdvancedModule,
+    type AlgebraSection,
     type ComplexViewMode,
     type NumberViz,
     type AutomataViz,
@@ -72,6 +81,8 @@
   import { MOBIUS_PRESETS } from '../complex/mobius'
   import { BRANCH_INFO } from '../complex/riemann-surface'
   import { COLORMAP_NAMES } from '../render3d/colormaps'
+  import { COUNTEREXAMPLE_CASES } from '../algebra/counterexamples'
+  import { GROUPS } from '../algebra/groups'
 
   function numberFrom(event: Event): number {
     return Number((event.currentTarget as HTMLInputElement).value)
@@ -86,7 +97,18 @@
     { id: 'numbertheory', label: '数论' },
     { id: 'automata', label: '自动机' },
     { id: 'symbolic', label: '符号' },
+    { id: 'algebra', label: '代数' },
   ]
+  const ALGEBRA_SECTIONS: { id: AlgebraSection; label: string }[] = [
+    { id: 'counterexamples', label: '反例列举' },
+    { id: 'groups', label: '群结构' },
+    { id: 'rings', label: '环与域' },
+  ]
+  const GROUP_LIST = Object.values(GROUPS).map((group) => ({
+    id: group.id,
+    short: group.name.split('（')[0] ?? group.name,
+  }))
+  const RING_OPTIONS = Array.from({ length: 11 }, (_, index) => index + 2)
   const COMPLEX_MODES: { id: ComplexViewMode; label: string }[] = [
     { id: 'domain', label: '域着色' },
     { id: 'mobius', label: 'Möbius 变换' },
@@ -520,7 +542,7 @@
         <div class="hint">滚轮缩放（以鼠标为中心）、双击还原。</div>
       {/if}
     </div>
-  {:else}
+  {:else if getModule() === 'symbolic'}
     <div class="section">
       <div class="row">
         <span class="dim">输入</span>
@@ -611,6 +633,67 @@
       </div>
     </div>
   {/if}
+  {#if getModule() === 'algebra'}
+    <div class="section">
+      <div class="mode-tabs">
+        {#each ALGEBRA_SECTIONS as item (item.id)}
+          <button
+            type="button"
+            class:active={getAlgebraSection() === item.id}
+            data-testid={`adv-algebra-section-${item.id}`}
+            onclick={() => setAlgebraSection(item.id)}>{item.label}</button
+          >
+        {/each}
+      </div>
+
+      {#if getAlgebraSection() === 'counterexamples'}
+        <div class="section-title">反例案例（{COUNTEREXAMPLE_CASES.length}）</div>
+        <div class="case-list">
+          {#each COUNTEREXAMPLE_CASES as item (item.id)}
+            <button
+              type="button"
+              class="case-item"
+              class:active={getAlgebraCase() === item.id}
+              data-testid={`adv-algebra-case-${item.id}`}
+              onclick={() => setAlgebraCase(item.id)}
+            >
+              <span class="case-field">{item.field}</span>
+              <span class="case-label">{item.title}</span>
+            </button>
+          {/each}
+        </div>
+      {:else if getAlgebraSection() === 'groups'}
+        <div class="section-title">选择群（{GROUP_LIST.length} 个）</div>
+        <div class="group-grid">
+          {#each GROUP_LIST as group (group.id)}
+            <button
+              type="button"
+              class:active={getAlgebraGroup() === group.id}
+              data-testid={`adv-algebra-group-${group.id}`}
+              onclick={() => setAlgebraGroup(group.id)}>{group.short}</button
+            >
+          {/each}
+        </div>
+        <div class="hint">
+          点击乘法表任意格：查看元素阶、逆元与生成子群；子群格在右侧（绿 = 正规）。
+        </div>
+      {:else}
+        <div class="row">
+          <span class="dim">模数 n =</span>
+          <select
+            data-testid="adv-algebra-ring-n"
+            value={getAlgebraRingN()}
+            onchange={(event) => setAlgebraRingN(Number(event.currentTarget.value))}
+          >
+            {#each RING_OPTIONS as value (value)}
+              <option {value}>{value}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="hint">ℤₙ：表头绿 = 单位、红 = 零因子；n 为素数时 ℤₙ 是域。</div>
+      {/if}
+    </div>
+  {/if}
 </aside>
 
 <style>
@@ -694,5 +777,42 @@
     font-size: 11px;
     color: #6f819f;
     line-height: 1.5;
+  }
+  .case-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 330px;
+    overflow: auto;
+  }
+  .case-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: left;
+    font-size: 12px;
+    padding: 5px 8px;
+  }
+  .case-item.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .case-field {
+    font-size: 10px;
+    color: #fcd34d;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 4px;
+    padding: 0 5px;
+    flex-shrink: 0;
+  }
+  .case-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .group-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
   }
 </style>

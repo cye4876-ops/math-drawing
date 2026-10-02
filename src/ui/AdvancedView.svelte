@@ -55,6 +55,7 @@
   import { colorizeFractal, renderFractal } from '../fractal/mandelbrot'
   import { downloadBlob } from '../export/download'
   import type { Interval } from '../symbolic/inequality'
+  import AlgebraLab from './AlgebraLab.svelte'
 
   let { active = false }: { active?: boolean } = $props()
 
@@ -554,7 +555,7 @@
   <canvas
     bind:this={canvasEl}
     data-testid="advanced-canvas"
-    class:symbolic={getModule() === 'symbolic'}
+    class:symbolic={getModule() === 'symbolic' || getModule() === 'algebra'}
     onclick={handleCanvasClick}
     onwheel={handleWheel}
     onpointerdown={handlePointerDown}
@@ -602,16 +603,21 @@
       {/if}
     </div>
   {/if}
+  {#if getModule() === 'algebra'}
+    <AlgebraLab />
+  {/if}
   {#if errorText}
     <div class="overlay-error" data-testid="adv-error">{errorText}</div>
   {/if}
   {#if contourText}
     <div class="overlay-info" data-testid="adv-contour-result">{contourText}</div>
   {/if}
-  <div class="render-ms" data-testid="adv-render-ms">{renderMs} ms</div>
-  <button class="export-btn" type="button" data-testid="adv-export-png" onclick={exportPng}
-    >导出 PNG</button
-  >
+  {#if getModule() !== 'algebra'}
+    <div class="render-ms" data-testid="adv-render-ms">{renderMs} ms</div>
+    <button class="export-btn" type="button" data-testid="adv-export-png" onclick={exportPng}
+      >导出 PNG</button
+    >
+  {/if}
 </div>
 
 <style>
