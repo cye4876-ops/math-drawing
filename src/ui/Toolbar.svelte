@@ -22,8 +22,10 @@
     canRedo: boolean
     getStageSize: () => Size
     registry: ToolRegistry
-    mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook'
-    onModeChange: (mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook') => void
+    mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
+    onModeChange: (
+      mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+    ) => void
   } = $props()
 
   let currentView = $state<ViewTransform | null>(null)
@@ -173,6 +175,14 @@
       aria-selected={mode === 'advanced'}
       class:active={mode === 'advanced'}
       onclick={() => onModeChange('advanced')}>进阶</button
+    >
+    <button
+      type="button"
+      role="tab"
+      data-testid="mode-matrix"
+      aria-selected={mode === 'matrix'}
+      class:active={mode === 'matrix'}
+      onclick={() => onModeChange('matrix')}>矩阵</button
     >
     <button
       type="button"

@@ -48,15 +48,19 @@
   const spacePanelLazy = lazy(() => import('./SpacePanel.svelte'))
   const advancedPanelLazy = lazy(() => import('./AdvancedPanel.svelte'))
   const notebookPanelLazy = lazy(() => import('./NotebookPanel.svelte'))
+  const matrixViewLazy = lazy(() => import('./MatrixView.svelte'))
+  const matrixPanelLazy = lazy(() => import('./MatrixPanel.svelte'))
 
   // 重视图常驻语义：一旦进入过就保持挂载（WebGL 上下文/组件状态不丢）
   let spaceMounted = $state(false)
   let advancedMounted = $state(false)
   let notebookMounted = $state(false)
+  let matrixMounted = $state(false)
   $effect(() => {
     if (mode === 'space') spaceMounted = true
     if (mode === 'advanced') advancedMounted = true
     if (mode === 'notebook') notebookMounted = true
+    if (mode === 'matrix') matrixMounted = true
   })
 
   // 演示模式（v1.0）：侧栏整体隐藏，浮动退出按钮保证随时可退出（含全屏被拒场景）
@@ -137,8 +141,8 @@
     return null
   }
 
-  let sharedPreloadMode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | null =
-    null
+  let sharedPreloadMode:
+    'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' | null = null
 
   function preloadFromUrl(target: AppStore): ViewRangeInput | null {
     if (typeof location === 'undefined') return null
@@ -230,29 +234,33 @@
   // 预载必须在组件状态初始化之前执行（否则初始 UI 状态捕获不到）
   const pendingRange = preloadFromUrl(store)
 
-  /** 界面模式（工具条左上角切换）：plot / graph / stats / space / advanced / notebook；?mode= 可指定 */
-  function initialModeFromUrl(): 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' {
+  /** 界面模式（工具条左上角切换）：plot / graph / stats / space / advanced / matrix / notebook；?mode= 可指定 */
+  function initialModeFromUrl():
+    'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' {
     if (typeof location === 'undefined') return 'plot'
     const modeParam = readRawParam(location.search, 'mode')
     if (modeParam === 'graph') return 'graph'
     if (modeParam === 'stats') return 'stats'
     if (modeParam === 'space') return 'space'
     if (modeParam === 'advanced') return 'advanced'
+    if (modeParam === 'matrix') return 'matrix'
     if (modeParam === 'notebook') return 'notebook'
     if (modeParam === null && readRawParam(location.search, 'graph') !== null) return 'graph'
     return 'plot'
   }
-  const initialMode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' =
+  const initialMode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' =
     sharedPreloadMode ?? initialModeFromUrl()
 
-  let mode = $state<'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook'>(initialMode)
+  let mode = $state<'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'>(
+    initialMode,
+  )
 
   /**
    * 六种模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
    * 页面初始视图归属于初始模式；未访问过的模式回落到标准默认视图。
    */
   const savedViews: Record<
-    'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook',
+    'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
     ViewTransform | null
   > = {
     plot: initialMode === 'plot' ? { ...store.getView() } : null,
@@ -261,11 +269,13 @@
     space: initialMode === 'space' ? { ...store.getView() } : null,
     advanced: initialMode === 'advanced' ? { ...store.getView() } : null,
     notebook: initialMode === 'notebook' ? { ...store.getView() } : null,
+    matrix: initialMode === 'matrix' ? { ...store.getView() } : null,
   }
 
-  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集，3D/进阶/Notebook 不画 2D */
+  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集，3D/进阶/矩阵/Notebook 不画 2D */
   function visibleObjectsOf(state: { doc: { objects: SceneObject[] } }): SceneObject[] {
-    if (mode === 'space' || mode === 'advanced' || mode === 'notebook') return []
+    if (mode === 'space' || mode === 'advanced' || mode === 'matrix' || mode === 'notebook')
+      return []
     return state.doc.objects.filter((object) => {
       if (mode === 'graph') return object.type === 'graph'
       if (mode === 'stats') return object.type === 'dataset'
@@ -277,7 +287,9 @@
     })
   }
 
-  function setMode(next: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook'): void {
+  function setMode(
+    next: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+  ): void {
     if (mode === next) return
     savedViews[mode] = store.getView()
     mode = next
@@ -401,7 +413,10 @@
     <div
       class="stage"
       bind:this={stageElement}
-      class:hidden2d={mode === 'space' || mode === 'advanced' || mode === 'notebook'}
+      class:hidden2d={mode === 'space' ||
+        mode === 'advanced' ||
+        mode === 'matrix' ||
+        mode === 'notebook'}
     >
       {#if spaceMounted}
         {#await spaceViewLazy() then spaceModule}
@@ -413,6 +428,12 @@
         {#await advancedViewLazy() then advancedModule}
           {@const AdvancedView = advancedModule.default}
           <AdvancedView active={mode === 'advanced'} />
+        {/await}
+      {/if}
+      {#if matrixMounted}
+        {#await matrixViewLazy() then matrixModule}
+          {@const MatrixView = matrixModule.default}
+          <MatrixView active={mode === 'matrix'} />
         {/await}
       {/if}
       {#if notebookMounted}
@@ -449,6 +470,11 @@
             onOpenMode={setMode}
             onPluginsChanged={handlePluginsChanged}
           />
+        {/await}
+      {:else if mode === 'matrix'}
+        {#await matrixPanelLazy() then matrixPanelModule}
+          {@const MatrixPanel = matrixPanelModule.default}
+          <MatrixPanel />
         {/await}
       {:else}
         {#await advancedPanelLazy() then advancedPanelModule}

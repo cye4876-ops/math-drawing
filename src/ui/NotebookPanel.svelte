@@ -43,8 +43,10 @@
   }: {
     store: AppStore
     registry: ToolRegistry
-    mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook'
-    onOpenMode: (mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook') => void
+    mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
+    onOpenMode: (
+      mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+    ) => void
     onPluginsChanged: () => void
   } = $props()
 

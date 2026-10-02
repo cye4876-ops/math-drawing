@@ -30,7 +30,9 @@
     cell: NotebookCell
     index: number
     store: AppStore
-    onOpenMode: (mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook') => void
+    onOpenMode: (
+      mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+    ) => void
   } = $props()
 
   const TYPE_LABELS: Record<NotebookCell['type'], string> = {

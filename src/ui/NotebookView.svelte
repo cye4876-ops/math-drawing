@@ -25,7 +25,9 @@
   }: {
     active: boolean
     store: AppStore
-    onOpenMode: (mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook') => void
+    onOpenMode: (
+      mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+    ) => void
   } = $props()
 
   let dragIndex = $state<number | null>(null)

@@ -23,7 +23,7 @@
     onClose,
   }: {
     store: AppStore
-    mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook'
+    mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
     getStageSize: () => { width: number; height: number }
     onClose: () => void
   } = $props()

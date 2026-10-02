@@ -24,7 +24,7 @@ export interface TeachingExample {
   id: string
   title: string
   description: string
-  mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook'
+  mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
   apply(store: AppStore, hooks: ExampleHooks): void
 }
 
