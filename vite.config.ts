@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: process.env['BASE_PATH'] ?? '/',
   plugins: [svelte()],
   server: {
     host: '127.0.0.1',

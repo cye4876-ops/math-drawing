@@ -11,13 +11,15 @@
 const VERSION = 'v1.0.0'
 const SHELL_CACHE = `math-drawing-shell-${VERSION}`
 const ASSET_CACHE = `math-drawing-assets-${VERSION}`
+/** 站点前缀（自适应子路径部署，如 GitHub Pages 的 /math-drawing/；根路径部署则为 /） */
+const BASE = new URL('./', self.location).href
 const SHELL_FILES = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/icon.svg',
-  '/icon-192.png',
-  '/icon-512.png',
+  BASE,
+  BASE + 'index.html',
+  BASE + 'manifest.webmanifest',
+  BASE + 'icon.svg',
+  BASE + 'icon-192.png',
+  BASE + 'icon-512.png',
 ]
 
 self.addEventListener('install', (event) => {
@@ -56,18 +58,20 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone()
-          void caches.open(SHELL_CACHE).then((cache) => cache.put('/index.html', copy))
+          void caches.open(SHELL_CACHE).then((cache) => cache.put(BASE + 'index.html', copy))
           return response
         })
-        .catch(() => caches.match('/index.html').then((cached) => cached ?? Response.error())),
+        .catch(() =>
+          caches.match(BASE + 'index.html').then((cached) => cached ?? Response.error()),
+        ),
     )
     return
   }
 
   // 静态资源：cache-first（/plugins/ 除外——插件由用户迭代，走网络以拿最新）
   if (
-    !url.pathname.startsWith('/plugins/') &&
-    (url.pathname.startsWith('/assets/') ||
+    !url.pathname.includes('/plugins/') &&
+    (url.pathname.includes('/assets/') ||
       /\.(woff2?|ttf|png|svg|css|js|webmanifest)$/.test(url.pathname))
   ) {
     event.respondWith(

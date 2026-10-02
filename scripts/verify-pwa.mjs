@@ -30,10 +30,14 @@ const swReady = await page.evaluate(async () => {
   const registration = await navigator.serviceWorker.ready
   return registration.active ? 'active' : 'pending'
 })
-const manifestStatus = await page.evaluate(() =>
-  fetch('/manifest.webmanifest').then((r) => r.status),
+const manifestStatus = await page.evaluate(
+  (b) => fetch(new URL('manifest.webmanifest', `${b}/`).href).then((r) => r.status),
+  base,
 )
-const iconStatus = await page.evaluate(() => fetch('/icon-512.png').then((r) => r.status))
+const iconStatus = await page.evaluate(
+  (b) => fetch(new URL('icon-512.png', `${b}/`).href).then((r) => r.status),
+  base,
+)
 const onlineTitle = await page.title()
 const onlinePanel = await page.locator('[data-testid="notebook-panel"]').count()
 

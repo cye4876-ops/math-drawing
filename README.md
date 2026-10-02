@@ -26,6 +26,7 @@ node scripts/bundle-size.mjs # 产物体积核算（gzip）
 > e2e 默认使用内置 Chromium（首次 `pnpm exec playwright install chromium`）；网络受限时用系统浏览器：`PW_CHANNEL=chrome pnpm test:e2e`。
 
 **部署**：`pnpm build` 产物为纯静态文件（含 `manifest.webmanifest` 与 `sw.js`），任意静态服务器/对象存储/CDN 均可；用 HTTPS（或 localhost）访问即获得 PWA 安装与离线能力。
+本仓库已配置 **GitHub Pages 自动部署**（推送 `main` 后由 `.github/workflows/deploy-pages.yml` 构建发布，子路径 `base` 自动适配）；其他平台（Cloudflare Pages / Netlify / Vercel）直接构建 `pnpm build`、输出目录 `dist` 即可。
 
 ---
 
