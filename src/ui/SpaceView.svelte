@@ -304,8 +304,8 @@
     padding: 24px;
     font-size: 13px;
     line-height: 1.7;
-    color: #475569;
-    background: rgba(248, 250, 252, 0.92);
+    color: var(--text-dim);
+    background: rgba(15, 23, 42, 0.92);
   }
 
   .hint-bar {
@@ -314,9 +314,9 @@
     bottom: 12px;
     padding: 4px 10px;
     font-size: 12px;
-    color: #475569;
-    background: rgba(255, 255, 255, 0.94);
-    border: 1px solid #e2e8f0;
+    color: var(--text-dim);
+    background: rgba(11, 18, 32, 0.92);
+    border: 1px solid var(--border);
     border-radius: 6px;
     pointer-events: none;
   }

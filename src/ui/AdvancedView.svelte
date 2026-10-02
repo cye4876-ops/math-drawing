@@ -706,7 +706,7 @@
     right: 8px;
     bottom: 6px;
     font-size: 11px;
-    color: #5b6b88;
+    color: var(--text-dim);
     font-family: ui-monospace, monospace;
   }
   .export-btn {

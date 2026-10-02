@@ -99,7 +99,7 @@ function drawNodeLabel(ctx: CanvasRenderingContext2D, node: GraphNodeData, s: No
   ctx.font = LABEL_FONT
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
-  ctx.fillStyle = '#1f2937'
+  ctx.fillStyle = '#cbd5e1'
   ctx.fillText(node.label, s.cx, s.cy + s.radius + 4)
 }
 

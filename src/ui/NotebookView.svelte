@@ -124,7 +124,7 @@
     position: absolute;
     inset: 0;
     overflow-y: auto;
-    background: #eef1f7;
+    background: var(--bg);
     padding: 0 0 40px 0;
   }
   .notebook-view.hidden {
@@ -139,8 +139,8 @@
     align-items: center;
     gap: 8px;
     padding: 10px 16px;
-    background: #ffffff;
-    border-bottom: 1px solid #d8dfeb;
+    background: var(--bg-chrome);
+    border-bottom: 1px solid var(--border);
   }
   .nb-title {
     font-size: 16px;
@@ -151,16 +151,16 @@
     min-width: 160px;
     max-width: 320px;
     background: transparent;
-    color: #1d2b42;
+    color: var(--text);
   }
   .nb-title:hover,
   .nb-title:focus {
-    border-color: #d8dfeb;
-    background: #fbfcfe;
+    border-color: var(--border);
+    background: var(--bg-elevated);
   }
   .nb-meta {
     font-size: 12px;
-    color: #7a8aa8;
+    color: var(--text-dim);
     white-space: nowrap;
   }
   .nb-header .spacer {
@@ -171,17 +171,17 @@
     padding: 4px 10px;
   }
   .nb-header .run-all {
-    background: #2c4a7c;
+    background: var(--accent);
     color: #fff;
-    border-color: #2c4a7c;
+    border-color: var(--accent);
   }
   .nb-vars {
     padding: 6px 18px;
     font-size: 12px;
-    color: #31507c;
-    background: #f3f6fb;
-    border-bottom: 1px solid #e3e9f3;
-    font-family: ui-monospace, monospace;
+    color: var(--text-dim);
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
   }
   .nb-cells {
     max-width: 980px;
@@ -197,10 +197,10 @@
   }
   .nb-empty {
     text-align: center;
-    color: #7a8aa8;
+    color: var(--text-dim);
     padding: 60px 20px;
-    background: #ffffff;
-    border: 1px dashed #c4d2e8;
+    background: var(--bg-panel);
+    border: 1px dashed var(--border-strong);
     border-radius: 10px;
   }
 </style>

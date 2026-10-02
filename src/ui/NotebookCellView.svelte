@@ -388,12 +388,12 @@
 
 <style>
   .nb-cell {
-    background: #ffffff;
-    border: 1px solid #d8dfeb;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
     border-radius: 10px;
     margin: 0 0 10px 0;
     overflow: hidden;
-    box-shadow: 0 1px 2px rgba(20, 30, 50, 0.05);
+    box-shadow: var(--shadow-card);
   }
   .nb-cell.collapsed {
     opacity: 0.85;
@@ -403,8 +403,8 @@
     align-items: center;
     gap: 6px;
     padding: 5px 10px;
-    background: #f3f6fb;
-    border-bottom: 1px solid #e3e9f3;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
   }
   .cell-toolbar .spacer {
     flex: 1;
@@ -417,20 +417,20 @@
     font-size: 11px;
     padding: 1px 8px;
     border-radius: 999px;
-    background: #dde7f7;
-    color: #31507c;
+    background: rgba(59, 130, 246, 0.18);
+    color: #93c5fd;
   }
   .type-badge[data-cell-type='figure'] {
-    background: #dcf1e4;
-    color: #1f6b3d;
+    background: rgba(34, 197, 94, 0.18);
+    color: var(--success);
   }
   .type-badge[data-cell-type='compute'] {
-    background: #fdeeda;
-    color: #8a5a12;
+    background: rgba(245, 158, 11, 0.18);
+    color: #fbbf24;
   }
   .type-badge[data-cell-type='data'] {
-    background: #f3e2f7;
-    color: #6b2a7a;
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
   }
   .cell-body {
     padding: 10px;
@@ -442,21 +442,22 @@
     width: 100%;
     min-height: 90px;
     resize: vertical;
-    font-family: ui-monospace, monospace;
+    font-family: var(--mono);
     font-size: 13px;
-    border: 1px solid #d8dfeb;
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 8px;
     box-sizing: border-box;
-    background: #fbfcfe;
+    background: var(--bg-input);
+    color: var(--text);
   }
   .md-input.mono {
     min-height: 80px;
   }
   .md-preview {
-    border-top: 1px dashed #e3e9f3;
+    border-top: 1px dashed var(--border);
     padding-top: 8px;
-    color: #1d2b42;
+    color: var(--text);
     line-height: 1.65;
     font-size: 14px;
     overflow-x: auto;
@@ -468,19 +469,19 @@
     margin: 0.4em 0;
   }
   .md-preview :global(pre) {
-    background: #f3f6fb;
+    background: var(--bg-elevated);
     padding: 8px 10px;
     border-radius: 6px;
     overflow-x: auto;
   }
   .md-preview :global(blockquote) {
-    border-left: 3px solid #c4d2e8;
+    border-left: 3px solid var(--border-strong);
     margin: 0.4em 0;
     padding-left: 10px;
-    color: #4a5d80;
+    color: var(--text-dim);
   }
   .md-preview :global(.math-fallback) {
-    background: #fdf3e3;
+    background: rgba(245, 158, 11, 0.15);
     padding: 0 4px;
     border-radius: 4px;
   }
@@ -492,35 +493,39 @@
   .compute-input {
     flex: 1;
     min-width: 0;
-    font-family: ui-monospace, monospace;
+    font-family: var(--mono);
     padding: 6px 8px;
-    border: 1px solid #d8dfeb;
+    border: 1px solid var(--border);
     border-radius: 6px;
-    background: #fbfcfe;
+    background: var(--bg-input);
+    color: var(--text);
   }
   .compute-row select {
     padding: 6px;
-    border: 1px solid #d8dfeb;
+    border: 1px solid var(--border);
     border-radius: 6px;
-    background: #fbfcfe;
+    background: var(--bg-input);
+    color: var(--text);
   }
   .limit-input {
     width: 64px;
-    font-family: ui-monospace, monospace;
+    font-family: var(--mono);
     padding: 6px 8px;
-    border: 1px solid #d8dfeb;
+    border: 1px solid var(--border);
     border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text);
   }
   .cell-error {
-    color: #b3261e;
-    background: #fdecea;
-    border: 1px solid #f6c9c4;
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.14);
+    border: 1px solid rgba(239, 68, 68, 0.35);
     border-radius: 6px;
     padding: 6px 10px;
     font-size: 13px;
   }
   .cell-result {
-    color: #143a66;
+    color: var(--text);
     font-size: 15px;
     display: flex;
     align-items: baseline;
@@ -528,14 +533,14 @@
     flex-wrap: wrap;
   }
   .cell-note {
-    color: #7a8aa8;
+    color: var(--text-dim);
     font-size: 12px;
   }
   .cell-symbolic {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    color: #143a66;
+    color: var(--text);
   }
   .latex-line {
     overflow-x: auto;
@@ -547,9 +552,9 @@
   .figure-canvas {
     width: 100%;
     height: auto;
-    border: 1px solid #e3e9f3;
+    border: 1px solid var(--border);
     border-radius: 6px;
-    background: #f7f9fc;
+    background: var(--bg-elevated);
   }
   .figure-row {
     display: flex;
@@ -559,9 +564,10 @@
     flex: 1;
     min-width: 0;
     padding: 6px 8px;
-    border: 1px solid #d8dfeb;
+    border: 1px solid var(--border);
     border-radius: 6px;
-    background: #fbfcfe;
+    background: var(--bg-input);
+    color: var(--text);
   }
   .figure-row button {
     font-size: 12px;
@@ -574,15 +580,15 @@
   }
   .table-preview th,
   .table-preview td {
-    border: 1px solid #e3e9f3;
+    border: 1px solid var(--border);
     padding: 3px 10px;
     text-align: right;
   }
   .table-preview th {
-    background: #f3f6fb;
+    background: var(--bg-elevated);
   }
   .plugin-host {
-    border: 1px dashed #c4d2e8;
+    border: 1px dashed var(--border-strong);
     border-radius: 6px;
     padding: 8px;
   }

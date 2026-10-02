@@ -40,7 +40,7 @@ export function renderPngCanvas(
   }
   ctx.save()
   ctx.scale(options.scale, options.scale)
-  renderFrame(ctx, doc, mode, view, size, { withGrid: !options.transparent })
+  renderFrame(ctx, doc, mode, view, size, { theme: 'light', withGrid: !options.transparent })
   ctx.restore()
   return canvas
 }

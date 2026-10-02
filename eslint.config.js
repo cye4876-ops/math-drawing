@@ -8,7 +8,14 @@ import svelteConfig from './svelte.config.js'
 
 export default defineConfig(
   {
-    ignores: ['dist/**', 'coverage/**', 'playwright-report/**', 'test-results/**'],
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'playwright-report/**',
+      'test-results/**',
+      // UI UX Pro Max 技能资产（第三方内容，不参与项目 lint）
+      '.github/prompts/**',
+    ],
   },
   js.configs.recommended,
   ts.configs.recommended,

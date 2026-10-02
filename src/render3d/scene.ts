@@ -87,7 +87,7 @@ interface SceneItem {
   dispose(): void
 }
 
-const BACKGROUND = 0xf7f9fc
+const BACKGROUND = 0x0f172a
 
 export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
   const renderer = new THREE.WebGLRenderer({

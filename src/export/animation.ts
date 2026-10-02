@@ -247,6 +247,7 @@ function createFrameDrawer(
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, width, height)
     renderFrame(ctx, doc, mode, view, size, {
+      theme: 'light',
       withGrid: mode === 'plot',
       highlight: frame.highlight,
     })

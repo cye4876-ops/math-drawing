@@ -638,7 +638,7 @@
     font-size: 12px;
   }
   .mode-tabs button.active {
-    background: #2c4a7c;
+    background: var(--accent);
     color: #fff;
   }
   .section {

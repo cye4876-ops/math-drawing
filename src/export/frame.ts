@@ -2,7 +2,7 @@
  * 导出共享层（v0.6）：范围解析 + 单帧渲染。
  * PNG（离屏画布）、动画帧（GIF/视频）共用；SVG/TikZ 另走矢量管线。
  */
-import { drawGrid } from '../render/grid-renderer'
+import { drawGrid, setGridTheme, type GridTheme } from '../render/grid-renderer'
 import { createSceneRenderer } from '../render/scene'
 import { mathToScreen } from '../core/transform'
 import type { SceneHighlight } from '../render/element-registry'
@@ -111,6 +111,8 @@ export function resolveView(
 export interface FrameRenderOptions {
   /** 是否绘制网格与坐标轴（plot 模式；透明背景导出时通常关闭） */
   withGrid: boolean
+  /** 网格主题：导出管线用 'light'（打印友好）；屏幕渲染默认 'dark' */
+  theme?: GridTheme
   /** 图层高亮（动画帧：算法步骤 / 选中元素） */
   highlight?: SceneHighlight
 }
@@ -129,7 +131,14 @@ export function renderFrame(
 ): void {
   syncPluginElements()
   const objects = objectsOfMode(doc, mode)
-  if (mode !== 'graph' && options.withGrid) drawGrid(ctx, view, size, 1)
+  if (mode !== 'graph' && options.withGrid) {
+    setGridTheme(options.theme ?? 'dark')
+    try {
+      drawGrid(ctx, view, size, 1)
+    } finally {
+      setGridTheme('dark')
+    }
+  }
   exportScene.draw(ctx, objects, { view, size }, options.highlight)
   drawMarkers(ctx, objects, view, size)
 }

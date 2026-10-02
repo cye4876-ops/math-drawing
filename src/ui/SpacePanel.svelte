@@ -902,12 +902,12 @@
     font-size: 10px;
     padding: 1px 5px;
     border-radius: 4px;
-    background: #e2e8f0;
-    color: #475569;
+    background: var(--bg-elevated);
+    color: var(--text-dim);
   }
 
   .remove {
-    color: #b91c1c;
+    color: #fca5a5;
     padding: 0 6px;
   }
 
@@ -926,7 +926,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 6px 8px;
-    background: #fffbeb;
+    background: rgba(245, 158, 11, 0.12);
   }
 
   .hint {

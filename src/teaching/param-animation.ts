@@ -71,7 +71,7 @@ export function recordParamAnimation(
       setAmbientParameters({ ...original, [options.parameter]: value })
       context.fillStyle = '#ffffff'
       context.fillRect(0, 0, size.width, size.height)
-      renderFrame(context, doc, mode, view, size, { withGrid: true })
+      renderFrame(context, doc, mode, view, size, { theme: 'light', withGrid: true })
       const imageData = context.getImageData(0, 0, size.width, size.height)
       const palette = quantize(imageData.data, 256)
       const index = applyPalette(imageData.data, palette)

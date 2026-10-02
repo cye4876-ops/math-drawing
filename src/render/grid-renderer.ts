@@ -5,10 +5,25 @@ import { formatTick, niceStep, ticksForRange } from '../core/ticks'
 /** 相邻主刻度标签的最小屏幕间距（像素），同时约束标签不重叠 */
 export const MIN_TICK_SPACING = 64
 
-const GRID_COLOR = '#e5e7eb'
-const MINOR_GRID_COLOR = '#f1f2f4'
-const AXIS_COLOR = '#9ca3af'
-const LABEL_COLOR = '#6b7280'
+export type GridTheme = 'light' | 'dark'
+
+const LIGHT_PALETTE = { grid: '#e5e7eb', minor: '#f1f2f4', axis: '#9ca3af', label: '#6b7280' }
+const DARK_PALETTE = { grid: '#243149', minor: '#1a2438', axis: '#64748b', label: '#94a3b8' }
+
+let GRID_COLOR = DARK_PALETTE.grid
+let MINOR_GRID_COLOR = DARK_PALETTE.minor
+let AXIS_COLOR = DARK_PALETTE.axis
+let LABEL_COLOR = DARK_PALETTE.label
+
+/** 切换网格配色（v2.0）：屏幕渲染默认 dark；导出管线临时切 light 保持打印友好的浅色。
+ *  渲染为同步绘制，调用方在 try/finally 中切回即可。 */
+export function setGridTheme(theme: GridTheme): void {
+  const palette = theme === 'light' ? LIGHT_PALETTE : DARK_PALETTE
+  GRID_COLOR = palette.grid
+  MINOR_GRID_COLOR = palette.minor
+  AXIS_COLOR = palette.axis
+  LABEL_COLOR = palette.label
+}
 const LABEL_FONT = '12px system-ui, "Segoe UI", "Microsoft YaHei", sans-serif'
 const LABEL_OFFSET = 6
 const LABEL_HEIGHT = 14

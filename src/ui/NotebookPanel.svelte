@@ -635,37 +635,37 @@
   }
   .example-desc {
     font-size: 11px;
-    color: #6f819f;
+    color: var(--text-dim);
     white-space: normal;
     line-height: 1.4;
   }
   .problem-pass {
     font-size: 12px;
-    color: #1f6b3d;
-    background: #e2f5e9;
-    border: 1px solid #bcdfc8;
+    color: var(--success);
+    background: rgba(34, 197, 94, 0.14);
+    border: 1px solid rgba(34, 197, 94, 0.35);
     border-radius: 8px;
     padding: 6px 10px;
     line-height: 1.5;
   }
   .problem-fail {
     font-size: 12px;
-    color: #8a5a12;
-    background: #fdf3e0;
-    border: 1px solid #eed9b4;
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
     border-radius: 8px;
     padding: 6px 10px;
     line-height: 1.5;
   }
   .plugin-ok {
     font-size: 12px;
-    color: #1f6b3d;
+    color: var(--success);
   }
   .plugin-error {
     font-size: 12px;
-    color: #b3261e;
-    background: #fdecea;
-    border: 1px solid #f6c9c4;
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.14);
+    border: 1px solid rgba(239, 68, 68, 0.35);
     border-radius: 8px;
     padding: 6px 10px;
   }
@@ -676,21 +676,21 @@
   }
   .plugin-chip {
     font-size: 11px;
-    background: #e6eefb;
-    border: 1px solid #c4d2e8;
-    color: #31507c;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    color: #93c5fd;
     border-radius: 999px;
     padding: 2px 10px;
   }
   .plugin-views :global(.plugin-view-box) {
-    border: 1px dashed #c4d2e8;
+    border: 1px dashed var(--border-strong);
     border-radius: 8px;
     padding: 8px;
     margin-top: 6px;
   }
   .plugin-views :global(.plugin-view-title) {
     font-size: 12px;
-    color: #4a5d80;
+    color: var(--text-dim);
     margin-bottom: 4px;
   }
   .hidden-file {

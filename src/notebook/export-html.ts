@@ -76,7 +76,7 @@ function renderStaticPng(doc: DocState, view: ViewTransform, scale = 2): string 
   context.fillStyle = '#ffffff'
   context.fillRect(0, 0, FIGURE_SIZE.width, FIGURE_SIZE.height)
   const mode = inferDocMode(doc)
-  renderFrame(context, doc, mode, view, FIGURE_SIZE, { withGrid: true })
+  renderFrame(context, doc, mode, view, FIGURE_SIZE, { theme: 'light', withGrid: true })
   return canvas.toDataURL('image/png')
 }
 

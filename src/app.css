@@ -1,18 +1,67 @@
 :root {
-  --text: #1f2937;
-  --text-dim: #6b7280;
-  --bg: #ffffff;
-  --border: #e5e7eb;
-  --accent: #2563eb;
+  /* v2.0 深色设计系统（docs/design-system.md）：Dark Mode 数据工具风 */
+  --text: #f1f5f9;
+  --text-dim: #94a3b8;
+  --bg: #0f172a;
+  --bg-chrome: #0b1220; /* 工具栏/状态栏：略深于背景建立层级 */
+  --bg-panel: #1b2336;
+  --bg-elevated: #1e293b;
+  --bg-input: #151e30;
+  --border: #2e3a52;
+  --border-strong: #475569;
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
 
   --sans: system-ui, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  --mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
   font-family: var(--sans);
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
-  color-scheme: light;
+  color-scheme: dark;
+}
+
+/* 深色主题全局细节：选区/滚动条/focus 环 */
+::selection {
+  background: rgba(59, 130, 246, 0.35);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button,
+select,
+input,
+textarea {
+  accent-color: var(--accent);
 }
 
 html,
@@ -53,6 +102,7 @@ body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  background: var(--bg);
   cursor: grab;
   user-select: none;
   touch-action: none;
@@ -89,6 +139,7 @@ body {
   gap: 8px;
   align-items: center;
   padding: 8px 12px;
+  background: var(--bg-chrome);
   border-bottom: 1px solid var(--border);
 }
 
@@ -97,14 +148,18 @@ body {
   padding: 4px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--bg);
+  background: var(--bg-elevated);
   color: var(--text);
   cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    background 150ms ease;
 }
 
 .toolbar button:hover:not(:disabled) {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-hover);
 }
 
 .toolbar button:disabled {
@@ -117,6 +172,7 @@ body {
   justify-content: space-between;
   gap: 16px;
   padding: 4px 12px;
+  background: var(--bg-chrome);
   border-top: 1px solid var(--border);
   font-size: 13px;
   color: var(--text-dim);
