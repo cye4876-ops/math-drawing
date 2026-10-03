@@ -15,6 +15,8 @@ export default defineConfig(
       'test-results/**',
       // UI UX Pro Max 技能资产（第三方内容，不参与项目 lint）
       '.github/prompts/**',
+      // 界面设计预览稿与提取脚本（设计与评审用，不参与应用构建与 lint）
+      'design/**',
     ],
   },
   js.configs.recommended,

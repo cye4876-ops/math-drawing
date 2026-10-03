@@ -17,8 +17,13 @@
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08);
   --scroll-thumb: #cbd5e1;
   --selection-bg: rgba(37, 99, 235, 0.22);
+  /* v2.6 画布优先：浮动卡片与工具坞 */
+  --card: rgba(255, 255, 255, 0.94);
+  --accent-soft: rgba(37, 99, 235, 0.08);
+  --canvas-bg: #fdfdfe;
+  --shadow-pop: 0 1px 2px rgba(24, 24, 27, 0.05), 0 14px 40px rgba(24, 24, 27, 0.12);
 
-  --sans: system-ui, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  --sans: Inter, system-ui, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
   font-family: var(--sans);
@@ -47,6 +52,10 @@ html[data-theme='dark'] {
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
   --scroll-thumb: #334155;
   --selection-bg: rgba(59, 130, 246, 0.35);
+  --card: rgba(23, 23, 28, 0.9);
+  --accent-soft: rgba(96, 165, 250, 0.12);
+  --canvas-bg: #0f172a;
+  --shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.45), 0 16px 44px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }
 
@@ -110,6 +119,7 @@ body {
   display: flex;
   flex: 1;
   min-height: 0;
+  position: relative;
 }
 
 /* 侧栏收起（v2.4 工作台改版）：画布获得完整宽度 */
@@ -273,7 +283,7 @@ body {
   font-size: 13px;
 }
 
-/* 窄窗口（v2.4）：画布在上、编辑面板在下（改变布局而非缩小文字） */
+/* 窄窗口（v2.4/v2.6）：画布在上、编辑面板在下（回到常规文档流） */
 @media (max-width: 920px) {
   .main {
     flex-direction: column;
@@ -281,20 +291,64 @@ body {
   .stage {
     min-height: 52%;
   }
+}
+
+/* 侧栏（v2.6 画布优先）：浮动玻璃卡片覆盖在画布上；收起时画布全宽 */
+.side-column {
+  position: absolute;
+  left: 16px;
+  top: 12px;
+  bottom: 96px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  width: 344px;
+  min-height: 0;
+  background: var(--card);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+
+/* 浮动卡片内的面板容器去掉各自的底与边框（由卡片统一提供） */
+.side-column > * {
+  background: transparent;
+  border: none;
+}
+
+/* 窄窗口：浮动卡片回到常规文档流（画布在上、面板在下） */
+@media (max-width: 920px) {
   .side-column {
+    position: static;
+    left: auto;
+    top: auto;
+    bottom: auto;
     width: auto;
     max-height: 46%;
+    margin-bottom: 104px;
     border-top: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--bg-panel);
+    backdrop-filter: none;
+    box-shadow: none;
   }
 }
 
-/* 右侧栏：曲线列表（上，占剩余空间）+ 工具面板（下，自适应） */
-.side-column {
-  display: flex;
-  flex-direction: column;
-  width: 300px;
-  flex: 0 0 auto;
-  min-height: 0;
+/* 数学专题·代数实验区（舞台内的绝对定位详情层）：向右避让左侧浮动卡片 */
+.main .stage .algebra-area {
+  left: 372px;
+}
+
+.main.sidebar-collapsed .stage .algebra-area {
+  left: 0;
+}
+
+@media (max-width: 920px) {
+  .main .stage .algebra-area {
+    left: 0;
+  }
 }
 
 .stage {
@@ -302,7 +356,7 @@ body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: var(--bg);
+  background: var(--canvas-bg);
   cursor: grab;
   user-select: none;
   touch-action: none;
@@ -334,40 +388,73 @@ body {
   pointer-events: none;
 }
 
-.toolbar {
+/* 工具栏（v2.6）：样式迁移到 Toolbar.svelte（顶部玻璃拦 + 底部浮动工具坞） */
+
+/* 状态栏（v2.6）：底部浮动胶囊（左：保存状态；右：光标与缩放） */
+.status-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
   display: flex;
-  gap: 8px;
   align-items: center;
-  padding: 8px 12px;
-  background: var(--bg-chrome);
-  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 
-.toolbar button {
-  font: inherit;
-  padding: 4px 12px;
+.status-bar > span {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--card);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-elevated);
-  color: var(--text);
-  cursor: pointer;
-  transition:
-    border-color 150ms ease,
-    color 150ms ease,
-    background 150ms ease;
+  border-radius: 999px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.05),
+    0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
-.toolbar button:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent-hover);
+/* 视觉顺序：左“保存状态”，中右“光标”，最右“缩放” */
+.status-bar > span:nth-child(1) {
+  order: 2;
+  margin-left: auto;
+}
+.status-bar > span:nth-child(2) {
+  order: 1;
+}
+.status-bar > span:nth-child(3) {
+  order: 3;
 }
 
-.toolbar button:disabled {
-  opacity: 0.45;
-  cursor: default;
+/* 中等宽度：状态胶囊与浮动卡片上移，避免与工具坞/胶囊重叠 */
+@media (max-width: 1439px) {
+  .status-bar {
+    bottom: 74px;
+  }
+  .side-column {
+    bottom: 118px;
+  }
 }
 
-/* 主要操作强调（v2.4）：创建/计算等关键按钮统一主色，次要操作保持默认 */
+/* 窄窗口：工具坞可能换行成两行；状态胶囊移到顶部（避开面板与工具坞） */
+@media (max-width: 920px) {
+  .status-bar {
+    top: 88px;
+    bottom: auto;
+    padding: 0 12px;
+  }
+}
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
@@ -382,18 +469,6 @@ body {
   filter: brightness(1.08);
 }
 
-.status-bar {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 4px 12px;
-  background: var(--bg-chrome);
-  border-top: 1px solid var(--border);
-  font-size: 13px;
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-}
-
 /* 演示模式（v1.0）：全屏投影——隐藏编辑 UI、放大字号 */
 body.presentation-mode .side-column {
   display: none;
@@ -403,8 +478,8 @@ body.presentation-mode .stage {
   font-size: 18px;
 }
 
-body.presentation-mode .toolbar {
-  opacity: 0.85;
+body.presentation-mode .dock {
+  opacity: 0.92;
 }
 
 body.presentation-mode .status-bar {

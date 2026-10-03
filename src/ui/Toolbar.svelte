@@ -10,6 +10,49 @@
   import { themeState, toggleTheme } from './theme.svelte'
   import { markSaved } from './save-state.svelte'
   import { togglePresentation } from '../teaching/presentation.svelte'
+  import type { Component } from 'svelte'
+  import ChartColumn from '@lucide/svelte/icons/chart-column'
+  import CircleDot from '@lucide/svelte/icons/circle-dot'
+  import Crosshair from '@lucide/svelte/icons/crosshair'
+  import FolderOpen from '@lucide/svelte/icons/folder-open'
+  import FunctionSquare from '@lucide/svelte/icons/function-square'
+  import GitMerge from '@lucide/svelte/icons/git-merge'
+  import Grid2x2 from '@lucide/svelte/icons/grid-2x2'
+  import Keyboard from '@lucide/svelte/icons/keyboard'
+  import MapPin from '@lucide/svelte/icons/map-pin'
+  import MonitorPlay from '@lucide/svelte/icons/monitor-play'
+  import Moon from '@lucide/svelte/icons/moon'
+  import MousePointer2 from '@lucide/svelte/icons/mouse-pointer-2'
+  import PanelRight from '@lucide/svelte/icons/panel-right'
+  import PenLine from '@lucide/svelte/icons/pen-line'
+  import Redo2 from '@lucide/svelte/icons/redo-2'
+  import Ruler from '@lucide/svelte/icons/ruler'
+  import Save from '@lucide/svelte/icons/save'
+  import Settings2 from '@lucide/svelte/icons/settings-2'
+  import Sigma from '@lucide/svelte/icons/sigma'
+  import Sparkles from '@lucide/svelte/icons/sparkles'
+  import Sun from '@lucide/svelte/icons/sun'
+  import Undo2 from '@lucide/svelte/icons/undo-2'
+  import Upload from '@lucide/svelte/icons/upload'
+  import Waves from '@lucide/svelte/icons/waves'
+  import Waypoints from '@lucide/svelte/icons/waypoints'
+
+  /** 工具 id → 图标（未映射的回退为指针图标） */
+  const TOOL_ICONS: Record<string, Component> = {
+    trace: Crosshair,
+    tangent: PenLine,
+    roots: CircleDot,
+    intersection: GitMerge,
+    integral: Sigma,
+    riemann: ChartColumn,
+    taylor: Waves,
+    graph: Waypoints,
+    'stats-probe': Crosshair,
+  }
+
+  function toolIcon(toolId: string): Component {
+    return TOOL_ICONS[toolId] ?? MousePointer2
+  }
 
   let {
     store,
@@ -147,7 +190,11 @@
   }
 </script>
 
-<div class="toolbar" role="toolbar" aria-label="工具条">
+<header class="topbar" role="toolbar" aria-label="工具条">
+  <div class="brand">
+    <span class="brand-mark"><FunctionSquare size={15} strokeWidth={2.2} /></span>
+    <span class="brand-name">Math Drawing</span>
+  </div>
   <div class="mode-switch" role="tablist" aria-label="界面模式">
     <button
       type="button"
@@ -206,37 +253,106 @@
       onclick={() => onModeChange('notebook')}>笔记本</button
     >
   </div>
-  <span class="divider"></span>
+  <div class="top-actions">
+    <button
+      type="button"
+      class="ibtn"
+      data-testid="open-examples"
+      title="示例项目：从示例开始"
+      onclick={onOpenExamples}><Sparkles size={17} /></button
+    >
+    <button
+      type="button"
+      class="ibtn"
+      data-testid="shortcuts-help"
+      title="快捷键提示"
+      onclick={onOpenShortcuts}><Keyboard size={17} /></button
+    >
+    <button
+      type="button"
+      class="ibtn"
+      data-testid="enter-presentation"
+      title="课堂演示模式（放大展示，Esc 退出）"
+      onclick={() => void togglePresentation()}><MonitorPlay size={17} /></button
+    >
+    <button
+      type="button"
+      class="ibtn"
+      data-testid="toggle-theme"
+      title="切换浅色 / 深色主题"
+      onclick={toggleTheme}
+      >{#if themeState.theme === 'light'}<Moon size={17} />{:else}<Sun size={17} />{/if}</button
+    >
+    <span class="divider"></span>
+    <button
+      type="button"
+      class="ibtn"
+      data-testid="undo"
+      title="撤销（Ctrl+Z）"
+      disabled={!canUndo}
+      onclick={() => store.undo()}><Undo2 size={17} /></button
+    >
+    <button
+      type="button"
+      class="ibtn"
+      data-testid="redo"
+      title="重做（Ctrl+Shift+Z）"
+      disabled={!canRedo}
+      onclick={() => store.redo()}><Redo2 size={17} /></button
+    >
+    <span class="divider"></span>
+    <button
+      type="button"
+      class="ibtn"
+      data-testid="toggle-sidebar"
+      class:active={sidebarCollapsed}
+      title={sidebarCollapsed ? '展开编辑面板' : '收起编辑面板'}
+      onclick={onToggleSidebar}><PanelRight size={17} /></button
+    >
+  </div>
+</header>
+
+<div class="dock">
   <div class="tool-group" role="radiogroup" aria-label="分析工具">
     <button
       type="button"
+      class="dock-tool"
       data-testid="tool-none"
       class:active={activeToolId === null}
       title="选择/平移（默认）"
-      onclick={() => registry.activate(null)}>选择</button
+      onclick={() => registry.activate(null)}
+      ><MousePointer2 size={16} /><span class="lbl">选择</span></button
     >
     {#each visibleTools as tool (tool.id)}
+      {@const ToolIcon = toolIcon(tool.id)}
       <button
         type="button"
+        class="dock-tool"
         data-testid={`tool-${tool.id}`}
         class:active={activeToolId === tool.id}
-        onclick={() => registry.activate(tool.id)}>{tool.name}</button
+        onclick={() => registry.activate(tool.id)}
       >
+        <ToolIcon size={16} />
+        <span class="lbl">{tool.name === '追踪游标' ? '追踪' : tool.name}</span>
+      </button>
     {/each}
   </div>
   <span class="divider"></span>
-  <button type="button" data-testid="view-settings" onclick={toggleViewPanel}>视图设置</button>
+  <button type="button" class="dock-tool" data-testid="view-settings" onclick={toggleViewPanel}
+    ><Settings2 size={16} /><span class="lbl">视图设置</span></button
+  >
   {#if mode === 'plot'}
     <!-- 坐标相关控件仅函数绘图模式（图论模式隐藏） -->
     <button
       type="button"
+      class="dock-tool"
       data-testid="toggle-equal"
       aria-pressed={currentView?.equalAspect ?? true}
       class:active={currentView?.equalAspect ?? true}
       title="等比模式：锁定 x/y 比例（圆看起来是圆）"
       onclick={() => store.setView(withEqualAspect(store.getView(), !store.getView().equalAspect))}
     >
-      等比{currentView?.equalAspect ? ' ✓' : ''}
+      <Ruler size={16} /><span class="lbl">等比{currentView?.equalAspect ? ' ✓' : ''}</span>
     </button>
     <label class="select-label">
       坐标
@@ -252,15 +368,18 @@
     </label>
     <button
       type="button"
+      class="dock-tool"
       data-testid="toggle-axis"
       aria-pressed={currentView?.axisVisible ?? true}
       class:active={currentView?.axisVisible ?? true}
       onclick={() =>
         store.setView({ ...store.getView(), axisVisible: !store.getView().axisVisible })}
     >
-      坐标轴
+      <Grid2x2 size={16} /><span class="lbl">坐标轴</span>
     </button>
-    <button type="button" data-testid="add-marker" onclick={addMarker}>添加标记点</button>
+    <button type="button" class="dock-tool" data-testid="add-marker" onclick={addMarker}
+      ><MapPin size={16} /><span class="lbl">标记点</span></button
+    >
   {/if}
 
   {#if showView}
@@ -286,17 +405,24 @@
     </div>
   {/if}
 
-  <span class="spacer"></span>
-
-  <button type="button" data-testid="export-json" onclick={exportJson}>保存项目</button>
-  <button type="button" data-testid="import-json-button" onclick={() => fileInput?.click()}>
-    打开项目
+  <button type="button" class="dock-tool file" data-testid="export-json" onclick={exportJson}
+    ><Save size={16} /><span class="lbl">保存项目</span></button
+  >
+  <button
+    type="button"
+    class="dock-tool file"
+    data-testid="import-json-button"
+    onclick={() => fileInput?.click()}
+  >
+    <FolderOpen size={16} /><span class="lbl">打开项目</span>
   </button>
   <button
     type="button"
+    class="dock-tool file"
     data-testid="export-open"
     class:active={showExport}
-    onclick={() => (showExport = !showExport)}>导出…</button
+    onclick={() => (showExport = !showExport)}
+    ><Upload size={16} /><span class="lbl">导出…</span></button
   >
   <input
     class="hidden-file"
@@ -310,130 +436,229 @@
     <span class="error" data-testid="io-error">{ioError}</span>
   {/if}
 
-  <span class="divider"></span>
-
-  <button
-    type="button"
-    data-testid="undo"
-    title="撤销（Ctrl+Z）"
-    disabled={!canUndo}
-    onclick={() => store.undo()}>撤销</button
-  >
-  <button
-    type="button"
-    data-testid="redo"
-    title="重做（Ctrl+Shift+Z）"
-    disabled={!canRedo}
-    onclick={() => store.redo()}>重做</button
-  >
-  <span class="divider"></span>
-  <button
-    type="button"
-    data-testid="open-examples"
-    title="示例项目：从示例开始"
-    onclick={onOpenExamples}>示例</button
-  >
-  <button type="button" data-testid="shortcuts-help" title="快捷键提示" onclick={onOpenShortcuts}
-    >快捷键</button
-  >
-  <button
-    type="button"
-    data-testid="enter-presentation"
-    title="课堂演示模式（放大展示，Esc 退出）"
-    onclick={() => void togglePresentation()}>演示</button
-  >
-  <button type="button" data-testid="toggle-theme" title="切换浅色 / 深色主题" onclick={toggleTheme}
-    >{themeState.theme === 'light' ? '深色主题' : '浅色主题'}</button
-  >
-  <button
-    type="button"
-    data-testid="toggle-sidebar"
-    class:active={sidebarCollapsed}
-    title={sidebarCollapsed ? '展开编辑面板' : '收起编辑面板'}
-    onclick={onToggleSidebar}>{sidebarCollapsed ? '展开面板' : '收起面板'}</button
-  >
-
   {#if showExport}
     <ExportPanel {store} {mode} {getStageSize} onClose={() => (showExport = false)} />
   {/if}
 </div>
 
 <style>
-  .toolbar {
+  /* ---------- 顶部玻璃栏（v2.6 画布优先） ---------- */
+  .topbar {
     position: relative;
+    z-index: 40;
+    display: flex;
+    align-items: center;
     flex-wrap: wrap;
-    row-gap: 6px;
+    gap: 10px;
+    row-gap: 4px;
+    padding: 7px 12px;
+    background: var(--card);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
   }
 
-  .toolbar button.active {
-    border-color: var(--accent);
-    color: var(--accent);
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: 4px;
+  }
+
+  .brand-mark {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    box-shadow: 0 1px 3px rgb(37 99 235 / 40%);
+  }
+
+  .brand-name {
+    font-weight: 650;
+    font-size: 13.5px;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
   }
 
   .mode-switch {
     display: flex;
-    gap: 0;
+    align-items: center;
+    gap: 2px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
   }
 
   .mode-switch button {
-    font-weight: 600;
+    font: inherit;
+    font-size: 12.5px;
+    padding: 5px 11px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    white-space: nowrap;
   }
 
-  .mode-switch button:first-child {
-    border-radius: 6px 0 0 6px;
-  }
-
-  .mode-switch button:last-child {
-    border-radius: 0 6px 6px 0;
+  .mode-switch button:hover {
+    color: var(--text);
   }
 
   .mode-switch button.active {
-    background: rgba(37, 99, 235, 0.08);
+    background: var(--bg-panel);
+    border-color: var(--border);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgb(24 24 27 / 8%);
   }
 
-  .tool-group {
+  .top-actions {
+    margin-left: auto;
     display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-  }
-
-  .select-label {
-    display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 13px;
-    color: var(--text-dim);
+    gap: 2px;
   }
 
-  .toolbar select {
-    font: inherit;
-    font-size: 13px;
-    padding: 3px 6px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
+  .ibtn {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    border: none;
+    background: none;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+
+  .ibtn:hover:not(:disabled) {
     background: var(--bg);
     color: var(--text);
   }
 
-  .spacer {
-    flex: 1;
+  .ibtn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .ibtn.active {
+    color: var(--accent);
+    background: var(--accent-soft);
   }
 
   .divider {
     width: 1px;
     height: 20px;
     background: var(--border);
+    margin: 0 6px;
+    flex: none;
   }
 
-  .view-panel {
-    position: absolute;
-    top: 100%;
-    left: 12px;
-    z-index: 10;
+  /* ---------- 底部浮动工具坞 ---------- */
+  .dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 16px;
+    margin: 0 auto;
+    width: fit-content;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-width: calc(100vw - 32px);
+    padding: 6px 8px;
+    background: var(--card);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: var(--shadow-pop);
+  }
+
+  .tool-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-wrap: wrap;
+  }
+
+  .dock-tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 48px;
+    min-width: 46px;
+    padding: 0 7px;
+    border: none;
+    border-radius: 11px;
+    background: none;
+    color: var(--text-dim);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .dock-tool.file {
+    padding: 0 10px;
+  }
+
+  .dock-tool .lbl {
+    font-size: 10px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .dock-tool:hover {
     background: var(--bg);
+    color: var(--text);
+  }
+
+  .dock-tool.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 8px rgb(37 99 235 / 35%);
+  }
+
+  .dock-tool.active:hover {
+    color: #fff;
+  }
+
+  .select-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    padding: 0 6px;
+  }
+
+  .dock select {
+    font: inherit;
+    font-size: 12.5px;
+    padding: 4px 6px;
     border: 1px solid var(--border);
     border-radius: 8px;
-    box-shadow: 0 6px 20px rgb(0 0 0 / 8%);
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  /* 视图设置面板：从工具坞向上展开 */
+  .view-panel {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 0;
+    z-index: 30;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-pop);
     padding: 10px 12px;
     display: flex;
     flex-direction: column;
@@ -454,7 +679,9 @@
     width: 84px;
     padding: 3px 6px;
     border: 1px solid var(--border);
-    border-radius: 5px;
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
   }
 
   .hidden-file {
@@ -465,5 +692,22 @@
     color: #dc2626;
     font-size: 12px;
     max-width: 320px;
+  }
+
+  /* 导出面板：从工具坞右下方上移为浮动卡片 */
+  :global(.export-panel) {
+    position: fixed;
+    right: 16px;
+    bottom: 122px;
+    top: auto;
+    max-height: min(70vh, 640px);
+    overflow-y: auto;
+  }
+
+  /* 窄窗口：模式切换换行、工具坞贴底 */
+  @media (max-width: 920px) {
+    .dock {
+      bottom: 12px;
+    }
   }
 </style>

@@ -216,7 +216,8 @@ test.describe('v0.4 交互分析工具', () => {
     await expect(page.getByTestId('tool-none')).toHaveClass(/active/)
 
     await activateTool(page, 'roots')
-    await expect(page.getByTestId('tool-readout-title')).toContainText('共 6 个')
+    // 零点数量随画布宽度（可见范围）而定，这里只校验读数存在与格式
+    await expect(page.getByTestId('tool-readout-title')).toContainText(/零点（共 \d+ 个）/)
     expect(errors).toEqual([])
   })
 
@@ -303,25 +304,40 @@ test.describe('v0.4 交互分析工具', () => {
     await expect(page.getByTestId('tool-readout-value').nth(1)).toHaveText('[0, 1.5708]')
   })
 
-  test('工具面板显示在右侧栏（不遮挡画布）', async ({ page }) => {
+  test('工具面板悬浮在左侧卡片（画布优先布局）', async ({ page }) => {
     await page.goto('/?curves=sin(x)')
     await activateTool(page, 'tangent')
 
     const viewport = page.viewportSize()
     const vw = viewport?.width ?? 0
+    // 浮动卡片在左侧（画布优先：面板覆盖在画布上）
+    const side = await page.getByTestId('side-column').boundingBox()
+    expect(side).not.toBeNull()
+    expect(side!.x).toBeLessThan(vw / 2)
+    expect(side!.x).toBeGreaterThanOrEqual(0)
+    expect(side!.x + side!.width).toBeLessThanOrEqual(vw + 1)
+
+    // 读数与输入框完整落在卡片内（内容不被裁切）
     const box = await page.getByTestId('tools-readout').boundingBox()
     expect(box).not.toBeNull()
-    expect(box!.x).toBeGreaterThan(vw / 2)
-    // 面板右缘不超出视口（侧栏内容不被裁切）
-    expect(box!.x + box!.width).toBeLessThanOrEqual(vw + 1)
-    // 输入框也在面板内（右侧）
+    expect(box!.x).toBeGreaterThanOrEqual(side!.x)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(side!.x + side!.width + 1)
     const inputBox = await page.getByTestId('tool-control-x').boundingBox()
     expect(inputBox).not.toBeNull()
-    expect(inputBox!.x).toBeGreaterThan(vw / 2)
-    expect(inputBox!.x + inputBox!.width).toBeLessThanOrEqual(vw + 1)
+    expect(inputBox!.x).toBeGreaterThanOrEqual(side!.x)
+    expect(inputBox!.x + inputBox!.width).toBeLessThanOrEqual(side!.x + side!.width + 1)
     // 曲线列表输入框同样完整可见
     const curveInput = await page.getByTestId('curve-expr-input').boundingBox()
     expect(curveInput).not.toBeNull()
-    expect(curveInput!.x + curveInput!.width).toBeLessThanOrEqual(vw + 1)
+    expect(curveInput!.x + curveInput!.width).toBeLessThanOrEqual(side!.x + side!.width + 1)
+
+    // 收起面板：卡片隐藏、画布回到全宽
+    await page.getByTestId('toggle-sidebar').click()
+    await expect(page.getByTestId('side-column')).toBeHidden()
+    const canvas = await page.getByTestId('stage-canvas').boundingBox()
+    expect(canvas).not.toBeNull()
+    expect(canvas!.width).toBeGreaterThanOrEqual(vw - 2)
+    await page.getByTestId('toggle-sidebar').click()
+    await expect(page.getByTestId('side-column')).toBeVisible()
   })
 })

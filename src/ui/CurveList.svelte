@@ -3,6 +3,9 @@
   import type { AppStore } from '../state/store'
   import type { AppState, Curve, CurveKind, DocState, LineStyle } from '../state/types'
   import { DEFAULT_PARAMETER_BOUNDS, extractParameters, parse, parseProgram } from '../expr'
+  import ChevronDown from '@lucide/svelte/icons/chevron-down'
+  import ChevronUp from '@lucide/svelte/icons/chevron-up'
+  import X from '@lucide/svelte/icons/x'
 
   let { store }: { store: AppStore } = $props()
 
@@ -263,20 +266,20 @@
             data-testid="curve-up"
             title="上移"
             disabled={index === 0}
-            onclick={() => store.moveCurve(curve.id, -1)}>↑</button
+            onclick={() => store.moveCurve(curve.id, -1)}><ChevronUp size={14} /></button
           >
           <button
             type="button"
             data-testid="curve-down"
             title="下移"
             disabled={index === curves.length - 1}
-            onclick={() => store.moveCurve(curve.id, 1)}>↓</button
+            onclick={() => store.moveCurve(curve.id, 1)}><ChevronDown size={14} /></button
           >
           <button
             type="button"
             data-testid="curve-remove"
             title="删除"
-            onclick={() => store.removeCurve(curve.id)}>✕</button
+            onclick={() => store.removeCurve(curve.id)}><X size={14} /></button
           >
         </div>
 

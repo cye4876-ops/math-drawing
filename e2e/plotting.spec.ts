@@ -91,7 +91,8 @@ test.describe('v0.3 曲线绘制', () => {
     expect(centerBefore).not.toBeNull()
 
     // 在偏离中心的位置滚轮缩放（旧实现以光标为锚点，会改变中心坐标）
-    await page.mouse.move(canvas!.x + canvas!.width * 0.25, canvas!.y + canvas!.height * 0.3)
+    // 坐标取画布右侧空闲区（避开左侧浮动编辑卡片）
+    await page.mouse.move(canvas!.x + canvas!.width * 0.72, canvas!.y + canvas!.height * 0.35)
     await page.mouse.wheel(0, -500)
     await page.mouse.move(cx, cy)
     const centerAfter = await readCursor(page)

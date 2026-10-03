@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Math Drawing · 设计预览 B —— 课堂投影大字号风</title>
+    <style>
+      /* ============ 方案 B：课堂投影 / 大字号友好风 ============ */
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+      :root {
+        --font: Inter, 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+        --text: #1e293b;
+        --dim: #64748b;
+        --faint: #94a3b8;
+        --bg: #eef1f6;
+        --panel: #ffffff;
+        --border: #e2e8f0;
+        --accent: #2f6fed;
+        --accent-soft: #eef4ff;
+        --green: #15803d;
+        --red: #c32222;
+        --shadow-card: 0 1px 2px rgba(30, 41, 59, 0.05), 0 8px 22px rgba(30, 41, 59, 0.06);
+        --shadow-pop: 0 10px 30px rgba(30, 41, 59, 0.14);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: var(--font);
+        font-size: 15px;
+        color: var(--text);
+        background: var(--bg);
+      }
+      .i {
+        width: 18px;
+        height: 18px;
+        flex: none;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .i.sm {
+        width: 16px;
+        height: 16px;
+      }
+
+      .app {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        gap: 10px;
+      }
+
+      /* 顶部：两条独立圆角卡片 */
+      .topbar {
+        background: var(--panel);
+        border-radius: 14px;
+        box-shadow: var(--shadow-card);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 16px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #2f6fed, #1e56c8);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 17px;
+        font-style: italic;
+      }
+      .brand-name {
+        font-weight: 700;
+        font-size: 16px;
+        letter-spacing: -0.01em;
+      }
+
+      .modes {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 6px;
+      }
+      .mode {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 15px;
+        border-radius: 999px;
+        font-size: 14.5px;
+        color: var(--dim);
+        cursor: pointer;
+        border: 1.5px solid transparent;
+      }
+      .mode .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 99px;
+        background: currentColor;
+        opacity: 0.55;
+      }
+      .mode:hover {
+        background: #f1f5f9;
+        color: var(--text);
+      }
+      .mode.on {
+        background: var(--accent-soft);
+        border-color: #bcd3ff;
+        color: #1d4ed8;
+        font-weight: 700;
+      }
+      .mode.on .dot {
+        opacity: 1;
+      }
+
+      .top-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ibtn {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        color: var(--dim);
+        background: none;
+        border: none;
+        cursor: pointer;
+      }
+      .ibtn:hover {
+        background: #f1f5f9;
+        color: var(--text);
+      }
+
+      /* 工具行 */
+      .tools {
+        background: var(--panel);
+        border-radius: 14px;
+        box-shadow: var(--shadow-card);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 9px 14px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 38px;
+        padding: 0 14px;
+        border-radius: 10px;
+        border: 1.5px solid transparent;
+        color: var(--dim);
+        font-size: 14.5px;
+        cursor: pointer;
+        background: none;
+      }
+      .chip:hover {
+        background: #f1f5f9;
+        color: var(--text);
+      }
+      .chip.on {
+        background: var(--accent-soft);
+        border-color: #bcd3ff;
+        color: #1d4ed8;
+        font-weight: 700;
+      }
+      .chip.ghost {
+        border-color: var(--border);
+        color: var(--text);
+      }
+      .chip.ghost:hover {
+        border-color: #cbd5e1;
+        background: var(--panel);
+      }
+      .vsep {
+        width: 1.5px;
+        height: 24px;
+        background: var(--border);
+        margin: 0 6px;
+      }
+      .field {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--dim);
+        font-size: 14px;
+      }
+      .select {
+        height: 34px;
+        border: 1.5px solid var(--border);
+        border-radius: 9px;
+        background: var(--panel);
+        color: var(--text);
+        font: inherit;
+        font-size: 14px;
+        padding: 0 28px 0 10px;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 9px center;
+      }
+      .spacer {
+        flex: 1;
+      }
+
+      /* 主体 */
+      .main {
+        flex: 1;
+        display: flex;
+        gap: 10px;
+        min-height: 0;
+      }
+      .stage {
+        flex: 1;
+        position: relative;
+        min-width: 0;
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+        cursor: grab;
+      }
+      .stage canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .canvas-badge {
+        position: absolute;
+        left: 18px;
+        top: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.94);
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        padding: 9px 14px;
+        box-shadow: var(--shadow-card);
+        backdrop-filter: blur(6px);
+        font-size: 14px;
+      }
+      .canvas-badge .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 99px;
+        background: var(--red);
+      }
+      .canvas-badge .k {
+        color: var(--faint);
+      }
+      .canvas-badge b {
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .side {
+        width: 372px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 0;
+      }
+      .card-panel {
+        background: var(--panel);
+        border-radius: 14px;
+        box-shadow: var(--shadow-card);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .card-panel.scroll {
+        flex: 1;
+        overflow: hidden;
+      }
+      .side-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 16px 6px;
+      }
+      .side-head h3 {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .count {
+        margin-left: auto;
+        font-size: 13px;
+        color: var(--dim);
+        border: 1.5px solid var(--border);
+        border-radius: 99px;
+        padding: 2px 10px;
+      }
+
+      .add-form {
+        padding: 4px 16px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .input {
+        flex: 1;
+        height: 38px;
+        min-width: 0;
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+        color: var(--text);
+        font: inherit;
+        font-size: 14.5px;
+        padding: 0 12px;
+      }
+      .input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px rgba(47, 111, 237, 0.15);
+      }
+      .chips-fn {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .fn {
+        font-size: 13.5px;
+        color: var(--dim);
+        border: 1.5px solid var(--border);
+        border-radius: 99px;
+        padding: 3px 12px;
+        background: var(--panel);
+        cursor: pointer;
+      }
+      .fn:hover {
+        color: var(--accent);
+        border-color: #bcd3ff;
+      }
+      .ok-line {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 13.5px;
+        color: var(--green);
+      }
+      .btn-primary {
+        height: 40px;
+        border: none;
+        border-radius: 11px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(47, 111, 237, 0.28);
+      }
+      .btn-primary:hover {
+        background: #1e56c8;
+      }
+
+      .cards {
+        flex: 1;
+        overflow-y: auto;
+        padding: 6px 16px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .curve-card {
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: #fbfcfe;
+        position: relative;
+        overflow: hidden;
+      }
+      .curve-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: var(--card-line, transparent);
+      }
+      .card-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .swatch {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        border: 1.5px solid var(--border);
+        cursor: pointer;
+      }
+      .name {
+        flex: 1;
+        border: none;
+        font: inherit;
+        font-weight: 600;
+        font-size: 15px;
+        background: none;
+        color: var(--text);
+        min-width: 0;
+      }
+      .name:focus {
+        outline: none;
+      }
+      .curve-card .ibtn {
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+      }
+      .expr-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .prefix {
+        color: var(--faint);
+        font-size: 14px;
+        font-style: italic;
+      }
+      .expr {
+        flex: 1;
+        border: 1.5px solid var(--border);
+        background: var(--panel);
+        border-radius: 9px;
+        height: 36px;
+        padding: 0 11px;
+        font:
+          600 14.5px ui-monospace,
+          'Cascadia Mono',
+          Consolas,
+          monospace;
+        color: var(--text);
+      }
+      .expr:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px rgba(47, 111, 237, 0.15);
+      }
+
+      .params {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: var(--accent-soft);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .param {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+      }
+      .param .k {
+        width: 14px;
+        font-style: italic;
+        color: #1d4ed8;
+        font-weight: 700;
+      }
+      .param input[type='range'] {
+        flex: 1;
+        accent-color: var(--accent);
+        height: 22px;
+      }
+      .param .v {
+        min-width: 46px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        background: var(--panel);
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        padding: 2px 8px;
+        font-size: 13.5px;
+        font-weight: 600;
+      }
+      .opts {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 13.5px;
+        color: var(--dim);
+      }
+      .opts .select {
+        height: 32px;
+        font-size: 13.5px;
+        border-radius: 8px;
+      }
+
+      .marker-panel {
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .marker-panel h4 {
+        font-size: 14px;
+        color: var(--dim);
+        font-weight: 600;
+      }
+      .marker-row {
+        display: flex;
+        gap: 8px;
+      }
+      .marker-row .input {
+        height: 36px;
+        font-size: 14px;
+      }
+      .btn-soft {
+        height: 36px;
+        padding: 0 16px;
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+        color: var(--text);
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .btn-soft:hover {
+        border-color: #cbd5e1;
+      }
+
+      .status {
+        background: var(--panel);
+        border-radius: 14px;
+        box-shadow: var(--shadow-card);
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        padding: 9px 18px;
+        font-size: 13.5px;
+        color: var(--dim);
+        font-variant-numeric: tabular-nums;
+      }
+      .status .save {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--green);
+        font-weight: 600;
+      }
+      .status .right {
+        margin-left: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute">
+      <defs>
+        <symbol id="i-mouse" viewBox="0 0 24 24">
+          <path d="M4.5 3.5 11 20l2.4-6.2L20 11.4z" />
+        </symbol>
+        <symbol id="i-cross" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="7" />
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+        </symbol>
+        <symbol id="i-pen" viewBox="0 0 24 24">
+          <path d="M12 19l7-7a2.8 2.8 0 0 0-4-4l-7 7-1 5z" />
+          <path d="M4 20h4" />
+        </symbol>
+        <symbol id="i-dot" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="8" />
+          <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+        </symbol>
+        <symbol id="i-merge" viewBox="0 0 24 24">
+          <path d="M6 4v6a6 6 0 0 0 6 6h6" />
+          <path d="M6 20v-4" />
+          <path d="m15 13 3 3-3 3" />
+        </symbol>
+        <symbol id="i-sigma" viewBox="0 0 24 24"><path d="M17 5H7l5 7-5 7h10" /></symbol>
+        <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-6" /></symbol>
+        <symbol id="i-waves" viewBox="0 0 24 24">
+          <path d="M2 14c2.5-5 5-5 7.5 0s5 5 7.5 0 5-5 5-5" />
+        </symbol>
+        <symbol id="i-gear" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3.2" />
+          <path
+            d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"
+          />
+        </symbol>
+        <symbol id="i-ratio" viewBox="0 0 24 24">
+          <rect x="3.5" y="5" width="17" height="14" rx="2" />
+          <path d="M3.5 9.5h17" />
+        </symbol>
+        <symbol id="i-axes" viewBox="0 0 24 24">
+          <path d="M4 20V4M4 20h16" />
+          <path d="M2.5 6.5 4 4l1.5 2.5M17.5 18.5 20 20l-2.5 1.5" />
+        </symbol>
+        <symbol id="i-pin" viewBox="0 0 24 24">
+          <path d="M12 21s-6.5-5.2-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.8 12 21 12 21z" />
+          <circle cx="12" cy="10.5" r="2" />
+        </symbol>
+        <symbol id="i-save" viewBox="0 0 24 24">
+          <path d="M12 3v11m0 0-4-4m4 4 4-4" />
+          <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+        </symbol>
+        <symbol id="i-open" viewBox="0 0 24 24">
+          <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        </symbol>
+        <symbol id="i-export" viewBox="0 0 24 24">
+          <path d="M12 15V4m0 0L8 8m4-4 4 4" />
+          <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+        </symbol>
+        <symbol id="i-undo" viewBox="0 0 24 24">
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h10a6 6 0 0 1 0 12h-4" />
+        </symbol>
+        <symbol id="i-redo" viewBox="0 0 24 24">
+          <path d="m15 14 5-5-5-5" />
+          <path d="M20 9H10a6 6 0 0 0 0 12h4" />
+        </symbol>
+        <symbol id="i-spark" viewBox="0 0 24 24">
+          <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
+          <path d="M19 15v4M17 17h4" />
+        </symbol>
+        <symbol id="i-keyb" viewBox="0 0 24 24">
+          <rect x="3" y="6" width="18" height="12" rx="2" />
+          <path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" />
+        </symbol>
+        <symbol id="i-pres" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="12" rx="2" />
+          <path d="m10 8 4 2-4 2zM12 20h.01M8 20h8" />
+        </symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24">
+          <path d="M20.5 13.1A8.5 8.5 0 1 1 10.9 3.5a7 7 0 0 0 9.6 9.6z" />
+        </symbol>
+        <symbol id="i-panel" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M15 4v16" />
+        </symbol>
+        <symbol id="i-eye" viewBox="0 0 24 24">
+          <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+          <circle cx="12" cy="12" r="2.6" />
+        </symbol>
+        <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 14 6-6 6 6" /></symbol>
+        <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 10 6 6 6-6" /></symbol>
+        <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" /></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      </defs>
+    </svg>
+
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">ƒ</div>
+          <span class="brand-name">Math Drawing</span>
+        </div>
+        <nav class="modes">
+          <span class="mode on"><span class="dot" style="color: #2f6fed"></span>函数绘图</span>
+          <span class="mode"><span class="dot" style="color: #0ea47a"></span>图论绘图</span>
+          <span class="mode"><span class="dot" style="color: #7c3aed"></span>统计与数据</span>
+          <span class="mode"><span class="dot" style="color: #d97706"></span>3D 与场</span>
+          <span class="mode"><span class="dot" style="color: #db2777"></span>数学专题</span>
+          <span class="mode"><span class="dot" style="color: #0e7490"></span>矩阵</span>
+          <span class="mode"><span class="dot" style="color: #475569"></span>笔记本</span>
+        </nav>
+        <div class="top-actions">
+          <button class="ibtn" title="示例项目">
+            <svg class="i"><use href="#i-spark" /></svg>
+          </button>
+          <button class="ibtn" title="快捷键">
+            <svg class="i"><use href="#i-keyb" /></svg>
+          </button>
+          <button class="ibtn" title="课堂演示">
+            <svg class="i"><use href="#i-pres" /></svg>
+          </button>
+          <button class="ibtn" title="深色主题">
+            <svg class="i"><use href="#i-moon" /></svg>
+          </button>
+          <button class="ibtn" title="收起面板">
+            <svg class="i"><use href="#i-panel" /></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="tools">
+        <button class="chip on">
+          <svg class="i sm"><use href="#i-mouse" /></svg>选择
+        </button>
+        <button class="chip">
+          <svg class="i sm"><use href="#i-cross" /></svg>追踪游标
+        </button>
+        <button class="chip">
+          <svg class="i sm"><use href="#i-pen" /></svg>切线
+        </button>
+        <button class="chip">
+          <svg class="i sm"><use href="#i-dot" /></svg>零点
+        </button>
+        <button class="chip">
+          <svg class="i sm"><use href="#i-merge" /></svg>交点
+        </button>
+        <button class="chip">
+          <svg class="i sm"><use href="#i-sigma" /></svg>定积分
+        </button>
+        <button class="chip">
+          <svg class="i sm"><use href="#i-bars" /></svg>黎曼和
+        </button>
+        <button class="chip">
+          <svg class="i sm"><use href="#i-waves" /></svg>泰勒
+        </button>
+        <span class="vsep"></span>
+        <button class="chip ghost">
+          <svg class="i sm"><use href="#i-gear" /></svg>视图设置
+        </button>
+        <button class="chip">
+          <svg class="i sm"><use href="#i-ratio" /></svg>等比
+        </button>
+        <label class="field"
+          >坐标
+          <select class="select">
+            <option>直角</option>
+            <option>极坐标网格</option>
+            <option>对数</option>
+          </select>
+        </label>
+        <button class="chip">
+          <svg class="i sm"><use href="#i-axes" /></svg>坐标轴
+        </button>
+        <button class="chip ghost">
+          <svg class="i sm"><use href="#i-pin" /></svg>标记点
+        </button>
+        <span class="spacer"></span>
+        <button class="chip ghost">
+          <svg class="i sm"><use href="#i-save" /></svg>保存项目
+        </button>
+        <button class="chip ghost">
+          <svg class="i sm"><use href="#i-open" /></svg>打开项目
+        </button>
+        <button class="chip ghost">
+          <svg class="i sm"><use href="#i-export" /></svg>导出…
+        </button>
+        <span class="vsep"></span>
+        <button class="ibtn" style="color: #cbd5e1">
+          <svg class="i"><use href="#i-undo" /></svg>
+        </button>
+        <button class="ibtn">
+          <svg class="i"><use href="#i-redo" /></svg>
+        </button>
+      </div>
+
+      <div class="main">
+        <div class="stage">
+          <canvas id="plot"></canvas>
+          <div class="canvas-badge">
+            <span class="dot"></span>y = a·sin(b·x) <span class="k">a =</span><b>1.5</b>
+            <span class="k">b =</span><b>2</b>
+          </div>
+        </div>
+
+        <aside class="side">
+          <div class="card-panel">
+            <div class="side-head">
+              <h3>曲线</h3>
+              <span class="count">2</span>
+            </div>
+            <div class="add-form">
+              <div style="display: flex; gap: 8px">
+                <select class="select" style="height: 38px; width: 100%">
+                  <option>显函数 y = f(x)</option>
+                  <option>隐函数 F(x, y) = 0</option>
+                  <option>参数方程</option>
+                  <option>极坐标 r(θ)</option>
+                </select>
+              </div>
+              <input class="input" value="a * sin(b * x)" />
+              <div class="chips-fn">
+                <span class="fn">sin()</span><span class="fn">cos()</span
+                ><span class="fn">tan()</span> <span class="fn">ln()</span
+                ><span class="fn">exp()</span><span class="fn">√</span> <span class="fn">|x|</span
+                ><span class="fn">x²</span><span class="fn">π</span>
+              </div>
+              <div class="ok-line">
+                <svg class="i sm"><use href="#i-check" /></svg>表达式有效 · 参数
+                a、b（添加后用滑块调值）
+              </div>
+              <button class="btn-primary">
+                <svg class="i sm"><use href="#i-plus" /></svg>添加曲线
+              </button>
+            </div>
+          </div>
+
+          <div class="card-panel scroll">
+            <div class="cards">
+              <div class="curve-card" style="--card-line: #c32222">
+                <div class="card-head">
+                  <input type="color" class="swatch" value="#c32222" />
+                  <input class="name" value="a · sin(b · x)" />
+                  <button class="ibtn">
+                    <svg class="i sm"><use href="#i-eye" /></svg>
+                  </button>
+                  <button class="ibtn">
+                    <svg class="i sm"><use href="#i-up" /></svg>
+                  </button>
+                  <button class="ibtn">
+                    <svg class="i sm"><use href="#i-down" /></svg>
+                  </button>
+                  <button class="ibtn">
+                    <svg class="i sm"><use href="#i-x" /></svg>
+                  </button>
+                </div>
+                <div class="expr-row">
+                  <span class="prefix">y =</span><input class="expr" value="a * sin(b * x)" />
+                </div>
+                <div class="params">
+                  <div class="param">
+                    <span class="k">a</span
+                    ><input type="range" min="-10" max="10" step="0.1" value="1.5" /><span class="v"
+                      >1.5</span
+                    >
+                  </div>
+                  <div class="param">
+                    <span class="k">b</span
+                    ><input type="range" min="-10" max="10" step="0.1" value="2" /><span class="v"
+                      >2</span
+                    >
+                  </div>
+                </div>
+                <div class="opts">
+                  <span
+                    >线型
+                    <select class="select">
+                      <option>实线</option>
+                      <option>虚线</option>
+                      <option>点线</option>
+                    </select></span
+                  >
+                  <span
+                    >精度
+                    <select class="select">
+                      <option>标准</option>
+                      <option>较高</option>
+                      <option>高</option>
+                    </select></span
+                  >
+                </div>
+              </div>
+
+              <div class="curve-card" style="--card-line: #15803d">
+                <div class="card-head">
+                  <input type="color" class="swatch" value="#15803d" />
+                  <input class="name" value="x^2 / 4" />
+                  <button class="ibtn">
+                    <svg class="i sm"><use href="#i-eye" /></svg>
+                  </button>
+                  <button class="ibtn">
+                    <svg class="i sm"><use href="#i-up" /></svg>
+                  </button>
+                  <button class="ibtn">
+                    <svg class="i sm"><use href="#i-down" /></svg>
+                  </button>
+                  <button class="ibtn">
+                    <svg class="i sm"><use href="#i-x" /></svg>
+                  </button>
+                </div>
+                <div class="expr-row">
+                  <span class="prefix">y =</span><input class="expr" value="x^2 / 4" />
+                </div>
+                <div class="opts">
+                  <span
+                    >线型
+                    <select class="select">
+                      <option>虚线</option>
+                      <option>实线</option>
+                    </select></span
+                  >
+                  <span
+                    >精度
+                    <select class="select">
+                      <option>标准</option>
+                    </select></span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div class="marker-panel">
+              <h4>标记点</h4>
+              <div class="marker-row">
+                <input class="input" placeholder="x，如 1、pi/2" />
+                <input class="input" placeholder="y，如 -2、e" />
+                <button class="btn-soft">添加</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="status">
+        <span>光标：(1.29, −0.88)</span>
+        <span class="save"
+          ><svg class="i sm"><use href="#i-check" /></svg>已保存</span
+        >
+        <span class="right">缩放：80 px/单位</span>
+      </footer>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('plot')
+      const dpr = window.devicePixelRatio || 1
+      function draw() {
+        const rect = canvas.getBoundingClientRect()
+        canvas.width = rect.width * dpr
+        canvas.height = rect.height * dpr
+        const ctx = canvas.getContext('2d')
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+        const w = rect.width,
+          h = rect.height
+        ctx.clearRect(0, 0, w, h)
+
+        const cx = w / 2,
+          cy = h / 2,
+          scale = 44
+
+        ctx.strokeStyle = '#f2f5f9'
+        ctx.lineWidth = 1
+        for (let x = cx % (scale / 2); x < w; x += scale / 2) {
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, h)
+          ctx.stroke()
+        }
+        for (let y = cy % (scale / 2); y < h; y += scale / 2) {
+          ctx.beginPath()
+          ctx.moveTo(0, y)
+          ctx.lineTo(w, y)
+          ctx.stroke()
+        }
+        ctx.strokeStyle = '#e6ebf2'
+        for (let i = -20; i < 40; i++) {
+          const x = cx + i * scale
+          if (x < 0 || x > w) continue
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, h)
+          ctx.stroke()
+        }
+        for (let i = -20; i < 40; i++) {
+          const y = cy + i * scale
+          if (y < 0 || y > h) continue
+          ctx.beginPath()
+          ctx.moveTo(0, y)
+          ctx.lineTo(w, y)
+          ctx.stroke()
+        }
+        ctx.strokeStyle = '#9aa8bb'
+        ctx.lineWidth = 1.75
+        ctx.beginPath()
+        ctx.moveTo(0, cy)
+        ctx.lineTo(w, cy)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(cx, 0)
+        ctx.lineTo(cx, h)
+        ctx.stroke()
+        ctx.fillStyle = '#9aa8bb'
+        ctx.font = '12px Inter, system-ui'
+        ctx.textAlign = 'center'
+        for (let i = -20; i < 40; i++) {
+          const x = cx + i * scale
+          if (x > 8 && x < w - 8 && i !== 0 && i % 2 === 0) ctx.fillText(String(i), x, cy + 16)
+        }
+        ctx.textAlign = 'right'
+        for (let i = -20; i < 40; i++) {
+          const y = cy + i * scale
+          if (y > 14 && y < h - 6 && i !== 0 && i % 2 === 0) ctx.fillText(String(-i), cx - 7, y + 4)
+        }
+
+        ctx.strokeStyle = '#c32222'
+        ctx.lineWidth = 3
+        ctx.lineJoin = 'round'
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        let started = false
+        for (let px = 0; px <= w; px += 2) {
+          const x = (px - cx) / scale
+          const y = 1.5 * Math.sin(2 * x)
+          const py = cy - y * scale
+          if (!started) {
+            ctx.moveTo(px, py)
+            started = true
+          } else ctx.lineTo(px, py)
+        }
+        ctx.stroke()
+
+        ctx.strokeStyle = '#15803d'
+        ctx.lineWidth = 2.25
+        ctx.setLineDash([8, 6])
+        ctx.beginPath()
+        started = false
+        for (let px = 0; px <= w; px += 2) {
+          const x = (px - cx) / scale
+          const y = (x * x) / 4
+          const py = cy - y * scale
+          if (py < -90 || py > h + 90) {
+            started = false
+            continue
+          }
+          if (!started) {
+            ctx.moveTo(px, py)
+            started = true
+          } else ctx.lineTo(px, py)
+        }
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+      draw()
+      window.addEventListener('resize', draw)
+    </script>
+  </body>
+</html>

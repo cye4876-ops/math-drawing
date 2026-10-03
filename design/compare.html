@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>设计对比：A vs C</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .head {
+        padding: 14px 20px 10px;
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+      }
+      .head h1 {
+        font-size: 16px;
+        margin: 0;
+      }
+      .head p {
+        margin: 0;
+        color: #94a3b8;
+        font-size: 13px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        padding: 8px 20px 20px;
+      }
+      /* 窄窗口：改为上下排列，仍可逐屏对比 */
+      @media (max-width: 1100px) {
+        .grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+      }
+      .label {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .label small {
+        color: #94a3b8;
+        font-weight: 400;
+        font-size: 12px;
+      }
+      .frame {
+        position: relative;
+        aspect-ratio: 1440 / 900;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #000;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      }
+      .frame iframe {
+        width: 1440px;
+        height: 900px;
+        border: 0;
+        transform-origin: top left;
+        /* 由脚本按容器宽度缩放 */
+      }
+      .hint {
+        color: #94a3b8;
+        font-size: 12px;
+        padding: 0 20px 16px;
+      }
+      a {
+        color: #60a5fa;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="head">
+      <h1>界面方向对比</h1>
+      <p>左：A · 现代极简工具风　·　右：C · 画布优先浮动卡片风（Desmos 灵感）</p>
+    </div>
+    <div class="grid">
+      <div class="col">
+        <div class="label">A · 现代极简工具风 <small>面板式工作台 · 13px · 白面板分区</small></div>
+        <div class="frame"><iframe src="./mockup-a-modern.html" title="方案 A"></iframe></div>
+      </div>
+      <div class="col">
+        <div class="label">
+          C · 画布优先浮动卡片 <small>全屏画布 · 毛玻璃浮层 · 官方 Lucide 图标 + Inter</small>
+        </div>
+        <div class="frame"><iframe src="./mockup-c-floating.html" title="方案 C"></iframe></div>
+      </div>
+    </div>
+    <p class="hint">
+      提示：也可以直接分别打开 <a href="./mockup-a-modern.html">mockup-a-modern.html</a> 与
+      <a href="./mockup-c-floating.html">mockup-c-floating.html</a> 全屏滚动查看交互细节。
+    </p>
+    <script>
+      function fit() {
+        document.querySelectorAll('.frame').forEach((frame) => {
+          const iframe = frame.querySelector('iframe')
+          const scale = frame.clientWidth / 1440
+          iframe.style.transform = `scale(${scale})`
+        })
+      }
+      fit()
+      window.addEventListener('resize', fit)
+    </script>
+  </body>
+</html>

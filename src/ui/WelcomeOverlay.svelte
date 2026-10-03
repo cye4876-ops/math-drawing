@@ -39,11 +39,18 @@
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 26px;
+    bottom: 128px;
     display: flex;
     justify-content: center;
     pointer-events: none;
     z-index: 5;
+  }
+
+  /* 窄窗口：工具坞可能换行成两行，引导卡再上移 */
+  @media (max-width: 920px) {
+    .welcome {
+      bottom: 176px;
+    }
   }
   .welcome-card {
     display: flex;

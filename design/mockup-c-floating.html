@@ -1,0 +1,1141 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Math Drawing · 设计预览 C —— 画布优先浮动卡片风</title>
+    <style>
+      /* ============ 方案 C：画布优先 · 浮动卡片（Desmos 灵感） ============ */
+      @font-face {
+        font-family: 'Inter';
+        font-weight: 400;
+        font-display: swap;
+        src: url('../node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2')
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'Inter';
+        font-weight: 500;
+        font-display: swap;
+        src: url('../node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2')
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'Inter';
+        font-weight: 600;
+        font-display: swap;
+        src: url('../node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2')
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'Inter';
+        font-weight: 700;
+        font-display: swap;
+        src: url('../node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2')
+          format('woff2');
+      }
+
+      :root {
+        --font: Inter, 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+        --text: #18181b;
+        --dim: #71717a;
+        --faint: #a1a1aa;
+        --accent: #2563eb;
+        --accent-soft: rgba(37, 99, 235, 0.09);
+        --green: #16a34a;
+        --border: #e8e8ec;
+        --card: rgba(255, 255, 255, 0.94);
+        --shadow-pop: 0 1px 2px rgba(24, 24, 27, 0.05), 0 14px 40px rgba(24, 24, 27, 0.12);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        font-family: var(--font);
+        font-size: 13px;
+        color: var(--text);
+        background: #fff;
+      }
+
+      .i {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .i.md {
+        width: 18px;
+        height: 18px;
+      }
+      .i.sm {
+        width: 14px;
+        height: 14px;
+      }
+
+      #plot {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        cursor: grab;
+      }
+
+      /* ============ 顶栏（毛玻璃，浮动） ============ */
+      .topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 14px;
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid rgba(24, 24, 27, 0.06);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-right: 6px;
+      }
+      .brand-mark {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        box-shadow: 0 1px 3px rgba(37, 99, 235, 0.4);
+      }
+      .brand-mark .i {
+        width: 15px;
+        height: 15px;
+        stroke-width: 2.2;
+      }
+      .brand-name {
+        font-weight: 650;
+        font-size: 13.5px;
+        letter-spacing: -0.01em;
+      }
+
+      .modes {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin-left: 4px;
+      }
+      .mode {
+        padding: 5px 11px;
+        border-radius: 8px;
+        font-size: 12.5px;
+        color: var(--dim);
+        cursor: pointer;
+        border: 1px solid transparent;
+        white-space: nowrap;
+      }
+      .mode:hover {
+        background: rgba(24, 24, 27, 0.05);
+        color: var(--text);
+      }
+      .mode.on {
+        background: #fff;
+        border-color: var(--border);
+        color: var(--text);
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(24, 24, 27, 0.08);
+      }
+
+      .top-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .ibtn {
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        color: var(--dim);
+        background: none;
+        border: none;
+        cursor: pointer;
+      }
+      .ibtn:hover {
+        background: rgba(24, 24, 27, 0.06);
+        color: var(--text);
+      }
+      .ibtn.disabled {
+        color: #d4d4d8;
+        cursor: default;
+      }
+      .ibtn.disabled:hover {
+        background: none;
+      }
+      .vsep {
+        width: 1px;
+        height: 20px;
+        background: var(--border);
+        margin: 0 6px;
+      }
+
+      /* ============ 浮动表达式卡片（左上） ============ */
+      .expr-card {
+        position: fixed;
+        top: 62px;
+        left: 16px;
+        width: 336px;
+        max-height: calc(100vh - 160px);
+        display: flex;
+        flex-direction: column;
+        background: var(--card);
+        backdrop-filter: blur(14px);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow-pop);
+        overflow: hidden;
+      }
+      .card-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 14px 6px;
+      }
+      .card-head .t {
+        font-weight: 650;
+        font-size: 13.5px;
+      }
+      .card-head .n {
+        font-size: 11.5px;
+        color: var(--dim);
+        border: 1px solid var(--border);
+        border-radius: 99px;
+        padding: 1px 8px;
+      }
+      .card-head .ibtn {
+        margin-left: auto;
+      }
+      .card-head .ibtn + .ibtn {
+        margin-left: 0;
+      }
+
+      .add-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px 10px;
+      }
+      .color-dot {
+        width: 20px;
+        height: 20px;
+        border-radius: 99px;
+        background: #c32222;
+        border: 3px solid #fff;
+        box-shadow: 0 0 0 1.5px var(--border);
+      }
+      .add-input {
+        flex: 1;
+        height: 34px;
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        background: #fff;
+        color: var(--text);
+        font:
+          500 13.5px ui-monospace,
+          'Cascadia Mono',
+          Consolas,
+          monospace;
+        padding: 0 10px;
+      }
+      .add-input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+      }
+      .add-btn {
+        width: 34px;
+        height: 34px;
+        flex: none;
+        border-radius: 9px;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+      }
+      .add-btn:hover {
+        background: #1d4ed8;
+      }
+      .ok-line {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 14px 10px;
+        font-size: 12px;
+        color: var(--green);
+      }
+      .divider {
+        height: 1px;
+        background: var(--border);
+      }
+
+      .items {
+        overflow-y: auto;
+        padding: 8px 10px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .item {
+        border: 1px solid transparent;
+        border-radius: 11px;
+        padding: 7px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+      .item.sel {
+        background: rgba(37, 99, 235, 0.045);
+        border-color: rgba(37, 99, 235, 0.16);
+      }
+      .item-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .dot {
+        width: 14px;
+        height: 14px;
+        flex: none;
+        border-radius: 99px;
+      }
+      .item-name {
+        flex: 1;
+        font-weight: 550;
+        font-size: 13px;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .item .ibtn {
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+      }
+      .expr-row2 {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding-left: 2px;
+      }
+      .prefix {
+        color: var(--faint);
+        font-style: italic;
+        font-size: 12.5px;
+      }
+      .expr2 {
+        flex: 1;
+        height: 30px;
+        min-width: 0;
+        padding: 0 9px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        font:
+          550 13px ui-monospace,
+          'Cascadia Mono',
+          Consolas,
+          monospace;
+        color: var(--text);
+      }
+      .expr2:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+      }
+      .params {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: var(--accent-soft);
+        border-radius: 9px;
+        padding: 8px 10px;
+      }
+      .param {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 12.5px;
+      }
+      .param .k {
+        width: 12px;
+        font-style: italic;
+        color: var(--accent);
+        font-weight: 650;
+      }
+      .param input[type='range'] {
+        flex: 1;
+        accent-color: var(--accent);
+        height: 18px;
+      }
+      .param .v {
+        width: 40px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-size: 12px;
+      }
+      .opts {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+        color: var(--dim);
+        padding-left: 2px;
+      }
+      .mini-select {
+        height: 26px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+        font-size: 12px;
+        padding: 0 22px 0 8px;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 7px center;
+      }
+      .add-ghost {
+        margin: 2px 10px 10px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        color: var(--dim);
+        font-size: 12.5px;
+        cursor: pointer;
+        background: none;
+      }
+      .add-ghost:hover {
+        color: var(--accent);
+        border-color: rgba(37, 99, 235, 0.4);
+      }
+
+      /* ============ 底部工具坞（中央浮动胶囊） ============ */
+      .dock {
+        position: fixed;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 5px 7px;
+        background: var(--card);
+        backdrop-filter: blur(14px);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: var(--shadow-pop);
+        max-width: calc(100vw - 32px);
+      }
+      .tool {
+        width: 50px;
+        height: 52px;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        background: none;
+        border: none;
+        color: var(--dim);
+        cursor: pointer;
+      }
+      .tool .lbl {
+        font-size: 10.5px;
+        line-height: 1;
+      }
+      .tool:hover {
+        background: rgba(24, 24, 27, 0.06);
+        color: var(--text);
+      }
+      .tool.on {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+      }
+      .tool.on:hover {
+        background: var(--accent);
+        color: #fff;
+      }
+
+      /* ============ 角落浮动件 ============ */
+      .corner-bl {
+        position: fixed;
+        left: 16px;
+        bottom: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      .pill {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        height: 32px;
+        padding: 0 12px;
+        background: var(--card);
+        backdrop-filter: blur(14px);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        box-shadow:
+          0 1px 2px rgba(24, 24, 27, 0.05),
+          0 8px 24px rgba(24, 24, 27, 0.08);
+        color: var(--dim);
+        font-size: 12.5px;
+      }
+      .pill.save {
+        color: var(--green);
+        font-weight: 600;
+      }
+      .pill .badge {
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        display: grid;
+        place-items: center;
+        background: rgba(24, 24, 27, 0.06);
+        border-radius: 99px;
+        font-size: 11px;
+        color: var(--dim);
+      }
+
+      .corner-br {
+        position: fixed;
+        right: 16px;
+        bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .zoom {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        height: 34px;
+        padding: 0 6px;
+        background: var(--card);
+        backdrop-filter: blur(14px);
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        box-shadow:
+          0 1px 2px rgba(24, 24, 27, 0.05),
+          0 8px 24px rgba(24, 24, 27, 0.08);
+      }
+      .zoom .ibtn {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+      }
+      .zoom .txt {
+        padding: 0 8px;
+        font-size: 12px;
+        color: var(--dim);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+        line-height: 22px;
+        margin: 0 2px;
+      }
+      .cursor-pill {
+        height: 34px;
+        border-radius: 11px;
+      }
+
+      /* ============ 追踪点气泡 ============ */
+      .point-bubble {
+        position: fixed;
+        transform: translate(-50%, -100%);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 10px;
+        margin-bottom: 12px;
+        background: #18181b;
+        color: #fff;
+        border-radius: 8px;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+        box-shadow: 0 6px 20px rgba(24, 24, 27, 0.28);
+        white-space: nowrap;
+      }
+      .point-bubble::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        bottom: -5px;
+        transform: translateX(-50%) rotate(45deg);
+        width: 10px;
+        height: 10px;
+        background: #18181b;
+        border-radius: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="plot"></canvas>
+
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="lu-sparkles" viewBox="0 0 24 24">
+          <path
+            d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"
+          />
+          <path d="M20 2v4" />
+          <path d="M22 4h-4" />
+          <circle cx="4" cy="20" r="2" />
+        </symbol>
+        <symbol id="lu-keyboard" viewBox="0 0 24 24">
+          <path d="M10 8h.01" />
+          <path d="M12 12h.01" />
+          <path d="M14 8h.01" />
+          <path d="M16 12h.01" />
+          <path d="M18 8h.01" />
+          <path d="M6 8h.01" />
+          <path d="M7 16h10" />
+          <path d="M8 12h.01" />
+          <rect width="20" height="16" x="2" y="4" rx="2" />
+        </symbol>
+        <symbol id="lu-monitor-play" viewBox="0 0 24 24">
+          <path
+            d="M15.033 9.44a.647.647 0 0 1 0 1.12l-4.065 2.352a.645.645 0 0 1-.968-.56V7.648a.645.645 0 0 1 .967-.56z"
+          />
+          <path d="M12 17v4" />
+          <path d="M8 21h8" />
+          <rect x="2" y="3" width="20" height="14" rx="2" />
+        </symbol>
+        <symbol id="lu-moon" viewBox="0 0 24 24">
+          <path
+            d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"
+          />
+        </symbol>
+        <symbol id="lu-panel-right" viewBox="0 0 24 24">
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M15 3v18" />
+        </symbol>
+        <symbol id="lu-undo-2" viewBox="0 0 24 24">
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
+        </symbol>
+        <symbol id="lu-redo-2" viewBox="0 0 24 24">
+          <path d="m15 14 5-5-5-5" />
+          <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" />
+        </symbol>
+        <symbol id="lu-save" viewBox="0 0 24 24">
+          <path
+            d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"
+          />
+          <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+          <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+        </symbol>
+        <symbol id="lu-folder-open" viewBox="0 0 24 24">
+          <path
+            d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"
+          />
+        </symbol>
+        <symbol id="lu-upload" viewBox="0 0 24 24">
+          <path d="M12 3v12" />
+          <path d="m17 8-5-5-5 5" />
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        </symbol>
+        <symbol id="lu-mouse-pointer-2" viewBox="0 0 24 24">
+          <path
+            d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"
+          />
+        </symbol>
+        <symbol id="lu-crosshair" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="22" x2="18" y1="12" y2="12" />
+          <line x1="6" x2="2" y1="12" y2="12" />
+          <line x1="12" x2="12" y1="6" y2="2" />
+          <line x1="12" x2="12" y1="22" y2="18" />
+        </symbol>
+        <symbol id="lu-pen-line" viewBox="0 0 24 24">
+          <path d="M13 21h8" />
+          <path
+            d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"
+          />
+        </symbol>
+        <symbol id="lu-circle-dot" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="1" />
+          <circle cx="12" cy="12" r="10" />
+        </symbol>
+        <symbol id="lu-git-merge" viewBox="0 0 24 24">
+          <circle cx="18" cy="18" r="3" />
+          <circle cx="6" cy="6" r="3" />
+          <path d="M6 21V9a9 9 0 0 0 9 9" />
+        </symbol>
+        <symbol id="lu-sigma" viewBox="0 0 24 24">
+          <path
+            d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"
+          />
+        </symbol>
+        <symbol id="lu-chart-column" viewBox="0 0 24 24">
+          <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+          <path d="M18 17V9" />
+          <path d="M13 17V5" />
+          <path d="M8 17v-3" />
+        </symbol>
+        <symbol id="lu-settings-2" viewBox="0 0 24 24">
+          <path d="M14 17H5" />
+          <path d="M19 7h-9" />
+          <circle cx="17" cy="17" r="3" />
+          <circle cx="7" cy="7" r="3" />
+        </symbol>
+        <symbol id="lu-ruler" viewBox="0 0 24 24">
+          <path
+            d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"
+          />
+          <path d="m14.5 12.5 2-2" />
+          <path d="m11.5 9.5 2-2" />
+          <path d="m8.5 6.5 2-2" />
+          <path d="m17.5 15.5 2-2" />
+        </symbol>
+        <symbol id="lu-grid-2x2" viewBox="0 0 24 24">
+          <path d="M12 3v18" />
+          <path d="M3 12h18" />
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+        </symbol>
+        <symbol id="lu-move-diagonal" viewBox="0 0 24 24">
+          <path d="M11 19H5v-6" />
+          <path d="M13 5h6v6" />
+          <path d="M19 5 5 19" />
+        </symbol>
+        <symbol id="lu-minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
+        <symbol id="lu-plus" viewBox="0 0 24 24">
+          <path d="M5 12h14" />
+          <path d="M12 5v14" />
+        </symbol>
+        <symbol id="lu-maximize" viewBox="0 0 24 24">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+          <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+          <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+          <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+        </symbol>
+        <symbol id="lu-eye" viewBox="0 0 24 24">
+          <path
+            d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
+          />
+          <circle cx="12" cy="12" r="3" />
+        </symbol>
+        <symbol id="lu-eye-off" viewBox="0 0 24 24">
+          <path
+            d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"
+          />
+          <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+          <path
+            d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"
+          />
+          <path d="m2 2 20 20" />
+        </symbol>
+        <symbol id="lu-ellipsis" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="1" />
+          <circle cx="19" cy="12" r="1" />
+          <circle cx="5" cy="12" r="1" />
+        </symbol>
+        <symbol id="lu-x" viewBox="0 0 24 24">
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" />
+        </symbol>
+        <symbol id="lu-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+        <symbol id="lu-chevron-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6" /></symbol>
+        <symbol id="lu-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+        <symbol id="lu-pin" viewBox="0 0 24 24">
+          <path d="M12 17v5" />
+          <path
+            d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
+          />
+        </symbol>
+      </defs>
+    </svg>
+
+    <!-- 顶栏 -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg class="i"><use href="#lu-function-square" /></svg>
+        </div>
+        <span class="brand-name">Math Drawing</span>
+      </div>
+      <nav class="modes">
+        <span class="mode on">函数绘图</span>
+        <span class="mode">图论绘图</span>
+        <span class="mode">统计与数据</span>
+        <span class="mode">3D 与场</span>
+        <span class="mode">数学专题</span>
+        <span class="mode">矩阵</span>
+        <span class="mode">笔记本</span>
+      </nav>
+      <div class="top-actions">
+        <button class="ibtn" title="示例项目">
+          <svg class="i"><use href="#lu-sparkles" /></svg>
+        </button>
+        <button class="ibtn" title="快捷键">
+          <svg class="i"><use href="#lu-keyboard" /></svg>
+        </button>
+        <button class="ibtn" title="课堂演示">
+          <svg class="i"><use href="#lu-monitor-play" /></svg>
+        </button>
+        <button class="ibtn" title="深色主题">
+          <svg class="i"><use href="#lu-moon" /></svg>
+        </button>
+        <span class="vsep"></span>
+        <button class="ibtn disabled" title="撤销">
+          <svg class="i"><use href="#lu-undo-2" /></svg>
+        </button>
+        <button class="ibtn disabled" title="重做">
+          <svg class="i"><use href="#lu-redo-2" /></svg>
+        </button>
+        <span class="vsep"></span>
+        <button class="ibtn" title="收起表达式面板">
+          <svg class="i"><use href="#lu-panel-right" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 浮动表达式卡片 -->
+    <section class="expr-card">
+      <div class="card-head">
+        <span class="t">表达式</span>
+        <span class="n">2</span>
+        <button class="ibtn" title="展开/收起">
+          <svg class="i sm"><use href="#lu-chevron-down" /></svg>
+        </button>
+        <button class="ibtn" title="更多">
+          <svg class="i sm"><use href="#lu-ellipsis" /></svg>
+        </button>
+      </div>
+      <div class="add-row">
+        <span class="color-dot"></span>
+        <input class="add-input" value="a * sin(b * x)" />
+        <button class="add-btn" title="添加曲线">
+          <svg class="i sm"><use href="#lu-plus" /></svg>
+        </button>
+      </div>
+      <div class="ok-line">
+        <svg class="i sm"><use href="#lu-check" /></svg>表达式有效 · 参数 a、b（滑块可调）
+      </div>
+      <div class="divider"></div>
+
+      <div class="items">
+        <div class="item sel">
+          <div class="item-row">
+            <span class="dot" style="background: #c32222"></span>
+            <span class="item-name">a · sin(b · x)</span>
+            <button class="ibtn" title="显示/隐藏">
+              <svg class="i sm"><use href="#lu-eye" /></svg>
+            </button>
+            <button class="ibtn" title="更多">
+              <svg class="i sm"><use href="#lu-ellipsis" /></svg>
+            </button>
+          </div>
+          <div class="expr-row2">
+            <span class="prefix">y =</span><input class="expr2" value="a * sin(b * x)" />
+          </div>
+          <div class="params">
+            <div class="param">
+              <span class="k">a</span
+              ><input type="range" min="-10" max="10" step="0.1" value="1.5" /><span class="v"
+                >1.5</span
+              >
+            </div>
+            <div class="param">
+              <span class="k">b</span
+              ><input type="range" min="-10" max="10" step="0.1" value="2" /><span class="v"
+                >2</span
+              >
+            </div>
+          </div>
+          <div class="opts">
+            <span
+              >线型
+              <select class="mini-select">
+                <option>实线</option>
+                <option>虚线</option>
+                <option>点线</option>
+              </select></span
+            >
+            <span
+              >精度
+              <select class="mini-select">
+                <option>标准</option>
+                <option>较高</option>
+                <option>高</option>
+              </select></span
+            >
+          </div>
+        </div>
+
+        <div class="item">
+          <div class="item-row">
+            <span class="dot" style="background: #15803d"></span>
+            <span class="item-name">x^2 / 4</span>
+            <button class="ibtn" title="显示/隐藏">
+              <svg class="i sm"><use href="#lu-eye" /></svg>
+            </button>
+            <button class="ibtn" title="更多">
+              <svg class="i sm"><use href="#lu-ellipsis" /></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <button class="add-ghost">
+        <svg class="i sm"><use href="#lu-plus" /></svg>添加曲线
+      </button>
+    </section>
+
+    <!-- 追踪点气泡（位置由脚本计算） -->
+    <div class="point-bubble" id="bubble">
+      <span class="dot" style="width: 8px; height: 8px; background: #60a5fa"></span>
+      <span>f(1.29) = 1.44</span>
+    </div>
+
+    <!-- 底部工具坞 -->
+    <div class="dock">
+      <button class="tool on">
+        <svg class="i md"><use href="#lu-mouse-pointer-2" /></svg><span class="lbl">选择</span>
+      </button>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-crosshair" /></svg><span class="lbl">追踪</span>
+      </button>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-pen-line" /></svg><span class="lbl">切线</span>
+      </button>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-circle-dot" /></svg><span class="lbl">零点</span>
+      </button>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-git-merge" /></svg><span class="lbl">交点</span>
+      </button>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-sigma" /></svg><span class="lbl">定积分</span>
+      </button>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-chart-column" /></svg><span class="lbl">黎曼和</span>
+      </button>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-waves" /></svg><span class="lbl">泰勒</span>
+      </button>
+      <span class="vsep"></span>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-settings-2" /></svg><span class="lbl">视图</span>
+      </button>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-ruler" /></svg><span class="lbl">等比</span>
+      </button>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-grid-2x2" /></svg><span class="lbl">坐标轴</span>
+      </button>
+      <span class="vsep"></span>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-save" /></svg><span class="lbl">保存</span>
+      </button>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-folder-open" /></svg><span class="lbl">打开</span>
+      </button>
+      <button class="tool">
+        <svg class="i md"><use href="#lu-upload" /></svg><span class="lbl">导出</span>
+      </button>
+    </div>
+
+    <!-- 左下：保存状态 + 标记点 -->
+    <div class="corner-bl">
+      <span class="pill save"
+        ><svg class="i sm"><use href="#lu-check" /></svg>已保存</span
+      >
+      <button class="pill" style="cursor: pointer">
+        <svg class="i sm"><use href="#lu-pin" /></svg>标记点<span class="badge">0</span>
+      </button>
+    </div>
+
+    <!-- 右下：光标 + 缩放 -->
+    <div class="corner-br">
+      <span class="pill cursor-pill">光标 (1.29, −0.88)</span>
+      <div class="zoom">
+        <button class="ibtn" title="缩小">
+          <svg class="i sm"><use href="#lu-minus" /></svg>
+        </button>
+        <span class="txt">80 px/单位</span>
+        <button class="ibtn" title="放大">
+          <svg class="i sm"><use href="#lu-plus" /></svg>
+        </button>
+        <button class="ibtn" title="适配视图">
+          <svg class="i sm"><use href="#lu-maximize" /></svg>
+        </button>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('plot')
+      const dpr = window.devicePixelRatio || 1
+      function draw() {
+        const w = window.innerWidth,
+          h = window.innerHeight
+        canvas.width = w * dpr
+        canvas.height = h * dpr
+        const ctx = canvas.getContext('2d')
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+        ctx.clearRect(0, 0, w, h)
+
+        const cx = w / 2,
+          cy = h / 2 + 20,
+          scale = 46
+
+        ctx.strokeStyle = '#f4f4f6'
+        ctx.lineWidth = 1
+        for (let x = cx % (scale / 2); x < w; x += scale / 2) {
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, h)
+          ctx.stroke()
+        }
+        for (let y = cy % (scale / 2); y < h; y += scale / 2) {
+          ctx.beginPath()
+          ctx.moveTo(0, y)
+          ctx.lineTo(w, y)
+          ctx.stroke()
+        }
+        ctx.strokeStyle = '#e9e9ee'
+        for (let i = -30; i < 60; i++) {
+          const x = cx + i * scale
+          if (x < 0 || x > w) continue
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, h)
+          ctx.stroke()
+        }
+        for (let i = -30; i < 60; i++) {
+          const y = cy + i * scale
+          if (y < 0 || y > h) continue
+          ctx.beginPath()
+          ctx.moveTo(0, y)
+          ctx.lineTo(w, y)
+          ctx.stroke()
+        }
+        ctx.strokeStyle = '#b6bcc8'
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ctx.moveTo(0, cy)
+        ctx.lineTo(w, cy)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(cx, 0)
+        ctx.lineTo(cx, h)
+        ctx.stroke()
+        ctx.fillStyle = '#a1a1aa'
+        ctx.font = '11px Inter, system-ui'
+        ctx.textAlign = 'center'
+        for (let i = -30; i < 60; i++) {
+          const x = cx + i * scale
+          if (x > 10 && x < w - 10 && i !== 0 && i % 2 === 0) ctx.fillText(String(i), x, cy + 15)
+        }
+        ctx.textAlign = 'right'
+        for (let i = -30; i < 60; i++) {
+          const y = cy + i * scale
+          if (y > 16 && y < h - 8 && i !== 0 && i % 2 === 0) ctx.fillText(String(-i), cx - 7, y + 4)
+        }
+        ctx.textAlign = 'left'
+        ctx.fillText('x', w - 16, cy - 8)
+        ctx.fillText('y', cx + 8, 18)
+
+        // 曲线 a·sin(b·x)
+        ctx.strokeStyle = '#c32222'
+        ctx.lineWidth = 2.5
+        ctx.lineJoin = 'round'
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        let started = false
+        for (let px = 0; px <= w; px += 2) {
+          const x = (px - cx) / scale
+          const py = cy - 1.5 * Math.sin(2 * x) * scale
+          if (!started) {
+            ctx.moveTo(px, py)
+            started = true
+          } else ctx.lineTo(px, py)
+        }
+        ctx.stroke()
+
+        // 曲线 x²/4
+        ctx.strokeStyle = '#15803d'
+        ctx.lineWidth = 2
+        ctx.setLineDash([8, 6])
+        ctx.beginPath()
+        started = false
+        for (let px = 0; px <= w; px += 2) {
+          const x = (px - cx) / scale
+          const py = cy - ((x * x) / 4) * scale
+          if (py < -80 || py > h + 80) {
+            started = false
+            continue
+          }
+          if (!started) {
+            ctx.moveTo(px, py)
+            started = true
+          } else ctx.lineTo(px, py)
+        }
+        ctx.stroke()
+        ctx.setLineDash([])
+
+        // 追踪点
+        const tx = 1.29,
+          ty = 1.5 * Math.sin(2 * tx)
+        const px = cx + tx * scale,
+          py = cy - ty * scale
+        ctx.beginPath()
+        ctx.arc(px, py, 6, 0, Math.PI * 2)
+        ctx.fillStyle = '#2563eb'
+        ctx.fill()
+        ctx.lineWidth = 2
+        ctx.strokeStyle = '#fff'
+        ctx.stroke()
+
+        // 气泡位置
+        const bubble = document.getElementById('bubble')
+        bubble.style.left = px + 'px'
+        bubble.style.top = py - 6 + 'px'
+      }
+      draw()
+      window.addEventListener('resize', draw)
+    </script>
+  </body>
+</html>

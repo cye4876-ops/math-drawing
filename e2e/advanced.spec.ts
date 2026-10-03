@@ -254,8 +254,10 @@ test.describe('v0.9 进阶（第五模式）', () => {
     await expect(table.locator('[data-noncommuting="true"]')).toHaveCount(2)
     await expect(page.getByTestId('alg-caption-q8')).toContainText('≠')
     await expect(page.getByTestId('alg-subgroups-q8')).toContainText('全部子群均正规')
-    // 点击非交换单元格：说明栏显示具体乘积
-    await table.locator('[data-noncommuting="true"]').first().click()
+    // 点击非交换单元格：说明栏显示具体乘积（先滚动到面板中部，避开吸附的案例列表）
+    const cell = table.locator('[data-noncommuting="true"]').first()
+    await cell.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'center' }))
+    await cell.click()
     await expect(page.getByTestId('alg-caption-q8')).toContainText('=')
   })
 
@@ -279,8 +281,10 @@ test.describe('v0.9 进阶（第五模式）', () => {
     await page.getByTestId('adv-algebra-section-groups').click()
     await expect(page.getByTestId('alg-group-facts')).toContainText('非交换')
     await expect(page.getByTestId('alg-lattice')).toBeVisible()
-    // 默认 S₃：点击 (12) 行单元格 → 显示阶 / 逆元 / 生成子群
-    await page.getByTestId('alg-table-s3').locator('td').nth(6).click()
+    // 默认 S₃：点击 (12) 行单元格 → 显示阶 / 逆元 / 生成子群（先滚动到面板中部）
+    const s3cell = page.getByTestId('alg-table-s3').locator('td').nth(6)
+    await s3cell.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'center' }))
+    await s3cell.click()
     await expect(page.getByTestId('alg-element-info')).toContainText('阶')
     await expect(page.getByTestId('alg-element-info')).toContainText('⟨')
     // 切换 Q₈：性质卡与表格更新
