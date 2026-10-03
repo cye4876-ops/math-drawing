@@ -327,12 +327,20 @@ body {
     bottom: auto;
     width: auto;
     max-height: 46%;
-    margin-bottom: 104px;
+    /* 预留两行工具坞高度（工具坞换行后高约 114px + 底部 12px 偏移） */
+    margin-bottom: 132px;
     border-top: 1px solid var(--border);
     border-radius: 0;
     background: var(--bg-panel);
     backdrop-filter: none;
     box-shadow: none;
+  }
+}
+
+/* 更窄（手机）：工具坞换行到三行及以上，再加大预留 */
+@media (max-width: 560px) {
+  .side-column {
+    margin-bottom: 196px;
   }
 }
 
@@ -450,9 +458,16 @@ body {
 /* 窄窗口：工具坞可能换行成两行；状态胶囊移到顶部（避开面板与工具坞） */
 @media (max-width: 920px) {
   .status-bar {
-    top: 88px;
+    top: 100px;
     bottom: auto;
     padding: 0 12px;
+  }
+}
+
+/* 更窄：顶栏自身换行为两行（高约 119px），胶囊继续下移保持不遮挡 */
+@media (max-width: 680px) {
+  .status-bar {
+    top: 132px;
   }
 }
 .btn-primary {

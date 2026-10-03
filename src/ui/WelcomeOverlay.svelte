@@ -52,6 +52,13 @@
       bottom: 176px;
     }
   }
+
+  /* 更窄（手机）：工具坞换行到三行及以上，引导卡继续上移 */
+  @media (max-width: 560px) {
+    .welcome {
+      bottom: 216px;
+    }
+  }
   .welcome-card {
     display: flex;
     align-items: center;
