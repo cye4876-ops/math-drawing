@@ -1,11 +1,15 @@
 /**
- * 切线工具（v0.4）：拖动切点或输入 x 坐标定位；切线随动；显示切点、斜率与切线方程。
+ * 切线工具（v0.4；v2.8.1 精确化）：拖动切点或输入 x 坐标定位；切线随动；显示切点、斜率与切线方程。
+ * 输入精确坐标（如 pi/2）且函数在规则集内时，切点/斜率/方程均给精确式。
  */
 import { createProjector, unitRangeSamples } from '../core/transform'
+import { formatExact, type ExactValue } from '../symbolic/exact'
 import type { Point2 } from '../state/types'
 import {
   COORD_CHIPS,
   analyzeAt,
+  evalCurveExact,
+  exactValueFromText,
   formatNum,
   getFs,
   nearestCurveHit,
@@ -20,6 +24,24 @@ interface TangentState extends CurveHit {
   slope: number | null
 }
 
+/** 精确切点状态（仅来自手工输入的精确文本） */
+interface ExactTangent {
+  x: ExactValue
+  y: ExactValue
+  slope: ExactValue
+}
+
+/** 精确切线方程：点斜式（斜率为零 → 水平线） */
+function tangentEquationExact(xText: string, yText: string, slopeText: string): string {
+  if (slopeText === '0') return `y = ${yText}`
+  const negative = slopeText.startsWith('−')
+  const absSlope = negative ? slopeText.slice(1) : slopeText
+  const coefficient = absSlope === '1' ? '' : `${absSlope}·`
+  const core = xText === '0' ? `${coefficient}x` : `${coefficient}(x − ${xText})`
+  if (yText === '0') return `y = ${negative ? '−' : ''}${core}`
+  return `y = ${yText} ${negative ? '−' : '+'} ${core}`
+}
+
 export function createTangentTool(): Tool {
   let state: TangentState | null = null
   let dragging = false
@@ -27,6 +49,8 @@ export function createTangentTool(): Tool {
   let inputText = ''
   /** 输入错误提示（解析失败/定义域外/无可用曲线），空串表示正常 */
   let errorText = ''
+  /** 精确切点（仅在手工输入精确坐标且精确求值成功时存在；拖动/点击置空） */
+  let exactState: ExactTangent | null = null
 
   const update = (ctx: Parameters<NonNullable<Tool['onPointerMove']>>[1], screen: Point2): void => {
     const hit = nearestCurveHit(ctx, screen, 72)
@@ -38,6 +62,7 @@ export function createTangentTool(): Tool {
       inputText = formatNum(hit.x)
       errorText = ''
     }
+    exactState = null
     ctx.notify()
     ctx.requestRender()
   }
@@ -75,6 +100,14 @@ export function createTangentTool(): Tool {
     const analysis = analyzeAt(fs.curve, { x: x0, y, t: x0, distancePx: 0 })
     state = { curve: fs.curve, x: x0, y, t: x0, distancePx: 0, slope: analysis.slope }
     errorText = ''
+    // 精确路径：输入文本可精确求值，且函数与其导数在该点均可精确表示
+    exactState = null
+    const point = exactValueFromText(raw, fs.curve.params)
+    if (point) {
+      const yExact = evalCurveExact(fs.curve.expr, 'x', point, fs.curve.params, 0)
+      const slopeExact = evalCurveExact(fs.curve.expr, 'x', point, fs.curve.params, 1)
+      if (yExact && slopeExact) exactState = { x: point, y: yExact, slope: slopeExact }
+    }
     ctx.notify()
     ctx.requestRender()
   }
@@ -88,6 +121,7 @@ export function createTangentTool(): Tool {
       dragging = false
       inputText = ''
       errorText = ''
+      exactState = null
       ctx.notify()
     },
 
@@ -96,6 +130,7 @@ export function createTangentTool(): Tool {
       dragging = false
       inputText = ''
       errorText = ''
+      exactState = null
     },
 
     onPointerDown(e, ctx) {
@@ -105,6 +140,7 @@ export function createTangentTool(): Tool {
       state = { ...hit, slope: analysis.slope }
       inputText = formatNum(hit.x)
       errorText = ''
+      exactState = null
       dragging = true
       ctx.notify()
       ctx.requestRender()
@@ -207,16 +243,29 @@ export function createTangentTool(): Tool {
           note: errorText || '在曲线上按下并拖动切点，或在下方输入 x 坐标直接定位',
         }
       }
+      const exact = exactState
+      const xText = exact ? formatExact(exact.x) : formatNum(state.x)
+      const yText = exact ? formatExact(exact.y) : formatNum(state.y)
       const rows = [
         { label: '曲线', value: state.curve.name },
-        { label: '切点', value: `(${formatNum(state.x)}, ${formatNum(state.y)})` },
+        { label: '切点', value: `(${xText}, ${yText})` },
         {
           label: '斜率 k',
-          value: state.slope === null ? '不可用' : formatNum(state.slope),
+          value:
+            state.slope === null
+              ? '不可用'
+              : exact
+                ? formatExact(exact.slope)
+                : formatNum(state.slope),
         },
         {
           label: '切线方程',
-          value: state.slope === null ? '—' : tangentEquation(state.x, state.y, state.slope),
+          value:
+            state.slope === null
+              ? '—'
+              : exact
+                ? tangentEquationExact(xText, yText, formatExact(exact.slope))
+                : tangentEquation(state.x, state.y, state.slope),
         },
       ]
       return {
@@ -224,7 +273,9 @@ export function createTangentTool(): Tool {
         rows,
         note:
           errorText ||
-          '也可输入 x 坐标直接定位切点（仅显函数）；方程暂为纯文本（KaTeX 排版在 v0.6）',
+          (exact
+            ? '输入坐标为精确值且函数在精确规则集内：切点/斜率/方程为精确式（并随导数符号求导）。'
+            : '也可输入 x 坐标直接定位切点（仅显函数）；输入 0、pi/2、sqrt(2) 等精确坐标可给出精确式。'),
       }
     },
   }

@@ -230,11 +230,11 @@ test.describe('v0.4 交互分析工具', () => {
     await input.press('Enter')
 
     const values = await readoutValues(page)
-    // [曲线, 切点, 斜率 k, 切线方程]
+    // [曲线, 切点, 斜率 k, 切线方程]（输入 pi/2 为精确坐标 → 精确式）
     expect(values[0]).toBe('sin(x)')
-    expect(values[1]).toBe('(1.5708, 1)')
-    expect(Number(values[2])).toBeCloseTo(0, 4) // cos(π/2) ≈ 0
-    expect(values[3]).toContain('y = ')
+    expect(values[1]).toBe('(π/2, 1)')
+    expect(values[2]).toBe('0') // cos(π/2) = 0（精确）
+    expect(values[3]).toBe('y = 1')
 
     // 非法输入：面板提示且保留上次切点
     await input.fill('abc')
@@ -260,9 +260,10 @@ test.describe('v0.4 交互分析工具', () => {
     expect(values[3]).toContain('0.540302') // cos(1)
     expect(values[3]).toContain('(x−1)')
 
-    // 快捷符号：点击 π → 展开点 3.14159
+    // 快捷符号：点击 π → 精确展开点 π（sin/cos 在 π 处系数为 0、−1）
     await page.getByTestId('tool-chip-x0-pi').click()
-    await expect(page.getByTestId('tool-readout-value').nth(1)).toHaveText('3.14159')
+    await expect(page.getByTestId('tool-readout-value').nth(1)).toHaveText('π')
+    await expect(page.getByTestId('tool-readout-value').nth(3)).toContainText('(x−π)')
   })
 
   test('对数坐标下切线正常绘制（回归：越过 y≤0 断开而非整条消失）', async ({ page }) => {

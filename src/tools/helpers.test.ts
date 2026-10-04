@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createStore } from '../state/store'
-import { analyzeAt, formatNum, getFs, nearestCurveHit, tangentEquation } from './helpers'
+import {
+  analyzeAt,
+  evalCurveExact,
+  exactValueFromText,
+  formatNum,
+  getFs,
+  nearestCurveHit,
+  tangentEquation,
+} from './helpers'
+import { formatExact } from '../symbolic/exact'
 import { clearDerivativeCache } from './curve-access'
 import { mathToScreen } from '../core/transform'
 import type { ToolContext } from './tool-registry'
@@ -48,6 +57,25 @@ describe('tools/helpers: tangentEquation', () => {
 
   it('竖直切线输出 x = x₀', () => {
     expect(tangentEquation(1.5, 2, Number.POSITIVE_INFINITY)).toBe('x = 1.5')
+  })
+})
+
+describe('tools/helpers: 精确值助手（切线/泰勒）', () => {
+  it('文本 → 精确值（常量/根式；无法精确求值返回 null）', () => {
+    expect(formatExact(exactValueFromText('pi/2')!)).toBe('π/2')
+    expect(formatExact(exactValueFromText('sqrt(2)')!)).toBe('√2')
+    expect(exactValueFromText('abc')).toBeNull()
+  })
+
+  it('曲线在精确点处的精确值与导数（含参数）', () => {
+    const point = exactValueFromText('pi/2')!
+    expect(formatExact(evalCurveExact('sin(x)', 'x', point)!)).toBe('1')
+    expect(formatExact(evalCurveExact('sin(x)', 'x', point, undefined, 1)!)).toBe('0')
+    // 参数代入：a·x 在 x=1/2、a=3 处 = 3/2
+    const half = exactValueFromText('1/2')!
+    expect(formatExact(evalCurveExact('a*x', 'x', half, { a: 3 })!)).toBe('3/2')
+    // sin(1) 无精确表示 → null（回退数值）
+    expect(evalCurveExact('sin(x)', 'x', exactValueFromText('1')!)).toBeNull()
   })
 })
 

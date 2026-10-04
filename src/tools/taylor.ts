@@ -1,9 +1,20 @@
 /**
- * 泰勒展开工具（v0.4）：展开点可点击/拖动，逐项叠加动画（n = 1,3,5,…,15），实时显示展开式。
- * 系数来自 v0.2 符号求导：c_k = f⁽ᵏ⁾(x₀)/k!。公式为纯文本（KaTeX 排版在 v0.6）。
+ * 泰勒展开工具（v0.4；v2.8.1 精确化）：展开点可点击/拖动，逐项叠加动画（n = 1,3,5,…,15），实时显示展开式。
+ * 系数来自 v0.2 符号求导：c_k = f⁽ᵏ⁾(x₀)/k!。
+ * 手工输入精确展开点（如 pi/2）且函数在规则集内时，展开点与系数给精确式（1/6、−1/2…）。
  */
 import { createProjector, unitRangeSamples } from '../core/transform'
-import { COORD_CHIPS, formatNum, getFs, parseCoordinate, type ExplicitCurveFs } from './helpers'
+import { rat } from '../math/exact/rational'
+import { exactScale, formatExact, type ExactValue } from '../symbolic/exact'
+import {
+  COORD_CHIPS,
+  evalCurveExact,
+  exactValueFromText,
+  formatNum,
+  getFs,
+  parseCoordinate,
+  type ExplicitCurveFs,
+} from './helpers'
 import { getDerivativeFn } from './curve-access'
 import type { Tool } from './tool-registry'
 
@@ -27,6 +38,9 @@ export function createTaylorTool(): Tool {
   /** 输入错误提示，空串表示正常 */
   let errorText = ''
   const cache = new Map<string, CoeffSet | null>()
+  /** 精确展开点（仅手工输入且可精确求值时存在；点击/拖动置空） */
+  let exactX0: { value: ExactValue; text: string } | null = null
+  const exactCache = new Map<string, ExactValue[] | null>()
 
   const coeffsFor = (fs: ExplicitCurveFs, point: number): CoeffSet | null => {
     const key = `${fs.curve.id}|${fs.curve.expr}|${point}`
@@ -75,6 +89,42 @@ export function createTaylorTool(): Tool {
     return `T${n}(x) = ${terms.join(' + ').replaceAll('+ −', '− ')}${more}`
   }
 
+  /** 精确系数：c_k = f⁽ᵏ⁾(x₀)/k!（精确值）；不足 2 项（或不可精确）返回 null */
+  const exactCoeffsFor = (
+    fs: ExplicitCurveFs,
+    point: ExactValue,
+    key: string,
+  ): ExactValue[] | null => {
+    const cached = exactCache.get(key)
+    if (cached !== undefined) return cached
+    const coeffs: ExactValue[] = []
+    let factorial = 1n
+    for (let k = 0; k <= MAX_ORDER; k++) {
+      if (k > 0) factorial *= BigInt(k)
+      const value = evalCurveExact(fs.curve.expr, 'x', point, fs.curve.params, k)
+      if (!value) break
+      coeffs.push(k === 0 ? value : exactScale(value, rat(1n, factorial)))
+    }
+    const result = coeffs.length >= 2 ? coeffs : null
+    exactCache.set(key, result)
+    return result
+  }
+
+  /** 精确展开式文本（系数与展开点均为精确式） */
+  const exactFormulaText = (coeffs: ExactValue[], x0Text: string, n: number): string => {
+    const terms: string[] = []
+    const limit = Math.min(n, coeffs.length - 1)
+    for (let k = 0; k <= limit && terms.length < 7; k++) {
+      const c = coeffs[k] as ExactValue
+      if (c.length === 0 && k > 0) continue
+      const term =
+        k === 0 ? formatExact(c) : `${formatExact(c)}·(x−${x0Text})${k === 1 ? '' : `^${k}`}`
+      terms.push(term)
+    }
+    const more = limit >= 7 ? ' + …' : ''
+    return `T${n}(x) = ${terms.join(' + ').replaceAll('+ −', '− ')}${more}`
+  }
+
   return {
     id: 'taylor',
     name: '泰勒',
@@ -83,6 +133,7 @@ export function createTaylorTool(): Tool {
       playing = false
       lastStep = 0
       errorText = ''
+      exactX0 = null
       ctx.notify()
     },
 
@@ -90,6 +141,7 @@ export function createTaylorTool(): Tool {
       playing = false
       inputText = ''
       errorText = ''
+      exactX0 = null
     },
 
     isAnimating() {
@@ -101,6 +153,7 @@ export function createTaylorTool(): Tool {
       inputText = formatNum(x0)
       errorText = ''
       playing = false
+      exactX0 = null
       ctx.notify()
       ctx.requestRender()
       return true
@@ -153,6 +206,10 @@ export function createTaylorTool(): Tool {
           x0 = parsed
           errorText = ''
           playing = false
+          // 精确路径：输入可精确求值（如 pi/2、0）时记录精确展开点
+          const fs = getFs(ctx, 1)[0]
+          const point = fs ? exactValueFromText(value, fs.curve.params) : null
+          exactX0 = point ? { value: point, text: formatExact(point) } : null
         }
       } else if (id === 'order' && typeof value === 'number') {
         order = Math.min(MAX_ORDER, Math.max(1, Math.round(value)))
@@ -258,6 +315,13 @@ export function createTaylorTool(): Tool {
         return { title: '泰勒展开', rows: [], note: '该函数在此点不可导（或导数不支持）' }
       }
       const n = Math.min(order, set.coeffs.length - 1)
+      const exact = exactX0
+        ? exactCoeffsFor(
+            fs,
+            exactX0.value,
+            `${fs.curve.id}|${fs.curve.expr}|${exactX0.text}|${JSON.stringify(fs.curve.params ?? {})}`,
+          )
+        : null
       const size = ctx.getSize()
       const projector = createProjector(ctx.getView(), size)
       const xLeft = projector.screenToMathX(0)
@@ -272,12 +336,19 @@ export function createTaylorTool(): Tool {
         title: '泰勒展开',
         rows: [
           { label: '曲线', value: fs.curve.name },
-          { label: '展开点', value: formatNum(x0) },
+          { label: '展开点', value: exactX0 ? exactX0.text : formatNum(x0) },
           { label: '阶数 n', value: String(n) },
-          { label: '展开式', value: formulaText(set, n) },
+          {
+            label: '展开式',
+            value: exact ? exactFormulaText(exact, exactX0!.text, order) : formulaText(set, n),
+          },
           { label: '可视范围最大偏差', value: formatNum(maxDeviation, 3) },
         ],
-        note: errorText || '点击画布或输入 x 坐标移动展开点。公式为纯文本（KaTeX 排版在 v0.6）。',
+        note:
+          errorText ||
+          (exact
+            ? '展开点为精确值且函数在精确规则集内：系数为精确式（如 1/6、−1/2），逼近曲线仍为数值绘制。'
+            : '点击画布或输入 x 坐标移动展开点；输入 0、pi/2 等精确展开点可给出精确系数。'),
       }
     },
   }

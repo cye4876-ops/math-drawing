@@ -177,15 +177,22 @@ describe('tools/tangent: 切线', () => {
 
     tool.onControl!('x', 'pi/2', f.ctx)
     const rows = readoutOf(f).rows
-    expect(rows[1]!.value).toBe('(1.5708, 1)') // 切点 (π/2, sin(π/2))
-    expect(Number(rows[2]!.value)).toBeCloseTo(0, 4) // k = cos(π/2) = 0
-    expect(rows[3]!.value).toContain('+ 1') // 切线方程 y ≈ 1
+    expect(rows[1]!.value).toBe('(π/2, 1)') // 精确切点 (π/2, sin(π/2))
+    expect(rows[2]!.value).toBe('0') // k = cos(π/2) = 0（精确）
+    expect(rows[3]!.value).toBe('y = 1') // 水平切线（精确）
+
+    // 非精确坐标（sin(1) 无精确表示）→ 回落数值显示
+    tool.onControl!('x', '1', f.ctx)
+    const numericRows = readoutOf(f).rows
+    expect(numericRows[1]!.value).toBe('(1, 0.841471)')
+    expect(numericRows[2]!.value).toBe('0.540302')
+    expect(numericRows[3]!.value).toContain('y = ')
 
     // 非法输入：提示错误且保留上次有效切点
     tool.onControl!('x', 'abc', f.ctx)
     const readout = readoutOf(f)
     expect(readout.note).toContain('无法解析')
-    expect(readout.rows[1]!.value).toContain('1.5708')
+    expect(readout.rows[1]!.value).toContain('(1,')
   })
 
   it('输入坐标但无曲线 / 点不在定义域时给出提示', () => {
@@ -486,5 +493,23 @@ describe('tools/taylor: 泰勒展开', () => {
     expect(readoutOf(f).note).toContain('无法解析')
     rows = readoutOf(f).rows
     expect(rows[1]!.value).toBe('1')
+  })
+
+  it('精确展开点（pi/2）给出精确系数', () => {
+    const f = createFixture([createTaylorTool()])
+    f.store.addCurve({ kind: 'explicit', expr: 'sin(x)' })
+    f.registry.activate('taylor')
+    const tool = f.registry.getActive()!
+
+    tool.onControl!('x0', 'pi/2', f.ctx)
+    let rows = readoutOf(f).rows
+    expect(rows[1]!.value).toBe('π/2') // 精确展开点
+    expect(rows[3]!.value).toBe('T1(x) = 1') // sin(π/2) = 1、cos(π/2) = 0
+
+    tool.onControl!('step', '', f.ctx) // n = 2
+    tool.onControl!('step', '', f.ctx) // n = 3（三阶项系数为 0，正确省略）
+    rows = readoutOf(f).rows
+    expect(rows[2]!.value).toBe('3')
+    expect(rows[3]!.value).toBe('T3(x) = 1 − 1/2·(x−π/2)^2')
   })
 })

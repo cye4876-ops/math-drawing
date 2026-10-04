@@ -9,6 +9,28 @@ import { getCurveSample } from '../render/curve-renderer'
 type CompiledFn = (scope: Record<string, number>) => number
 
 const derivativeCache = new Map<string, ((v: number) => number) | null>()
+const derivativeAstCache = new Map<string, Expr | null>()
+
+/**
+ * 第 order 阶符号导数的 AST（缓存；供精确值引擎在指定点精确求值）。
+ * 导数不支持（floor 等）或求导失败返回 null。
+ */
+export function getDerivativeAst(expr: string, variable: string, order: number): Expr | null {
+  if (order < 0 || !Number.isInteger(order)) return null
+  const key = `${variable}|${order}|${expr}`
+  const cached = derivativeAstCache.get(key)
+  if (cached !== undefined) return cached
+  let out: Expr | null
+  try {
+    let node: Expr = parse(expr)
+    for (let k = 0; k < order; k++) node = simplify(differentiate(node, variable))
+    out = node
+  } catch {
+    out = null
+  }
+  derivativeAstCache.set(key, out)
+  return out
+}
 
 /**
  * 第 order 阶符号导数闭包（对变量 variable 求导）。
@@ -59,4 +81,5 @@ export function getExplicitFn(curve: Curve): ((x: number) => number) | null {
 /** 清空导数缓存（测试用） */
 export function clearDerivativeCache(): void {
   derivativeCache.clear()
+  derivativeAstCache.clear()
 }

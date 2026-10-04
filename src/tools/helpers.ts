@@ -3,10 +3,17 @@
  */
 import { createProjector } from '../core/transform'
 import { compile, differentiate, parse, simplify } from '../expr'
-import { formatExact, snapNumber } from '../symbolic/exact'
+import {
+  evalExact,
+  exactFromNumber,
+  formatExact,
+  snapNumber,
+  type ExactEnv,
+  type ExactValue,
+} from '../symbolic/exact'
 import type { Point2 } from '../state/types'
 import { nearestPointOnPolylines, type NearestPoint } from '../math/numeric/nearest'
-import { getCurveSample, getDerivativeFn } from './curve-access'
+import { getCurveSample, getDerivativeAst, getDerivativeFn } from './curve-access'
 import type { ToolContext } from './tool-registry'
 import type { Curve } from '../state/types'
 
@@ -207,6 +214,51 @@ export function formatValueSmart(value: number, digits = 6): string {
   const snapped = snapNumber(value)
   if (snapped) return formatExact(snapped)
   return formatNum(value, digits)
+}
+
+/** 曲线参数 → 精确值环境（参数无法精确表示时抛出，由调用方捕获） */
+function exactEnvOfParams(params?: Record<string, number>): ExactEnv {
+  const env: ExactEnv = {}
+  if (params) {
+    for (const [name, value] of Object.entries(params)) env[name] = exactFromNumber(value)
+  }
+  return env
+}
+
+/**
+ * 文本 → 精确值：支持数字、常量与根式（0、pi/2、sqrt(2)…）以及曲线参数；
+ * 无法精确求值（如 sin(1)）返回 null。
+ */
+export function exactValueFromText(
+  raw: string,
+  params?: Record<string, number>,
+): ExactValue | null {
+  try {
+    return evalExact(parse(raw), exactEnvOfParams(params))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 曲线在精确点处的精确函数值（order=0）或第 order 阶导数值（含参数）；失败返回 null。
+ * 供切线/泰勒等工具在“精确点”上给出精确式（如 sin 在 π/2 处斜率为 0、泰勒系数为 1/6）。
+ */
+export function evalCurveExact(
+  exprText: string,
+  variable: string,
+  point: ExactValue,
+  params?: Record<string, number>,
+  order = 0,
+): ExactValue | null {
+  try {
+    const ast = order === 0 ? parse(exprText) : getDerivativeAst(exprText, variable, order)
+    if (!ast) return null
+    const env: ExactEnv = { ...exactEnvOfParams(params), [variable]: point }
+    return evalExact(ast, env)
+  } catch {
+    return null
+  }
 }
 
 export interface ExplicitCurveFs {
