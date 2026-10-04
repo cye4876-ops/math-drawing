@@ -62,6 +62,24 @@ function linearExpr(a: number, b: number, v: string): Expr {
   return b === 0 ? scaled : makeBinary('+', scaled, makeNumber(b))
 }
 
+/** 数值节点等于指定值（浮点容差） */
+function isNumber(expr: Expr, value: number): boolean {
+  return expr.type === 'number' && Math.abs(expr.value - value) < 1e-12
+}
+
+/** sin(u)·cos(u) 结构（参数必须一致）→ 返回 u；否则 null */
+function matchSinCosProduct(expr: Expr): Expr | null {
+  if (expr.type !== 'binary' || expr.op !== '*') return null
+  const left = expr.left
+  const right = expr.right
+  if (left.type !== 'call' || right.type !== 'call') return null
+  if (left.args.length !== 1 || right.args.length !== 1) return null
+  const names = [left.name, right.name].sort().join('+')
+  if (names !== 'cos+sin') return null
+  if (JSON.stringify(left.args[0]) !== JSON.stringify(right.args[0])) return null
+  return left.args[0]!
+}
+
 interface LinearForm {
   factor: Expr
   a: number
@@ -443,52 +461,89 @@ function integrateRec(expr: Expr, v: string, ctx: { steps: number }): Expr | nul
         const lnBase = Math.log(baseValue)
         const argument = linearExpr(exponentForm.a, exponentForm.b, v)
         const power = makeBinary('^', base, argument)
-        return mulExpr(
-          exponentForm.factor,
-          makeBinary('/', power, makeNumber(exponentForm.a * lnBase)),
+        // ∫A^{f·(av+b)} dv = A^{...}/(f·a·lnA)：符号系数 f 须进入分母（此前误作分子）
+        const divisor = mulExpr(exponentForm.factor, makeNumber(exponentForm.a * lnBase))
+        return makeBinary('/', power, divisor)
+      }
+    }
+  }
+
+  // 幂降公式：sin²、cos²、tan²（线性内层换元；f 为符号/V 无关系数）
+  if (expr.type === 'binary' && expr.op === '^' && isNumber(expr.right, 2)) {
+    const base = expr.left
+    if (
+      base.type === 'call' &&
+      base.args.length === 1 &&
+      (base.name === 'sin' || base.name === 'cos' || base.name === 'tan')
+    ) {
+      const argument = base.args[0]!
+      const inner = matchLinearForm(argument, v)
+      if (inner && inner.a !== 0) {
+        const divisor = mulExpr(inner.factor, makeNumber(inner.a))
+        if (base.name === 'tan') {
+          return makeBinary('-', makeBinary('/', makeCall('tan', [argument]), divisor), variable(v))
+        }
+        const doubled = makeBinary('*', makeNumber(2), argument)
+        const wave = makeBinary(
+          '/',
+          makeCall('sin', [doubled]),
+          makeBinary('*', makeNumber(4), divisor),
+        )
+        const xTerm = makeBinary('/', variable(v), makeNumber(2))
+        return base.name === 'sin' ? makeBinary('-', xTerm, wave) : makeBinary('+', xTerm, wave)
+      }
+    }
+  }
+
+  // sin(argument)·cos(argument) → −cos(2·argument)/(4f·a)
+  if (expr.type === 'binary' && expr.op === '*') {
+    const pair = matchSinCosProduct(expr)
+    if (pair) {
+      const inner = matchLinearForm(pair, v)
+      if (inner && inner.a !== 0) {
+        const divisor = mulExpr(inner.factor, makeNumber(inner.a))
+        const doubled = makeBinary('*', makeNumber(2), pair)
+        return makeBinary(
+          '/',
+          negExpr(makeCall('cos', [doubled])),
+          makeBinary('*', makeNumber(4), divisor),
         )
       }
     }
   }
 
-  // 初等函数表（线性内层换元）
+  // 初等函数表（线性内层换元）：∫g(f·(av+b)) dv = G(argument)/(f·a)
   if (expr.type === 'call' && expr.args.length === 1) {
     const argument = expr.args[0]!
     const inner = matchLinearForm(argument, v)
     if (inner && inner.a !== 0) {
-      const scale = makeNumber(inner.a)
+      const divisor = mulExpr(inner.factor, makeNumber(inner.a))
       switch (expr.name) {
         case 'sin':
-          return mulExpr(inner.factor, makeBinary('/', negExpr(makeCall('cos', [argument])), scale))
+          return makeBinary('/', negExpr(makeCall('cos', [argument])), divisor)
         case 'cos':
-          return mulExpr(inner.factor, makeBinary('/', makeCall('sin', [argument]), scale))
+          return makeBinary('/', makeCall('sin', [argument]), divisor)
         case 'tan':
-          return mulExpr(
-            inner.factor,
-            makeBinary(
-              '/',
-              negExpr(makeCall('ln', [makeCall('abs', [makeCall('cos', [argument])])])),
-              scale,
-            ),
+          return makeBinary(
+            '/',
+            negExpr(makeCall('ln', [makeCall('abs', [makeCall('cos', [argument])])])),
+            divisor,
           )
         case 'exp':
-          return mulExpr(inner.factor, makeBinary('/', makeCall('exp', [argument]), scale))
+          return makeBinary('/', makeCall('exp', [argument]), divisor)
         case 'ln': {
           const term = makeBinary(
             '-',
             makeBinary('*', argument, makeCall('ln', [makeCall('abs', [argument])])),
             argument,
           )
-          return mulExpr(inner.factor, makeBinary('/', term, scale))
+          return makeBinary('/', term, divisor)
         }
         case 'sqrt':
-          return mulExpr(
-            inner.factor,
-            makeBinary(
-              '/',
-              makeBinary('*', makeNumber(2 / 3), makeBinary('^', argument, makeNumber(1.5))),
-              scale,
-            ),
+          return makeBinary(
+            '/',
+            makeBinary('*', makeNumber(2 / 3), makeBinary('^', argument, makeNumber(1.5))),
+            divisor,
           )
         case 'atan': {
           const term = makeBinary(
@@ -502,7 +557,7 @@ function integrateRec(expr: Expr, v: string, ctx: { steps: number }): Expr | nul
               makeNumber(2),
             ),
           )
-          return mulExpr(inner.factor, makeBinary('/', term, scale))
+          return makeBinary('/', term, divisor)
         }
         case 'asin': {
           const term = makeBinary(
@@ -512,7 +567,7 @@ function integrateRec(expr: Expr, v: string, ctx: { steps: number }): Expr | nul
               makeBinary('-', makeNumber(1), makeBinary('^', argument, makeNumber(2))),
             ]),
           )
-          return mulExpr(inner.factor, makeBinary('/', term, scale))
+          return makeBinary('/', term, divisor)
         }
         default:
           break

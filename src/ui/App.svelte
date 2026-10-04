@@ -12,6 +12,7 @@
   import type { Point2, SceneObject, ViewTransform } from '../state/types'
   import {
     ToolRegistry,
+    createAreaTool,
     createGraphTool,
     createStatsProbeTool,
     createIntegralTool,
@@ -121,6 +122,7 @@
     .register(createRootsTool())
     .register(createIntersectionTool())
     .register(createIntegralTool())
+    .register(createAreaTool())
     .register(createRiemannTool())
     .register(createTaylorTool())
     .register(createGraphTool())

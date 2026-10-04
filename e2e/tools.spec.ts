@@ -87,7 +87,7 @@ test.describe('v0.4 交互分析工具', () => {
     await activateTool(page, 'roots')
     await expect(page.getByTestId('tool-readout-title')).toContainText('共 3 个')
     const values = await readoutValues(page)
-    expect(values[0]).toBe('-1，0，1')
+    expect(values[0]).toBe('−1，0，1')
   })
 
   test('交点：sin(x) 与 x³−x 交于 0 与 ±1.317', async ({ page }) => {
@@ -280,28 +280,61 @@ test.describe('v0.4 交互分析工具', () => {
     await expect.poll(() => countTealPixels(page)).toBeGreaterThan(100)
   })
 
-  test('定积分：快捷符号与输入框设置区间', async ({ page }) => {
+  test('定积分：快捷符号与输入框设置区间（精确结果）', async ({ page }) => {
     await page.goto('/?curves=x^2')
     await activateTool(page, 'integral')
 
-    // 快捷符号：下限 0、上限 π → ∫₀^π x² dx = π³/3
+    // 快捷符号：下限 0、上限 π → ∫₀^π x² dx = π³/3（精确）
     await page.getByTestId('tool-chip-a-0').click()
     await page.getByTestId('tool-chip-b-pi').click()
     const values = await readoutValues(page)
-    expect(values[1]).toBe('[0, 3.14159]')
-    expect(Number(values[2])).toBeCloseTo(Math.PI ** 3 / 3, 6)
+    expect(values[1]).toBe('[0, π]')
+    expect(values[2]).toBe('π³/3')
 
-    // 手动输入上限 pi/2
+    // 手动输入上限 pi/2 → π³/24（精确）
     const bInput = page.getByTestId('tool-control-b')
     await bInput.fill('pi/2')
     await bInput.press('Enter')
-    await expect(page.getByTestId('tool-readout-value').nth(1)).toHaveText('[0, 1.5708]')
+    await expect(page.getByTestId('tool-readout-value').nth(1)).toHaveText('[0, π/2]')
+    await expect(page.getByTestId('tool-readout-value').nth(2)).toHaveText('π³/24')
 
-    // 非法输入：提示且保留上次区间
+    // 非法输入：提示且保留上次区间（回落数值显示）
     await bInput.fill('?')
     await bInput.press('Enter')
     await expect(page.getByTestId('tools-readout')).toContainText('无法解析')
     await expect(page.getByTestId('tool-readout-value').nth(1)).toHaveText('[0, 1.5708]')
+  })
+
+  test('定积分：∫₀^π sin x = 2（精确而非近似）', async ({ page }) => {
+    await page.goto('/?curves=sin(x)')
+    await activateTool(page, 'integral')
+    await page.getByTestId('tool-control-a').fill('0')
+    await page.getByTestId('tool-control-a').press('Enter')
+    await page.getByTestId('tool-control-b').fill('pi')
+    await page.getByTestId('tool-control-b').press('Enter')
+
+    const values = await readoutValues(page)
+    expect(values[1]).toBe('[0, π]')
+    expect(values[2]).toBe('2')
+    expect(values[4]).toContain('F(x) = −cos(x)')
+  })
+
+  test('围成面积：y=x 与 y=x² 在 [0,1] 上精确 1/6', async ({ page }) => {
+    await page.goto('/?curves=x;x^2')
+    await activateTool(page, 'area')
+    await expect(page.getByTestId('tool-readout-title')).toContainText('围成面积')
+
+    await page.getByTestId('tool-control-a').fill('0')
+    await page.getByTestId('tool-control-a').press('Enter')
+    await page.getByTestId('tool-control-b').fill('1')
+    await page.getByTestId('tool-control-b').press('Enter')
+
+    const values = await readoutValues(page)
+    // rows：曲线A、曲线B、区间、交点、第 1 段、总面积
+    expect(values[2]).toBe('[0, 1]')
+    expect(values[3]).toContain('无')
+    expect(values.at(-2)).toBe('1/6')
+    expect(values.at(-1)).toBe('1/6')
   })
 
   test('工具面板悬浮在左侧卡片（画布优先布局）', async ({ page }) => {

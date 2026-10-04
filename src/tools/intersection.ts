@@ -4,7 +4,7 @@
  */
 import { createProjector } from '../core/transform'
 import { findIntersections, type Intersection } from '../math/numeric/roots'
-import { formatNum, getFs } from './helpers'
+import { formatValueSmart, getFs } from './helpers'
 import type { Tool } from './tool-registry'
 import type { DocState } from '../state/types'
 
@@ -105,7 +105,9 @@ export function createIntersectionTool(): Tool {
           continue
         }
         const shown = pair.points.slice(0, MAX_DISPLAY)
-        const text = shown.map((p) => `(${formatNum(p.x, 5)}, ${formatNum(p.y, 5)})`).join('，')
+        const text = shown
+          .map((p) => `(${formatValueSmart(p.x, 5)}, ${formatValueSmart(p.y, 5)})`)
+          .join('，')
         rows.push({
           label,
           value: pair.points.length > MAX_DISPLAY ? `${text} … 共 ${pair.points.length} 个` : text,

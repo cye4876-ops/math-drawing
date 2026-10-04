@@ -4,7 +4,7 @@
  */
 import { createProjector } from '../core/transform'
 import { findRoots, type Root } from '../math/numeric/roots'
-import { formatNum, getFs } from './helpers'
+import { formatValueSmart, getFs } from './helpers'
 import type { Tool } from './tool-registry'
 import type { DocState } from '../state/types'
 
@@ -109,7 +109,7 @@ export function createRootsTool(): Tool {
         }
         const shown = entry.roots.slice(0, MAX_DISPLAY)
         const text = shown
-          .map((r) => `${formatNum(r.x, 6)}${r.repeated ? '（重根）' : ''}`)
+          .map((r) => `${formatValueSmart(r.x, 6)}${r.repeated ? '（重根）' : ''}`)
           .join('，')
         rows.push({
           label: entry.name,

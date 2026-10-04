@@ -8,122 +8,41 @@
  * 函数仅白名单、静态检查结果为真/假表达式。
  */
 
-export interface Rat {
-  n: bigint
-  d: bigint
-}
-
 export type ClaimValue = number | boolean | Rat
 
 export class ClaimError extends Error {}
 
-/** ---------- 有理数 ---------- */
+/** ---------- 有理数（共享实现，re-export 保持 API） ---------- */
 
-function gcd(a: bigint, b: bigint): bigint {
-  let x = a < 0n ? -a : a
-  let y = b < 0n ? -b : b
-  while (y !== 0n) {
-    const t = x % y
-    x = y
-    y = t
-  }
-  return x
-}
+import {
+  rat,
+  ratAdd,
+  ratCmp,
+  ratDiv,
+  ratFromDecimalString,
+  ratMul,
+  ratPow,
+  ratSqrtExact,
+  ratSub,
+  ratToNumber,
+  type Rat,
+} from '../math/exact/rational'
 
-export function rat(n: bigint, d: bigint = 1n): Rat {
-  if (d === 0n) throw new ClaimError('除数为零')
-  let num = n
-  let den = d
-  if (den < 0n) {
-    num = -num
-    den = -den
-  }
-  const g = gcd(num, den)
-  if (g > 1n) {
-    num /= g
-    den /= g
-  }
-  return { n: num, d: den }
-}
-
-export function ratFromNumber(value: number): Rat {
-  if (!Number.isFinite(value)) throw new ClaimError('数值必须有限')
-  if (Number.isInteger(value)) return rat(BigInt(value))
-  // 小数按十进制展开精确转换
-  return ratFromDecimalString(String(value))
-}
-
-export function ratFromDecimalString(source: string): Rat {
-  const match = /^([+-]?)(\d+)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(source.trim())
-  if (!match) throw new ClaimError(`无法解析数值常量：${source}`)
-  const sign = match[1] === '-' ? -1n : 1n
-  const intPart = match[2]!
-  const fracPart = match[3] ?? ''
-  const exponent = Number(match[4] ?? '0')
-  if (Math.abs(exponent) > 300) throw new ClaimError('小数常量的指数绝对值过大')
-  let num = BigInt(intPart + fracPart)
-  let den = 10n ** BigInt(fracPart.length)
-  if (exponent > 0) num *= 10n ** BigInt(exponent)
-  else if (exponent < 0) den *= 10n ** BigInt(-exponent)
-  return rat(sign * num, den)
-}
-
-export function ratAdd(a: Rat, b: Rat): Rat {
-  return rat(a.n * b.d + b.n * a.d, a.d * b.d)
-}
-
-export function ratSub(a: Rat, b: Rat): Rat {
-  return rat(a.n * b.d - b.n * a.d, a.d * b.d)
-}
-
-export function ratMul(a: Rat, b: Rat): Rat {
-  return rat(a.n * b.n, a.d * b.d)
-}
-
-export function ratDiv(a: Rat, b: Rat): Rat {
-  if (b.n === 0n) throw new ClaimError('除数为零')
-  return rat(a.n * b.d, a.d * b.n)
-}
-
-export function ratPow(a: Rat, exponent: number): Rat {
-  if (!Number.isInteger(exponent) || exponent < 0) throw new ClaimError('幂指数须为非负整数')
-  return rat(a.n ** BigInt(exponent), a.d ** BigInt(exponent))
-}
-
-export function ratCmp(a: Rat, b: Rat): number {
-  const left = a.n * b.d
-  const right = b.n * a.d
-  return left < right ? -1 : left > right ? 1 : 0
-}
-
-export function ratEquals(a: Rat, b: Rat): boolean {
-  return a.n === b.n && a.d === b.d
-}
-
-export function ratToNumber(a: Rat): number {
-  return Number(a.n) / Number(a.d)
-}
-
-/** 完全平方数时返回精确平方根，否则返回 null */
-export function ratSqrtExact(a: Rat): Rat | null {
-  if (a.n < 0n) throw new ClaimError('sqrt 的负数参数')
-  const rootN = bigintSqrt(a.n)
-  if (rootN * rootN !== a.n) return null
-  const rootD = bigintSqrt(a.d)
-  if (rootD * rootD !== a.d) return null
-  return rat(rootN, rootD)
-}
-
-function bigintSqrt(value: bigint): bigint {
-  if (value < 2n) return value
-  let x = value
-  let y = (x + 1n) / 2n
-  while (y < x) {
-    x = y
-    y = (x + value / x) / 2n
-  }
-  return x
-}
+export {
+  rat,
+  ratAdd,
+  ratCmp,
+  ratDiv,
+  ratEquals,
+  ratFromDecimalString,
+  ratFromNumber,
+  ratMul,
+  ratPow,
+  ratSqrtExact,
+  ratSub,
+  ratToNumber,
+  type Rat,
+} from '../math/exact/rational'
 
 function isRat(v: ClaimValue): v is Rat {
   return typeof v === 'object'

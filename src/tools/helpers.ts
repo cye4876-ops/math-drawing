@@ -3,6 +3,7 @@
  */
 import { createProjector } from '../core/transform'
 import { compile, differentiate, parse, simplify } from '../expr'
+import { formatExact, snapNumber } from '../symbolic/exact'
 import type { Point2 } from '../state/types'
 import { nearestPointOnPolylines, type NearestPoint } from '../math/numeric/nearest'
 import { getCurveSample, getDerivativeFn } from './curve-access'
@@ -199,6 +200,13 @@ export function tangentEquation(x0: number, y0: number, slope: number): string {
   if (Math.abs(b) < 1e-12) return `y = ${formatNum(slope)}·x`
   const sign = b >= 0 ? '+' : '−'
   return `y = ${formatNum(slope)}·x ${sign} ${formatNum(Math.abs(b))}`
+}
+
+/** 切点/零点/交点等数值的智能显示：可吸附为简单有理数或 π 的有理倍时给精确式（π/6），否则数值 */
+export function formatValueSmart(value: number, digits = 6): string {
+  const snapped = snapNumber(value)
+  if (snapped) return formatExact(snapped)
+  return formatNum(value, digits)
 }
 
 export interface ExplicitCurveFs {

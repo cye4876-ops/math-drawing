@@ -17,6 +17,7 @@ import { createTangentTool } from './tangent'
 import { createRootsTool } from './roots'
 import { createIntersectionTool } from './intersection'
 import { createIntegralTool } from './integral'
+import { createAreaTool } from './area'
 import { createRiemannTool } from './riemann'
 import { createTaylorTool } from './taylor'
 import { mathToScreen } from '../core/transform'
@@ -225,7 +226,7 @@ describe('tools/roots: 零点', () => {
 
     let readout = readoutOf(f)
     expect(readout.title).toBe('零点（共 3 个）')
-    expect(readout.rows[0]!.value).toBe('-1，0，1')
+    expect(readout.rows[0]!.value).toBe('−1，0，1')
 
     // 订阅文档变化：新增 x²（0 为二重根）
     f.store.addCurve({ kind: 'explicit', expr: 'x^2' })
@@ -313,12 +314,12 @@ describe('tools/integral: 定积分', () => {
     expect(controls[1]).toMatchObject({ kind: 'text', id: 'b' })
     expect(chipsOf(controls[0])).toBeGreaterThan(0)
 
-    // a = π、b = 0 → 区间排序后 [0, π]，∫x² = π³/3
+    // a = π、b = 0 → 区间排序后 [0, π]，∫x² = π³/3（精确）
     tool.onControl!('a', 'pi', f.ctx)
     tool.onControl!('b', '0', f.ctx)
     const rows = readoutOf(f).rows
-    expect(rows[1]!.value).toBe('[0, 3.14159]')
-    expect(Number(rows[2]!.value)).toBeCloseTo(Math.PI ** 3 / 3, 6)
+    expect(rows[1]!.value).toBe('[0, π]')
+    expect(rows[2]!.value).toBe('π³/3')
 
     // 非法输入：提示且保留上次有效区间
     tool.onControl!('a', 'oops', f.ctx)
@@ -332,6 +333,48 @@ describe('tools/integral: 定积分', () => {
     f.registry.handlePointerUp(pointerEvent(f.store, -3, 0))
     expect(tool.getControls!(f.ctx)[0]).toMatchObject({ value: '-3' })
     expect(readoutOf(f).note).not.toContain('无法解析')
+  })
+})
+
+describe('tools/area: 围成面积', () => {
+  it('y = x 与 y = x² 在 [0, 1] 上精确面积 1/6', () => {
+    const f = createFixture([createAreaTool()])
+    f.store.addCurve({ kind: 'explicit', expr: 'x' })
+    f.store.addCurve({ kind: 'explicit', expr: 'x^2' })
+    f.registry.activate('area')
+    const tool = f.registry.getActive()!
+    tool.onControl!('a', '0', f.ctx)
+    tool.onControl!('b', '1', f.ctx)
+
+    const readout = readoutOf(f)
+    expect(readout.title).toBe('围成面积')
+    // rows: 曲线A、曲线B、区间、交点、第 1 段、总面积
+    expect(readout.rows.at(-1)!.label).toBe('总面积（精确）')
+    expect(readout.rows.at(-1)!.value).toBe('1/6')
+  })
+
+  it('两条曲线选择控件存在；单条曲线时提示需要两条', () => {
+    const f = createFixture([createAreaTool()])
+    f.store.addCurve({ kind: 'explicit', expr: 'sin(x)' })
+    f.registry.activate('area')
+    const tool = f.registry.getActive()!
+    expect(readoutOf(f).note).toContain('两条')
+
+    f.store.addCurve({ kind: 'explicit', expr: 'cos(x)' })
+    const controls = tool.getControls!(f.ctx)
+    expect(controls.some((control) => control.id === 'curve-a')).toBe(true)
+    expect(controls.some((control) => control.id === 'curve-b')).toBe(true)
+  })
+
+  it('覆盖层绘制两曲线间阴影与端点手柄', () => {
+    const f = createFixture([createAreaTool()])
+    f.store.addCurve({ kind: 'explicit', expr: 'x' })
+    f.store.addCurve({ kind: 'explicit', expr: 'x^2' })
+    f.registry.activate('area')
+    const canvas = mockCanvas()
+    f.registry.getActive()!.drawOverlay?.(canvas, f.ctx)
+    expect(canvas.ops).toContain('fill')
+    expect(canvas.ops).toContain('lineTo')
   })
 })
 

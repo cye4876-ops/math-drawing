@@ -1,9 +1,12 @@
 /**
- * 定积分工具（v0.4）：拖动左右端点选择区间，阴影显示，自适应 Simpson 求值 + 误差估计。
- * 已知限制（docs/tools.md）：不做符号积分（解析解未实现）；不支持奇异积分（区间内出现非有限值 → NaN）。
+ * 定积分工具（v0.4 起；v2.8 精确化）：拖动左右端点选择区间，阴影显示。
+ * - 端点为手工输入的精确文本（如 0、pi）时：符号积分给出精确结果（2、π²/2、4√2/3…），
+ *   并用自适应 Simpson 独立数值校验（详见 src/symbolic/definite.ts）；
+ * - 其余情况回退自适应 Simpson 数值结果与误差估计。
  */
 import { createProjector, mathToScreen } from '../core/transform'
 import { adaptiveSimpson } from '../math/numeric/integrate'
+import { definiteIntegral } from '../symbolic/definite'
 import type { Point2 } from '../state/types'
 import { COORD_CHIPS, formatNum, getFs, parseCoordinate } from './helpers'
 import type { Tool, ToolContext } from './tool-registry'
@@ -213,23 +216,68 @@ export function createIntegralTool(): Tool {
       }
       const [lo, hi] = ordered()
       const result = adaptiveSimpson(fs.fn, lo, hi, { tolerance: 1e-10 })
+      const rows: { label: string; value: string }[] = [
+        { label: '曲线', value: fs.curve.name },
+        { label: '区间', value: `[${formatNum(lo)}, ${formatNum(hi)}]` },
+      ]
+      if (inputError) {
+        rows.push({ label: '∫ f(x) dx ≈', value: formatNum(result.value, 9) })
+        return { title: '定积分', rows, note: inputError }
+      }
+      // 两端点均为手工输入的精确文本时，尝试解析解（符号积分 + 精确端点求值 + 数值校验）
+      if (aText && bText) {
+        // 数值排序后的端点顺序未必与输入顺序一致（如 a=pi、b=0）
+        const reversed = b < a
+        const loArg = reversed ? bText : aText
+        const hiArg = reversed ? aText : bText
+        const outcome = definiteIntegral(fs.curve.expr, 'x', loArg, hiArg, fs.curve.params)
+        if (outcome.kind === 'exact') {
+          rows[1] = { label: '区间', value: `[${outcome.loText}, ${outcome.hiText}]` }
+          rows.push({ label: '∫ f(x) dx（精确）', value: outcome.display })
+          rows.push({ label: '数值对照', value: formatNum(result.value, 10) })
+          rows.push({ label: '原函数', value: `F(x) = ${outcome.antiderivativeText}` })
+          if (outcome.numeric && outcome.numeric.truncated) {
+            rows.push({ label: '备注', value: '数值校验截断（结果仍一致）' })
+          }
+          return {
+            title: '定积分',
+            rows,
+            note: '精确结果来自符号积分（含 π/e/根式的精确端点求值），并用自适应 Simpson 独立校验；将端点改为拖动手柄或超出规则集的函数会自动回退数值。',
+          }
+        }
+        rows.push({ label: '∫ f(x) dx ≈', value: formatNum(result.value, 9) })
+        if (outcome.numeric) {
+          rows.push({
+            label: '误差估计',
+            value: outcome.numeric.truncated
+              ? `${formatNum(outcome.numeric.error, 3)}（截断）`
+              : formatNum(outcome.numeric.error, 3),
+          })
+        }
+        if (outcome.candidate) {
+          rows.push({ label: '解析候选（未采信）', value: outcome.candidate.display })
+        }
+        if (outcome.antiderivativeText) {
+          rows.push({ label: '原函数', value: `F(x) = ${outcome.antiderivativeText}` })
+        }
+        return {
+          title: '定积分',
+          rows,
+          note: `${outcome.reason}；可输入精确端点（0、pi、e、sqrt(2) 等）或换用规则集内的函数。`,
+        }
+      }
+      rows.push({ label: '∫ f(x) dx ≈', value: formatNum(result.value, 9) })
+      rows.push({
+        label: '误差估计',
+        value: result.truncated
+          ? `${formatNum(result.error, 3)}（截断）`
+          : formatNum(result.error, 3),
+      })
+      rows.push({ label: '求值次数', value: String(result.evaluations) })
       return {
         title: '定积分',
-        rows: [
-          { label: '曲线', value: fs.curve.name },
-          { label: '区间', value: `[${formatNum(lo)}, ${formatNum(hi)}]` },
-          { label: '∫ f(x) dx', value: formatNum(result.value, 9) },
-          {
-            label: '误差估计',
-            value: result.truncated
-              ? `${formatNum(result.error, 3)}（截断）`
-              : formatNum(result.error, 3),
-          },
-          { label: '求值次数', value: String(result.evaluations) },
-        ],
-        note:
-          inputError ||
-          '拖动端点或输入区间端点调整范围；自适应 Simpson；不支持奇异积分；解析解未实现（v0.4 无符号积分）。',
+        rows,
+        note: '拖动端点或输入区间端点调整范围；在下方输入两端点（如 0 与 pi）即可给出精确解析结果；自适应 Simpson 为数值兜底，不支持奇异积分。',
       }
     },
   }

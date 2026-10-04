@@ -171,7 +171,7 @@ describe('tools/registry: 订阅清理（防泄漏）', () => {
     const readout = fixture.registry.getReadout()
     expect(readout).not.toBeNull()
     const value = readout?.rows[0]?.value ?? ''
-    expect(value).toContain('-1')
+    expect(value).toContain('−1')
     expect(value).toContain('0')
     expect(value).toContain('1')
     // 三个零点（逗号分隔三段）
