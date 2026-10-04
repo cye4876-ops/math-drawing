@@ -3,6 +3,7 @@
   import { createCanvasLayer, type CanvasLayer } from '../render/canvas-layer'
   import { createSceneRenderer, type SceneRenderer } from '../render/scene'
   import { graphObjectFromDsl } from '../graph/dsl-to-doc'
+  import { createEdge, createNode, paletteColor } from '../graph/model'
   import { createDomLayer } from '../render/dom-layer'
   import { drawGrid } from '../render/grid-renderer'
   import { createView } from '../core/transform'
@@ -56,17 +57,21 @@
   const notebookPanelLazy = lazy(() => import('./NotebookPanel.svelte'))
   const matrixViewLazy = lazy(() => import('./MatrixView.svelte'))
   const matrixPanelLazy = lazy(() => import('./MatrixPanel.svelte'))
+  const labViewLazy = lazy(() => import('./lab/LabView.svelte'))
+  const labPanelLazy = lazy(() => import('./lab/LabPanel.svelte'))
 
   // 重视图常驻语义：一旦进入过就保持挂载（WebGL 上下文/组件状态不丢）
   let spaceMounted = $state(false)
   let advancedMounted = $state(false)
   let notebookMounted = $state(false)
   let matrixMounted = $state(false)
+  let labMounted = $state(false)
   $effect(() => {
     if (mode === 'space') spaceMounted = true
     if (mode === 'advanced') advancedMounted = true
     if (mode === 'notebook') notebookMounted = true
     if (mode === 'matrix') matrixMounted = true
+    if (mode === 'lab') labMounted = true
   })
 
   // 演示模式（v1.0）：侧栏整体隐藏，浮动退出按钮保证随时可退出（含全屏被拒场景）
@@ -148,7 +153,7 @@
   }
 
   let sharedPreloadMode:
-    'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' | null = null
+    'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' | null = null
 
   function preloadFromUrl(target: AppStore): ViewRangeInput | null {
     if (typeof location === 'undefined') return null
@@ -240,12 +245,13 @@
   // 预载必须在组件状态初始化之前执行（否则初始 UI 状态捕获不到）
   const pendingRange = preloadFromUrl(store)
 
-  /** 界面模式（工具条左上角切换）：plot / graph / stats / space / advanced / matrix / notebook；?mode= 可指定 */
+  /** 界面模式（工具条左上角切换）：plot / graph / lab / stats / space / advanced / matrix / notebook；?mode= 可指定 */
   function initialModeFromUrl():
-    'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' {
+    'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' {
     if (typeof location === 'undefined') return 'plot'
     const modeParam = readRawParam(location.search, 'mode')
     if (modeParam === 'graph') return 'graph'
+    if (modeParam === 'lab') return 'lab'
     if (modeParam === 'stats') return 'stats'
     if (modeParam === 'space') return 'space'
     if (modeParam === 'advanced') return 'advanced'
@@ -254,23 +260,25 @@
     if (modeParam === null && readRawParam(location.search, 'graph') !== null) return 'graph'
     return 'plot'
   }
-  const initialMode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' =
+  const initialMode:
+    'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' =
     sharedPreloadMode ?? initialModeFromUrl()
 
-  let mode = $state<'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'>(
-    initialMode,
-  )
+  let mode = $state<
+    'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
+  >(initialMode)
 
   /**
-   * 六种模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
+   * 各模式的视图互相独立（相机保存/恢复；坐标轴与内容也互不可见）：
    * 页面初始视图归属于初始模式；未访问过的模式回落到标准默认视图。
    */
   const savedViews: Record<
-    'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+    'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
     ViewTransform | null
   > = {
     plot: initialMode === 'plot' ? { ...store.getView() } : null,
     graph: initialMode === 'graph' ? { ...store.getView() } : null,
+    lab: initialMode === 'lab' ? { ...store.getView() } : null,
     stats: initialMode === 'stats' ? { ...store.getView() } : null,
     space: initialMode === 'space' ? { ...store.getView() } : null,
     advanced: initialMode === 'advanced' ? { ...store.getView() } : null,
@@ -339,9 +347,15 @@
     examplesOpen = false
   }
 
-  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集，3D/进阶/矩阵/Notebook 不画 2D */
+  /** 按模式过滤画布对象：函数绘图只显示曲线/标记，图论只显示图，统计只显示数据集，3D/进阶/矩阵/Notebook/实验台不画 2D */
   function visibleObjectsOf(state: { doc: { objects: SceneObject[] } }): SceneObject[] {
-    if (mode === 'space' || mode === 'advanced' || mode === 'matrix' || mode === 'notebook')
+    if (
+      mode === 'space' ||
+      mode === 'advanced' ||
+      mode === 'matrix' ||
+      mode === 'notebook' ||
+      mode === 'lab'
+    )
       return []
     return state.doc.objects.filter((object) => {
       if (mode === 'graph') return object.type === 'graph'
@@ -355,18 +369,39 @@
   }
 
   function setMode(
-    next: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+    next: 'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
   ): void {
     if (mode === next) return
     savedViews[mode] = store.getView()
     mode = next
-    // 切模式时重置工具（按钮列表随模式变化）：图→图编辑，统计→探针，函数→取消
+    // 切模式时重置工具（按钮列表随模式变化）：图→图编辑，统计→探针，其余取消
     registry.activate(next === 'graph' ? 'graph' : next === 'stats' ? 'stats-probe' : null)
     graphHighlight = null
     const saved = savedViews[next] ?? createView(0, 0, 80)
     // setView 总是触发订阅：视图恢复 + 重绘 + MarkerLayer 可见性刷新
     store.setView({ ...saved })
     canvasLayerRef?.requestRender()
+  }
+
+  /** 实验台 → 绘图桥（v2.7）：把图候选落为文档层图对象并切换到图论绘图 */
+  function openLabGraph(payload: {
+    name: string
+    n: number
+    edges: Array<[number, number]>
+  }): void {
+    const radius = Math.max(2.4, payload.n * 0.32)
+    const nodes = Array.from({ length: payload.n }, (_, index) => {
+      const angle = -Math.PI / 2 + (2 * Math.PI * index) / Math.max(1, payload.n)
+      return createNode(
+        String(index),
+        radius * Math.cos(angle),
+        radius * Math.sin(angle),
+        paletteColor(index),
+      )
+    })
+    const edges = payload.edges.map(([u, v]) => createEdge(nodes[u]!.id, nodes[v]!.id))
+    store.addGraph(nodes, edges, payload.name)
+    setMode('graph')
   }
 
   let scale = $state(store.getView().scaleX)
@@ -490,7 +525,8 @@
       class:hidden2d={mode === 'space' ||
         mode === 'advanced' ||
         mode === 'matrix' ||
-        mode === 'notebook'}
+        mode === 'notebook' ||
+        mode === 'lab'}
     >
       {#if spaceMounted}
         {#await spaceViewLazy() then spaceModule}
@@ -514,6 +550,12 @@
         {#await notebookViewLazy() then notebookModule}
           {@const NotebookView = notebookModule.default}
           <NotebookView active={mode === 'notebook'} {store} onOpenMode={setMode} />
+        {/await}
+      {/if}
+      {#if labMounted}
+        {#await labViewLazy() then labModule}
+          {@const LabView = labModule.default}
+          <LabView active={mode === 'lab'} onOpenGraph={openLabGraph} />
         {/await}
       {/if}
       {#if mode === 'plot' && plotCurveCount === 0}
@@ -570,6 +612,18 @@
         {#await matrixPanelLazy() then matrixPanelModule}
           {@const MatrixPanel = matrixPanelModule.default}
           <MatrixPanel />
+        {:catch}
+          <div class="lazy-error">
+            模块加载失败（页面版本可能已更新）。<button
+              type="button"
+              onclick={() => window.location.reload()}>重新加载</button
+            >
+          </div>
+        {/await}
+      {:else if mode === 'lab'}
+        {#await labPanelLazy() then labPanelModule}
+          {@const LabPanel = labPanelModule.default}
+          <LabPanel {store} />
         {:catch}
           <div class="lazy-error">
             模块加载失败（页面版本可能已更新）。<button

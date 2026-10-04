@@ -17,6 +17,8 @@ export default defineConfig(
       '.github/prompts/**',
       // 界面设计预览稿与提取脚本（设计与评审用，不参与应用构建与 lint）
       'design/**',
+      // 实验台 Oracle 脚本（WSL Sage 开发工具，不参与应用构建与 lint）
+      'tools/**',
     ],
   },
   js.configs.recommended,

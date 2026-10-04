@@ -1,0 +1,215 @@
+{
+  "triangle_free_n6_max_edges": {
+    "spec": {
+      "title": "无三角形图的边数极值",
+      "n_min": 6,
+      "n_max": 6,
+      "forbidden": ["K3"],
+      "objective": "max_edges",
+      "strategy": "auto",
+      "time_limit": 120,
+      "graph_limit": 200000
+    },
+    "termination": "exhausted",
+    "complete": true,
+    "candidate_count": 1,
+    "violations": 0,
+    "evidence": "finite_optimum",
+    "coverage": "objective",
+    "orders": [
+      {
+        "n": 6,
+        "best": 9.0,
+        "candidate_count": 1,
+        "coverage": "optimal_edge_layer",
+        "complete": true,
+        "candidates": ["EFz_"]
+      }
+    ]
+  },
+  "triangle_free_n6_spectral": {
+    "spec": {
+      "title": "无三角形图的谱极值",
+      "n_min": 6,
+      "n_max": 6,
+      "forbidden": ["K3"],
+      "objective": "max_spectral_radius",
+      "strategy": "auto",
+      "time_limit": 180,
+      "graph_limit": 200000
+    },
+    "termination": "exhausted",
+    "complete": true,
+    "candidate_count": 1,
+    "violations": 0,
+    "evidence": "finite_exhaustive",
+    "coverage": "enumeration",
+    "orders": [
+      {
+        "n": 6,
+        "best": 3.0,
+        "candidate_count": 1,
+        "coverage": "enumeration",
+        "complete": true,
+        "candidates": ["EFz_"]
+      }
+    ]
+  },
+  "counterexample_bipartite_n3_6": {
+    "spec": {
+      "title": "寻找一个反例",
+      "n_min": 3,
+      "n_max": 6,
+      "forbidden": ["K3"],
+      "objective": "counterexample",
+      "claim": "bipartite",
+      "strategy": "auto",
+      "time_limit": 180,
+      "graph_limit": 200000
+    },
+    "termination": "minimum_counterexample_complete",
+    "complete": true,
+    "candidate_count": 1,
+    "violations": 1,
+    "evidence": "verified_counterexample",
+    "coverage": "objective",
+    "orders": [
+      {
+        "n": 3,
+        "best": null,
+        "candidate_count": 0,
+        "coverage": "enumeration",
+        "complete": true,
+        "candidates": []
+      },
+      {
+        "n": 4,
+        "best": null,
+        "candidate_count": 0,
+        "coverage": "enumeration",
+        "complete": true,
+        "candidates": []
+      },
+      {
+        "n": 5,
+        "best": 5.0,
+        "candidate_count": 1,
+        "coverage": "minimum_counterexample_layer",
+        "complete": true,
+        "candidates": ["DUW"]
+      }
+    ]
+  },
+  "triangle_free_n6_enumerate": {
+    "spec": {
+      "title": "逐图枚举对照",
+      "n_min": 6,
+      "n_max": 6,
+      "forbidden": ["K3"],
+      "objective": "max_edges",
+      "strategy": "enumerate",
+      "time_limit": 120,
+      "graph_limit": 200000
+    },
+    "termination": "exhausted",
+    "complete": true,
+    "candidate_count": 1,
+    "violations": 0,
+    "evidence": "finite_exhaustive",
+    "coverage": "enumeration",
+    "orders": [
+      {
+        "n": 6,
+        "best": 9.0,
+        "candidate_count": 1,
+        "coverage": "enumeration",
+        "complete": true,
+        "candidates": ["EFz_"]
+      }
+    ]
+  },
+  "c4_free_n7_max_edges": {
+    "spec": {
+      "title": "无普通 C4 的边数极值",
+      "n_min": 7,
+      "n_max": 7,
+      "forbidden": ["C4"],
+      "objective": "max_edges",
+      "strategy": "auto",
+      "time_limit": 180,
+      "graph_limit": 200000
+    },
+    "termination": "exhausted",
+    "complete": true,
+    "candidate_count": 5,
+    "violations": 0,
+    "evidence": "finite_optimum",
+    "coverage": "objective",
+    "orders": [
+      {
+        "n": 7,
+        "best": 9.0,
+        "candidate_count": 5,
+        "coverage": "optimal_edge_layer",
+        "complete": true,
+        "candidates": ["FCOfw", "FCQrW", "FCpdg", "FCptO", "FCZTO"]
+      }
+    ]
+  },
+  "triangle_free_n8_max_edges": {
+    "spec": {
+      "title": "无三角形图的边数极值",
+      "n_min": 8,
+      "n_max": 8,
+      "forbidden": ["K3"],
+      "objective": "max_edges",
+      "strategy": "auto",
+      "time_limit": 300,
+      "graph_limit": 200000
+    },
+    "termination": "exhausted",
+    "complete": true,
+    "candidate_count": 1,
+    "violations": 0,
+    "evidence": "finite_optimum",
+    "coverage": "objective",
+    "orders": [
+      {
+        "n": 8,
+        "best": 16.0,
+        "candidate_count": 1,
+        "coverage": "optimal_edge_layer",
+        "complete": true,
+        "candidates": ["G?~vf_"]
+      }
+    ]
+  },
+  "lambda2_claim_n3_6": {
+    "spec": {
+      "title": "检验 λ₂ 猜想",
+      "n_min": 3,
+      "n_max": 6,
+      "objective": "counterexample",
+      "claim": "lambda2 >= 1",
+      "strategy": "auto",
+      "time_limit": 180,
+      "graph_limit": 200000
+    },
+    "termination": "minimum_counterexample_complete",
+    "complete": true,
+    "candidate_count": 1,
+    "violations": 1,
+    "evidence": "verified_counterexample",
+    "coverage": "objective",
+    "orders": [
+      {
+        "n": 3,
+        "best": 0.0,
+        "candidate_count": 1,
+        "coverage": "minimum_counterexample_layer",
+        "complete": true,
+        "candidates": ["B?"]
+      }
+    ]
+  }
+}

@@ -72,9 +72,9 @@
     canRedo: boolean
     getStageSize: () => Size
     registry: ToolRegistry
-    mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
+    mode: 'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
     onModeChange: (
-      mode: 'plot' | 'graph' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+      mode: 'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
     ) => void
     sidebarCollapsed: boolean
     onToggleSidebar: () => void
@@ -211,6 +211,14 @@
       aria-selected={mode === 'graph'}
       class:active={mode === 'graph'}
       onclick={() => onModeChange('graph')}>图论绘图</button
+    >
+    <button
+      type="button"
+      role="tab"
+      data-testid="mode-lab"
+      aria-selected={mode === 'lab'}
+      class:active={mode === 'lab'}
+      onclick={() => onModeChange('lab')}>图论实验</button
     >
     <button
       type="button"

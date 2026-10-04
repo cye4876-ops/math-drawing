@@ -359,6 +359,21 @@ body {
   }
 }
 
+/* 图论实验台（v2.7）：滚动内容整体避让左侧浮动卡片（折叠/窄屏恢复全宽） */
+.main .stage .lab-view {
+  padding-left: 372px;
+}
+
+.main.sidebar-collapsed .stage .lab-view {
+  padding-left: 16px;
+}
+
+@media (max-width: 920px) {
+  .main .stage .lab-view {
+    padding-left: 16px;
+  }
+}
+
 .stage {
   position: relative;
   flex: 1;

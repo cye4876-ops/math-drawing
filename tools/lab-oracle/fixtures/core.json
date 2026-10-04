@@ -1,0 +1,234 @@
+{
+  "graphs": {
+    "K4": {
+      "graph6": "C~",
+      "canonical_graph6": "C~",
+      "invariants": {
+        "delta": 3,
+        "Delta": 3,
+        "omega": 4,
+        "alpha": 1,
+        "nu": 2,
+        "triangles": 4,
+        "bipartite": false,
+        "connected": true,
+        "regular": true
+      },
+      "rho": 3.0,
+      "q": 6.0,
+      "lambda2": 4.0,
+      "charpoly": {
+        "A": ["1", "0", "-6", "-8", "-3"],
+        "L": ["1", "-12", "48", "-64", "0"],
+        "Q": ["1", "-12", "48", "-80", "48"]
+      }
+    },
+    "C5": {
+      "graph6": "Dhc",
+      "canonical_graph6": "DqK",
+      "invariants": {
+        "delta": 2,
+        "Delta": 2,
+        "omega": 2,
+        "alpha": 2,
+        "nu": 2,
+        "triangles": 0,
+        "bipartite": false,
+        "connected": true,
+        "regular": true
+      },
+      "rho": 2.0,
+      "q": 4.0,
+      "lambda2": 1.381966011250105,
+      "charpoly": {
+        "A": ["1", "0", "-5", "0", "5", "-2"],
+        "L": ["1", "-10", "35", "-50", "25", "0"],
+        "Q": ["1", "-10", "35", "-50", "25", "-4"]
+      }
+    },
+    "K33": {
+      "graph6": "EFz_",
+      "canonical_graph6": "E]ow",
+      "invariants": {
+        "delta": 3,
+        "Delta": 3,
+        "omega": 2,
+        "alpha": 3,
+        "nu": 3,
+        "triangles": 0,
+        "bipartite": true,
+        "connected": true,
+        "regular": true
+      },
+      "rho": 3.0,
+      "q": 6.0,
+      "lambda2": 3.0,
+      "charpoly": {
+        "A": ["1", "0", "-9", "0", "0", "0", "0"],
+        "L": ["1", "-18", "126", "-432", "729", "-486", "0"],
+        "Q": ["1", "-18", "126", "-432", "729", "-486", "0"]
+      }
+    },
+    "petersen": {
+      "graph6": "IheA@GUAo",
+      "canonical_graph6": "I[O[Q_c?w",
+      "invariants": {
+        "delta": 3,
+        "Delta": 3,
+        "omega": 2,
+        "alpha": 4,
+        "nu": 5,
+        "triangles": 0,
+        "bipartite": false,
+        "connected": true,
+        "regular": true
+      },
+      "rho": 3.0,
+      "q": 6.0,
+      "lambda2": 2.0,
+      "charpoly": {
+        "A": ["1", "0", "-15", "0", "75", "-24", "-165", "120", "120", "-160", "48"],
+        "L": [
+          "1",
+          "-30",
+          "390",
+          "-2880",
+          "13305",
+          "-39882",
+          "77640",
+          "-94800",
+          "66000",
+          "-20000",
+          "0"
+        ],
+        "Q": [
+          "1",
+          "-30",
+          "390",
+          "-2880",
+          "13305",
+          "-39930",
+          "78360",
+          "-98880",
+          "76800",
+          "-33280",
+          "6144"
+        ]
+      }
+    },
+    "c6_c3c3": {
+      "graph6": "EhEG",
+      "canonical_graph6": "EqGW",
+      "invariants": {
+        "delta": 2,
+        "Delta": 2,
+        "omega": 2,
+        "alpha": 3,
+        "nu": 3,
+        "triangles": 0,
+        "bipartite": true,
+        "connected": true,
+        "regular": true
+      },
+      "rho": 2.0,
+      "q": 4.0,
+      "lambda2": 1.0,
+      "charpoly": {
+        "A": ["1", "0", "-6", "0", "9", "0", "-4"],
+        "L": ["1", "-12", "54", "-112", "105", "-36", "0"],
+        "Q": ["1", "-12", "54", "-112", "105", "-36", "0"]
+      }
+    },
+    "K44": {
+      "graph6": "G?~vf_",
+      "canonical_graph6": "GFzf?{",
+      "invariants": {
+        "delta": 4,
+        "Delta": 4,
+        "omega": 2,
+        "alpha": 4,
+        "nu": 4,
+        "triangles": 0,
+        "bipartite": true,
+        "connected": true,
+        "regular": true
+      },
+      "rho": 4.0,
+      "q": 8.0,
+      "lambda2": 4.0,
+      "charpoly": {
+        "A": ["1", "0", "-16", "0", "0", "0", "0", "0", "0"],
+        "L": ["1", "-32", "432", "-3200", "14080", "-36864", "53248", "-32768", "0"],
+        "Q": ["1", "-32", "432", "-3200", "14080", "-36864", "53248", "-32768", "0"]
+      }
+    }
+  },
+  "plans": {
+    "triangle_free_n6": [
+      {
+        "n": 6,
+        "mode": "descending_edges",
+        "edge_min": 0,
+        "edge_max": 9,
+        "impossible": false,
+        "deletion_upper": 6,
+        "labelled_space": "32768"
+      }
+    ],
+    "triangle_free_n8": [
+      {
+        "n": 8,
+        "mode": "descending_edges",
+        "edge_min": 0,
+        "edge_max": 16,
+        "impossible": false,
+        "deletion_upper": 12,
+        "labelled_space": "268435456"
+      }
+    ],
+    "c4_free_n7": [
+      {
+        "n": 7,
+        "mode": "descending_edges",
+        "edge_min": 0,
+        "edge_max": 10,
+        "impossible": false,
+        "deletion_upper": 8,
+        "labelled_space": "2097152"
+      }
+    ],
+    "claw_free_connected_n6": [
+      {
+        "n": 6,
+        "mode": "descending_edges",
+        "edge_min": 5,
+        "edge_max": 6,
+        "impossible": false,
+        "deletion_upper": 5,
+        "labelled_space": "32768"
+      }
+    ],
+    "bipartite_n7": [
+      {
+        "n": 7,
+        "mode": "descending_edges",
+        "edge_min": 0,
+        "edge_max": 12,
+        "impossible": false,
+        "deletion_upper": 9,
+        "labelled_space": "2097152"
+      }
+    ],
+    "enumerate_n6": [
+      {
+        "n": 6,
+        "mode": "enumerate",
+        "edge_min": 0,
+        "edge_max": 15,
+        "impossible": false,
+        "deletion_upper": null,
+        "labelled_space": "32768"
+      }
+    ]
+  }
+}
