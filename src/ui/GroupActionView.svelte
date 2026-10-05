@@ -17,6 +17,7 @@
   } from '../algebra/actions'
   import { cyclicSubgroup, getGroup, labelOf } from '../algebra/groups'
   import CayleyTable from './CayleyTable.svelte'
+  import { notation } from './notation'
 
   const group = $derived(getGroup(getActionGroup()))
   const element = $derived(Math.max(0, Math.min(getActionElement(), group.order - 1)))
@@ -55,15 +56,15 @@
       <span class="av-count">|Cl(g)| = {classMembers.length}</span>
     </div>
     <div class="av-row">
-      <span class="av-key">中心化子 C_G(g) = {'{x : xg = gx}'}</span>
+      <span class="av-key">{@render subs('中心化子 C_G(g) = {x : xg = gx}')}</span>
       <span class="av-val mono" data-testid="alg-action-centralizer"
         >{`{${labelsOf(centralizer)}}`}</span
       >
-      <span class="av-count">|C_G(g)| = {centralizer.length}</span>
+      <span class="av-count">{@render subs('|C_G(g)|')} = {centralizer.length}</span>
     </div>
     <div class="av-check" data-testid="alg-action-stabilizer">
-      ✓ 轨道-稳定子：|Cl(g)| = [G : C_G(g)] = {group.order} / {centralizer.length} = {group.order /
-        centralizer.length}（实际 {classMembers.length}）
+      ✓ 轨道-稳定子：{@render subs('|Cl(g)| = [G : C_G(g)]')} = {group.order} / {centralizer.length} =
+      {group.order / centralizer.length}（实际 {classMembers.length}）
     </div>
   </section>
 
@@ -171,6 +172,11 @@
     {/if}
   </section>
 </div>
+
+{#snippet subs(text: string)}
+  {#each notation(text) as part, partIndex (partIndex)}{#if part.sub}<sub>{part.text}</sub
+      >{:else}{part.text}{/if}{/each}
+{/snippet}
 
 <style>
   .action-view {

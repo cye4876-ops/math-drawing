@@ -343,26 +343,31 @@ test.describe('v0.9 进阶（第五模式）', () => {
     await page.getByTestId('adv-algebra-section-sylow').click()
     const view = page.getByTestId('alg-sylow-view')
     await expect(view).toBeVisible()
-    // 默认 A₄、p=2：实际 1、允许 {1、3}、全部约束 ✓
-    await expect(page.getByTestId('alg-sylow-count')).toContainText('n_2 = 1')
+    // 默认 A₄、p=2：实际 1、允许 {1、3}、全部约束 ✓（数量以真下标渲染 n₂）
+    const count = page.getByTestId('alg-sylow-count')
+    await expect(count).toHaveAttribute('data-prime', '2')
+    await expect(count.locator('sub')).toHaveText('2')
+    await expect(count).toContainText('= 1')
     await expect(page.getByTestId('alg-sylow-allowed')).toContainText('1、3')
     const checks = page.getByTestId('alg-sylow-checks')
     await expect(checks.locator('.sv-check')).toHaveCount(5)
     await expect(checks.locator('.sv-check.bad')).toHaveCount(0)
     await expect(page.getByTestId('alg-sylow-subgroup-0')).toContainText('正规 ✓')
     await expect(page.getByTestId('alg-sylow-subgroup-0')).toContainText('(12)(34)')
-    // p=3：n₃ = 4（4 个 Sylow 3-子群，均非正规）
+    // p=3：n₃ = 4（4 个 Sylow 3-子群，均非正规，含共轭见证元）
     await page.getByTestId('adv-sylow-prime-3').click()
-    await expect(page.getByTestId('alg-sylow-count')).toContainText('n_3 = 4')
+    await expect(count).toHaveAttribute('data-prime', '3')
+    await expect(count).toContainText('= 4')
     await expect(page.getByTestId('alg-sylow-subgroup-1')).toContainText('x·P1·x⁻¹')
-    // A₅：p=5 → n₅ = 6；p=2 → n₂ = 5
+    // A₅：p=5 → n₅ = 6；p=2 → n₂ = 5；p=3 → n₃ = 10
     await page.getByTestId('adv-sylow-group-a5').click()
     await page.getByTestId('adv-sylow-prime-5').click()
-    await expect(page.getByTestId('alg-sylow-count')).toContainText('n_5 = 6')
+    await expect(count).toHaveAttribute('data-prime', '5')
+    await expect(count).toContainText('= 6')
     await page.getByTestId('adv-sylow-prime-2').click()
-    await expect(page.getByTestId('alg-sylow-count')).toContainText('n_2 = 5')
+    await expect(count).toContainText('= 5')
     await page.getByTestId('adv-sylow-prime-3').click()
-    await expect(page.getByTestId('alg-sylow-count')).toContainText('n_3 = 10')
+    await expect(count).toContainText('= 10')
   })
 
   test('代数·群结构：S₄/A₅ 不出现在子群扫描列表（防 2²⁴ 冻结）', async ({ page }) => {

@@ -7,6 +7,7 @@
   import { getSylowGroup, getSylowPrime } from '../state/advanced-state.svelte'
   import { sylowReport } from '../algebra/actions'
   import { getGroup, labelOf } from '../algebra/groups'
+  import { notation } from './notation'
 
   const group = $derived(getGroup(getSylowGroup()))
   const prime = $derived(getSylowPrime())
@@ -32,13 +33,17 @@
         <div class="sv-cell">
           <div class="sv-cell-head">算术允许的数量（必要条件）</div>
           <div class="mono" data-testid="alg-sylow-allowed">
-            n_p ∈ {'{'}{report.allowedCounts.join('、')}}
+            {@render subs(`n_${prime}`)} ∈ {'{'}{report.allowedCounts.join('、')}}
           </div>
-          <div class="sv-cell-note">n_p | m 且 n_p ≡ 1 (mod p) 的约束下允许的取值</div>
+          <div class="sv-cell-note">
+            {@render subs(`n_p | m 且 n_p ≡ 1 (mod ${prime}) 的约束下允许的取值`)}
+          </div>
         </div>
         <div class="sv-cell">
           <div class="sv-cell-head">实际数量（本群实现）</div>
-          <div class="mono strong" data-testid="alg-sylow-count">n_{prime} = {report.count}</div>
+          <div class="mono strong" data-testid="alg-sylow-count" data-prime={prime}>
+            {@render subs(`n_${prime}`)} = {report.count}
+          </div>
           <div class="sv-cell-note">
             {report.count === 1
               ? '唯一的 Sylow 子群 ⇒ 正规子群'
@@ -54,8 +59,8 @@
         {#each report.checks as check (check.label)}
           <div class="sv-check" class:bad={!check.ok}>
             <span class="mark">{check.ok ? '✓' : '✗'}</span>
-            <span class="mono">{check.label}</span>
-            <span class="detail">{check.detail}</span>
+            <span class="mono">{@render subs(check.label)}</span>
+            <span class="detail">{@render subs(check.detail)}</span>
           </div>
         {/each}
       </div>
@@ -73,33 +78,45 @@
         {#each report.subgroups as sub, index (sub.members.join(','))}
           <div class="sv-sub" data-testid={`alg-sylow-subgroup-${index}`}>
             <div class="sv-sub-head">
-              <span class="mono">P{index + 1}</span>
+              <span class="mono">P<sub>{index + 1}</sub></span>
               {#if sub.normal}
                 <span class="sv-badge ok">正规 ✓</span>
               {:else}
                 <span class="sv-badge">非正规</span>
               {/if}
               <span class="sv-sub-meta"
-                >|N_G(P)| = {sub.normalizer.length}，[G : N_G(P)] = {group.order /
-                  sub.normalizer.length}</span
+                >{@render subs(
+                  `|N_G(P)| = ${sub.normalizer.length}，[G : N_G(P)] = ${
+                    group.order / sub.normalizer.length
+                  }`,
+                )}</span
               >
             </div>
             <div class="sv-sub-elements mono">{'{'}{labelsOf(sub.members)}}</div>
             {#if index > 0 && sub.conjugatorFromFirst !== null}
               <div class="sv-conj mono">
-                P{index + 1} = x·P1·x⁻¹，例如 x = {labelOf(group, sub.conjugatorFromFirst)}
+                P<sub>{index + 1}</sub> = x·P<sub>1</sub>·x⁻¹，例如 x = {labelOf(
+                  group,
+                  sub.conjugatorFromFirst,
+                )}
               </div>
             {/if}
           </div>
         {/each}
       </div>
       <div class="sv-note">
-        Sylow 定理第二部分的体现：n_p = [G : N_G(P)]，且全部 Sylow p-子群互相共轭（每张卡片的见证元
-        x 给出 P{'{'}i} = x·P1·x⁻¹）。
+        {@render subs(
+          'Sylow 定理第二部分的体现：n_p = [G : N_G(P)]，且全部 Sylow p-子群互相共轭（每张卡片的见证元 x 给出 P_i = x·P_1·x⁻¹）。',
+        )}
       </div>
     </section>
   {/if}
 </div>
+
+{#snippet subs(text: string)}
+  {#each notation(text) as part, partIndex (partIndex)}{#if part.sub}<sub>{part.text}</sub
+      >{:else}{part.text}{/if}{/each}
+{/snippet}
 
 <style>
   .sylow-view {

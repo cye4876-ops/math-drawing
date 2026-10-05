@@ -768,8 +768,10 @@
           </div>
         </div>
         <div class="hint">
-          并排显示「算术允许的数量」与实际 n_p，逐条核验 n_p | |G|/pᵃ、n_p ≡ 1 (mod p)、n_p = [G :
-          N_G(P)]，并给出共轭见证元。
+          并排显示「算术允许的数量」与实际 n<sub>p</sub>，逐条核验 n<sub>p</sub> | |G|/pᵃ、n<sub
+            >p</sub
+          >
+          ≡ 1 (mod p)、n<sub>p</sub> = [G : N<sub>G</sub>(P)]，并给出共轭见证元。
         </div>
       {:else}
         <div class="row">
