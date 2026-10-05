@@ -72,6 +72,14 @@
     setAlgebraGroup,
     getAlgebraRingN,
     setAlgebraRingN,
+    getActionGroup,
+    setActionGroup,
+    getActionElement,
+    setActionElement,
+    getSylowGroup,
+    setSylowGroup,
+    getSylowPrime,
+    setSylowPrime,
     type AdvancedModule,
     type AlgebraSection,
     type ComplexViewMode,
@@ -103,11 +111,40 @@
     { id: 'counterexamples', label: '反例列举' },
     { id: 'groups', label: '群结构' },
     { id: 'rings', label: '环与域' },
+    { id: 'actions', label: '群作用' },
+    { id: 'sylow', label: 'Sylow' },
   ]
-  const GROUP_LIST = Object.values(GROUPS).map((group) => ({
+  /** 群结构视图（子群幂集扫描）：|G| ≤ 12 的群 */
+  const GROUP_LIST = Object.values(GROUPS)
+    .filter((group) => group.subgroupScanSafe !== false)
+    .map((group) => ({
+      id: group.id,
+      short: group.name.split('（')[0] ?? group.name,
+    }))
+  /** 群作用 / Sylow 视图：全部群（含 S₄、A₅，不依赖子群扫描） */
+  const ACTION_GROUPS = Object.values(GROUPS).map((group) => ({
     id: group.id,
     short: group.name.split('（')[0] ?? group.name,
   }))
+  const actionElementOptions = (): { index: number; label: string }[] => {
+    const group = GROUPS[getActionGroup()]
+    if (!group) return []
+    return group.elements.map((label, index) => ({ index, label }))
+  }
+  const sylowPrimes = (): number[] => {
+    const group = GROUPS[getSylowGroup()]
+    if (!group) return []
+    const primes: number[] = []
+    for (let p = 2; p <= group.order; p++) {
+      if (group.order % p !== 0) continue
+      let composite = false
+      for (let d = 2; d * d <= p; d++) {
+        if (p % d === 0) composite = true
+      }
+      if (!composite) primes.push(p)
+    }
+    return primes
+  }
   const RING_OPTIONS = Array.from({ length: 11 }, (_, index) => index + 2)
   const COMPLEX_MODES: { id: ComplexViewMode; label: string }[] = [
     { id: 'domain', label: '域着色' },
@@ -677,6 +714,63 @@
         <div class="hint">
           点击乘法表任意格：查看元素阶、逆元与生成子群；子群格在右侧（绿 = 正规）。
         </div>
+      {:else if getAlgebraSection() === 'actions'}
+        <div class="section-title">选择群（{ACTION_GROUPS.length} 个，含 S₄/A₅）</div>
+        <div class="group-grid">
+          {#each ACTION_GROUPS as group (group.id)}
+            <button
+              type="button"
+              class:active={getActionGroup() === group.id}
+              data-testid={`adv-action-group-${group.id}`}
+              onclick={() => setActionGroup(group.id)}>{group.short}</button
+            >
+          {/each}
+        </div>
+        <div class="row">
+          <span class="dim">选中元素 g =</span>
+          <select
+            data-testid="adv-action-element"
+            value={getActionElement()}
+            onchange={(event) => setActionElement(numberFrom(event))}
+          >
+            {#each actionElementOptions() as option (option.index)}
+              <option value={option.index}>{option.label}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="hint">
+          共轭作用联动显示轨道（共轭类）与稳定子（中心化子），验证 |Gx| = [G :
+          Gx]；另有类方程、陪集/商群与 Burnside 计数。
+        </div>
+      {:else if getAlgebraSection() === 'sylow'}
+        <div class="section-title">选择群</div>
+        <div class="group-grid">
+          {#each ACTION_GROUPS as group (group.id)}
+            <button
+              type="button"
+              class:active={getSylowGroup() === group.id}
+              data-testid={`adv-sylow-group-${group.id}`}
+              onclick={() => setSylowGroup(group.id)}>{group.short}</button
+            >
+          {/each}
+        </div>
+        <div class="row">
+          <span class="dim">素数 p =</span>
+          <div class="prime-row">
+            {#each sylowPrimes() as p (p)}
+              <button
+                type="button"
+                class:active={getSylowPrime() === p}
+                data-testid={`adv-sylow-prime-${p}`}
+                onclick={() => setSylowPrime(p)}>{p}</button
+              >
+            {/each}
+          </div>
+        </div>
+        <div class="hint">
+          并排显示「算术允许的数量」与实际 n_p，逐条核验 n_p | |G|/pᵃ、n_p ≡ 1 (mod p)、n_p = [G :
+          N_G(P)]，并给出共轭见证元。
+        </div>
       {:else}
         <div class="row">
           <span class="dim">模数 n =</span>
@@ -814,5 +908,22 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 4px;
+  }
+  .prime-row {
+    display: flex;
+    gap: 4px;
+  }
+  .prime-row button {
+    border: 1px solid var(--border, #26324a);
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    min-width: 28px;
+    padding: 2px 6px;
+    cursor: pointer;
+  }
+  .prime-row button.active {
+    border-color: #4c7dff;
+    background: rgba(76, 125, 255, 0.16);
   }
 </style>

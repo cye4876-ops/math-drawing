@@ -220,11 +220,116 @@ export class GraphInvariants {
   }
 }
 
+/** 补图（独立数用） */
 function complementOf(g: LabGraph): LabGraph {
   const result: LabGraph = { n: g.n, adj: [] as number[] }
   const full = (1 << g.n) - 1
   for (let v = 0; v < g.n; v++) result.adj.push(full & ~g.adj[v]! & ~(1 << v))
   return result
+}
+
+/**
+ * 围长（最短圈长）：对每条边 (u,v)，去掉该边后 BFS 求 u→v 最短路 d，
+ * 则该边所在最短圈长 = d + 1；全体取最小。森林返回 Infinity（界面显示 “∞（无圈）”）。
+ */
+export function girthOf(g: LabGraph): number {
+  let best = Infinity
+  for (let u = 0; u < g.n; u++) {
+    for (const v of bitsOf(g.adj[u]!)) {
+      if (v <= u) continue
+      const dist = new Int32Array(g.n).fill(-1)
+      dist[u] = 0
+      const queue = [u]
+      while (queue.length > 0) {
+        const x = queue.shift()!
+        for (const y of bitsOf(g.adj[x]!)) {
+          if ((x === u && y === v) || (x === v && y === u)) continue
+          if (dist[y] === -1) {
+            dist[y] = dist[x]! + 1
+            queue.push(y)
+          }
+        }
+      }
+      if (dist[v] !== -1) best = Math.min(best, dist[v]! + 1)
+    }
+  }
+  return best
+}
+
+/** 直径（最大最短路）：逐点 BFS 取最远距离；不连通返回 Infinity */
+export function diameterOf(g: LabGraph): number {
+  if (g.n === 0) return 0
+  let best = 0
+  for (let root = 0; root < g.n; root++) {
+    const dist = new Int32Array(g.n).fill(-1)
+    dist[root] = 0
+    const queue = [root]
+    let visited = 1
+    let far = 0
+    while (queue.length > 0) {
+      const u = queue.shift()!
+      far = Math.max(far, dist[u]!)
+      for (const v of bitsOf(g.adj[u]!)) {
+        if (dist[v] === -1) {
+          dist[v] = dist[u]! + 1
+          queue.push(v)
+          visited++
+        }
+      }
+    }
+    if (visited !== g.n) return Infinity
+    best = Math.max(best, far)
+  }
+  return best
+}
+
+/**
+ * 色数 χ(G)：贪心给出上界，回溯精确求解（|G| ≤ 10 时精确；更大图返回贪心上界）。
+ * 下界用团数 ω(G)（精确值作为搜索起点）。
+ */
+export function chromaticNumber(g: LabGraph): number {
+  const order = Array.from({ length: g.n }, (_, v) => v).sort(
+    (a, b) => popcount(g.adj[b]!) - popcount(g.adj[a]!),
+  )
+  // 贪心上界
+  const greedyColors = new Int32Array(g.n).fill(-1)
+  let upper = 0
+  for (const v of order) {
+    const used = new Set<number>()
+    for (const u of bitsOf(g.adj[v]!)) {
+      if (greedyColors[u]! >= 0) used.add(greedyColors[u]!)
+    }
+    let color = 0
+    while (used.has(color)) color++
+    greedyColors[v] = color
+    upper = Math.max(upper, color + 1)
+  }
+  if (g.n > 10) return upper
+  const lower = maxClique(g)
+  for (let k = lower; k < upper; k++) {
+    if (kColorable(g, order, k)) return k
+  }
+  return upper
+}
+
+function kColorable(g: LabGraph, order: number[], k: number): boolean {
+  const colors = new Int32Array(g.n).fill(-1)
+  const tryColor = (index: number, usedColors: number): boolean => {
+    if (index === order.length) return true
+    const v = order[index]!
+    const forbidden = new Set<number>()
+    for (const u of bitsOf(g.adj[v]!)) {
+      if (colors[u]! >= 0) forbidden.add(colors[u]!)
+    }
+    for (let color = 0; color < Math.min(k, usedColors + 1); color++) {
+      if (forbidden.has(color)) continue
+      colors[v] = color
+      if (tryColor(index + 1, Math.max(usedColors, color + 1))) return true
+      colors[v] = -1
+    }
+    return false
+  }
+  return tryColor(0, 0)
 }
 
 function triangleCountLocal(g: LabGraph): number {

@@ -49,11 +49,16 @@ function bump(): void {
 }
 
 // ---------- 近世代数（v2.2） ----------
-export type AlgebraSection = 'counterexamples' | 'groups' | 'rings'
+export type AlgebraSection = 'counterexamples' | 'groups' | 'rings' | 'actions' | 'sylow'
 let algebraSection = $state<AlgebraSection>('counterexamples')
 let algebraCaseId = $state(DEFAULT_CASE_ID)
 let algebraGroupId = $state('s3')
 let algebraRingN = $state(6)
+// v3.0：群作用视图（共轭类/陪集/Burnside）与 Sylow 工作台
+let actionGroupId = $state('a4')
+let actionElementIndex = $state(1)
+let sylowGroupId = $state('a4')
+let sylowPrime = $state(2)
 
 export function getAlgebraSection(): AlgebraSection {
   return algebraSection
@@ -81,6 +86,36 @@ export function getAlgebraRingN(): number {
 }
 export function setAlgebraRingN(value: number): void {
   algebraRingN = Math.max(2, Math.min(12, Math.round(value)))
+  bump()
+}
+export function getActionGroup(): string {
+  return actionGroupId
+}
+export function setActionGroup(value: string): void {
+  actionGroupId = value
+  actionElementIndex = 1
+  bump()
+}
+export function getActionElement(): number {
+  return actionElementIndex
+}
+export function setActionElement(value: number): void {
+  actionElementIndex = Math.max(0, Math.round(value))
+  bump()
+}
+export function getSylowGroup(): string {
+  return sylowGroupId
+}
+export function setSylowGroup(value: string): void {
+  sylowGroupId = value
+  sylowPrime = 2
+  bump()
+}
+export function getSylowPrime(): number {
+  return sylowPrime
+}
+export function setSylowPrime(value: number): void {
+  sylowPrime = Math.max(2, Math.round(value))
   bump()
 }
 

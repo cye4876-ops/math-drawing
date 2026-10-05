@@ -19,10 +19,22 @@ export const FORBIDDEN_NAMES: Record<ForbiddenKey, string> = {
   claw: 'K₁,₃（爪）',
 }
 
-export type Objective = 'max_edges' | 'max_spectral_radius' | 'counterexample'
+export type Objective =
+  | 'max_edges'
+  | 'max_spectral_radius'
+  | 'max_signless_laplacian_radius'
+  | 'max_algebraic_connectivity'
+  | 'counterexample'
 export type ForbiddenMode = 'subgraph' | 'induced'
 export type TriState = 'any' | 'yes' | 'no'
 export type SearchStrategy = 'auto' | 'enumerate'
+
+/** 目标数学定义（结果区与面板展示用） */
+export const OBJECTIVE_DEFINITIONS: Partial<Record<Objective, string>> = {
+  max_spectral_radius: 'ρ(A)：邻接矩阵最大特征值',
+  max_signless_laplacian_radius: 'q(Q)：无符号 Laplacian Q = D + A 的最大特征值',
+  max_algebraic_connectivity: 'λ₂(L)：Laplacian L = D − A 的第二小特征值（不连通为 0）',
+}
 
 export interface GraphSpec {
   title: string
@@ -40,6 +52,12 @@ export interface GraphSpec {
   minEdges: number | null
   maxEdges: number | null
   degreeSequence: number[]
+  /** v3.0 结构条件：围长下限（≥ 3；不限为 null） */
+  minGirth: number | null
+  /** v3.0 结构条件：直径上限（不限为 null；不连通图不满足任何有限上限） */
+  maxDiameter: number | null
+  /** v3.0 结构条件：色数上限（不限为 null） */
+  maxChromatic: number | null
   claim: string
   /** 时间预算（秒） */
   timeLimit: number
@@ -82,6 +100,9 @@ export const DEFAULT_GRAPH_SPEC: GraphSpec = {
   minEdges: null,
   maxEdges: null,
   degreeSequence: [],
+  minGirth: null,
+  maxDiameter: null,
+  maxChromatic: null,
   claim: 'bipartite',
   timeLimit: 120,
   nodeBudget: 5_000_000,
@@ -106,6 +127,20 @@ export function validateGraphSpec(input: unknown): GraphSpec {
     if (!known.has(key)) throw new SpecError(`未知实验参数：${key}`)
   }
   const spec: GraphSpec = { ...DEFAULT_GRAPH_SPEC, ...payload }
+  // 数字输入清空时绑定值可能为 undefined / 空串：统一归一为 null（不限）
+  const optionalNumericKeys = [
+    'minDegree',
+    'maxDegree',
+    'minEdges',
+    'maxEdges',
+    'minGirth',
+    'maxDiameter',
+    'maxChromatic',
+  ] as const
+  const mutable = spec as unknown as Record<string, unknown>
+  for (const key of optionalNumericKeys) {
+    if (mutable[key] === undefined || mutable[key] === '') mutable[key] = null
+  }
   if (
     typeof spec.title !== 'string' ||
     spec.title.trim().length < 1 ||
@@ -117,7 +152,15 @@ export function validateGraphSpec(input: unknown): GraphSpec {
   spec.nMin = integer(spec.nMin, '顶点数', 1, 16)
   spec.nMax = integer(spec.nMax, '顶点数', 1, 16)
   if (spec.nMin > spec.nMax) throw new SpecError('顶点数下限不能大于上限')
-  if (!['max_edges', 'max_spectral_radius', 'counterexample'].includes(spec.objective)) {
+  if (
+    ![
+      'max_edges',
+      'max_spectral_radius',
+      'max_signless_laplacian_radius',
+      'max_algebraic_connectivity',
+      'counterexample',
+    ].includes(spec.objective)
+  ) {
     throw new SpecError('不支持的搜索目标')
   }
   if (!['auto', 'enumerate'].includes(spec.strategy)) {
@@ -155,6 +198,9 @@ export function validateGraphSpec(input: unknown): GraphSpec {
       spec[key] = integer(spec[key], key, 0, hi)
     }
   }
+  if (spec.minGirth !== null) spec.minGirth = integer(spec.minGirth, '围长下限', 3, 16)
+  if (spec.maxDiameter !== null) spec.maxDiameter = integer(spec.maxDiameter, '直径上限', 0, 16)
+  if (spec.maxChromatic !== null) spec.maxChromatic = integer(spec.maxChromatic, '色数上限', 1, 16)
   if (spec.minDegree !== null && spec.maxDegree !== null && spec.minDegree > spec.maxDegree) {
     throw new SpecError('条件下限不能大于上限')
   }

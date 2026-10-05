@@ -19,9 +19,9 @@ test.describe('v2.7 图论实验台', () => {
 
     await page.getByTestId('lab-graph-run').click()
 
-    // 结果条：范围穷举完成 + 有限极值（同构类完整）
+    // 结果条：范围穷举完成 + 已证最优（同构类完整）
     await expect(page.getByText('范围穷举完成', { exact: true })).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByText('有限极值（同构类完整）')).toBeVisible()
+    await expect(page.getByText('已证最优（同构类完整）')).toBeVisible()
 
     // 唯一候选：m = 9
     const candidate = page.getByTestId('lab-candidate').first()
@@ -94,5 +94,58 @@ test.describe('v2.7 图论实验台', () => {
     await expect(page.getByTestId('lab-panel')).toBeVisible()
     await page.getByTestId('lab-tab-archive').click()
     await expect(page.getByTestId('lab-archive-item').first()).toContainText('无三角形图的边数极值')
+  })
+
+  test('v3.0 对照样例：普通禁 C₄（最大 4 边）与诱导禁 C₄（可达 6 边）', async ({ page }) => {
+    await openLab(page)
+    // 普通包含：n = 4 → 最优 m = 4
+    await page.getByTestId('lab-template-c4-ord').click()
+    await expect(page.getByTestId('lab-graph-title')).toHaveValue(
+      '对照·普通禁 C₄（n=4，最大 4 边）',
+    )
+    await page.getByTestId('lab-graph-run').click()
+    await expect(page.getByText('范围穷举完成', { exact: true })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('lab-candidate').first()).toContainText('m = 4')
+    // 诱导包含：n = 4 → 可达 m = 6（K₄）
+    await page.getByTestId('lab-template-c4-ind').click()
+    await page.getByTestId('lab-graph-run').click()
+    await expect(page.getByText('范围穷举完成', { exact: true })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('lab-candidate').first()).toContainText('m = 6')
+    // 对照说明常显
+    await expect(page.getByTestId('lab-c4-compare-hint')).toContainText('诱导')
+  })
+
+  test('v3.0 目标定义与证据标签：选择新目标显示数学定义；结果条分离证据标注', async ({ page }) => {
+    await openLab(page)
+    // 目标下拉：新增 q(Q) 与 λ₂(L)，选中后展示定义
+    await page
+      .locator('select')
+      .filter({ hasText: '最大代数连通度' })
+      .selectOption('max_algebraic_connectivity')
+    await expect(page.getByTestId('lab-objective-def')).toContainText('λ₂')
+    await page
+      .locator('select')
+      .filter({ hasText: '最大无符号 Laplacian 谱半径' })
+      .selectOption('max_signless_laplacian_radius')
+    await expect(page.getByTestId('lab-objective-def')).toContainText('D + A')
+    // 用普通禁 C₄ 小实验跑出结果：证据行同时标注结构枚举与谱比较
+    await page.getByTestId('lab-template-c4-ord').click()
+    await page.getByTestId('lab-graph-run').click()
+    await expect(page.getByText('范围穷举完成', { exact: true })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('lab-evidence-line')).toContainText('结构枚举')
+    await expect(page.getByTestId('lab-evidence-line')).toContainText('谱比较')
+  })
+
+  test('v3.0 结构条件：围长下限 + 色数上限输入并参与搜索（校验即时反馈）', async ({ page }) => {
+    await openLab(page)
+    await page.getByText('结构条件（围长 / 直径 / 色数）').click()
+    await page.getByTestId('lab-graph-min-girth').fill('5')
+    await page.getByTestId('lab-graph-max-chromatic').fill('3')
+    // 计划预览仍可用（条件不改变生成期界）
+    await expect(page.getByTestId('lab-graph-plan')).toBeVisible()
+    // 非法值（围长 2）触发校验提示
+    await page.getByTestId('lab-graph-min-girth').fill('2')
+    await page.getByTestId('lab-graph-run').click()
+    await expect(page.getByTestId('lab-panel')).toContainText('围长下限')
   })
 })

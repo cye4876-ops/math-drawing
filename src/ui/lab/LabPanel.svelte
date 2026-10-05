@@ -28,7 +28,7 @@
     getArchive,
   } from '../../state/lab-state.svelte'
   import { FORBIDDEN_KEYS, FORBIDDEN_NAMES, searchPlanRows } from './lab-helpers'
-  import type { GraphSpec } from '../../lab/spec'
+  import { OBJECTIVE_DEFINITIONS, type GraphSpec } from '../../lab/spec'
   import { hyperOrderPlan, type HyperSpec } from '../../lab/hyper-spec'
   import type { LabExperiment } from '../../lab/archive'
   import { toGraph6 } from '../../lab/graph6'
@@ -97,7 +97,9 @@
     labState.graphError = ''
   }
 
-  function applyGraphTemplate(template: 'edges' | 'spectral' | 'counter' | 'c4' | 'n8'): void {
+  function applyGraphTemplate(
+    template: 'edges' | 'spectral' | 'counter' | 'c4' | 'n8' | 'c4ord' | 'c4ind',
+  ): void {
     const base: GraphSpec = {
       ...labState.graphSpec,
       forbidden: ['K3'],
@@ -109,6 +111,9 @@
       maxDegree: null,
       minEdges: null,
       maxEdges: null,
+      minGirth: null,
+      maxDiameter: null,
+      maxChromatic: null,
       degreeSequence: [],
       strategy: 'auto',
     }
@@ -146,6 +151,28 @@
         nMin: 7,
         nMax: 7,
         forbidden: ['C4'],
+        objective: 'max_edges',
+        claim: 'bipartite',
+      }
+    } else if (template === 'c4ord') {
+      labState.graphSpec = {
+        ...base,
+        title: '对照·普通禁 C₄（n=4，最大 4 边）',
+        nMin: 4,
+        nMax: 4,
+        forbidden: ['C4'],
+        forbiddenMode: 'subgraph',
+        objective: 'max_edges',
+        claim: 'bipartite',
+      }
+    } else if (template === 'c4ind') {
+      labState.graphSpec = {
+        ...base,
+        title: '对照·诱导禁 C₄（n=4，可达 6 边）',
+        nMin: 4,
+        nMax: 4,
+        forbidden: ['C4'],
+        forbiddenMode: 'induced',
         objective: 'max_edges',
         claim: 'bipartite',
       }
@@ -382,7 +409,22 @@
         <button type="button" onclick={() => applyGraphTemplate('counter')}>寻找一个反例</button>
         <button type="button" onclick={() => applyGraphTemplate('c4')}>无 C₄ · 边数极值</button>
         <button type="button" onclick={() => applyGraphTemplate('n8')}>8 阶无三角形</button>
+        <button
+          type="button"
+          data-testid="lab-template-c4-ord"
+          onclick={() => applyGraphTemplate('c4ord')}>对照·普通禁 C₄</button
+        >
+        <button
+          type="button"
+          data-testid="lab-template-c4-ind"
+          onclick={() => applyGraphTemplate('c4ind')}>对照·诱导禁 C₄</button
+        >
       </div>
+      <em class="hint" data-testid="lab-c4-compare-hint">
+        普通包含 vs 诱导包含：同一个 n = 4 的对照——普通禁 C₄ 时最大 4
+        条边（如三角形加一条悬挂边，多一条就必含 4 圈作子图）；诱导禁 C₄ 时可达 6 条边（K₄
+        的四点子图是 6 边，不是诱导 C₄）。两者结论不同但都不矛盾。
+      </em>
 
       <label class="field">
         <span>实验名称</span>
@@ -406,8 +448,14 @@
           <select bind:value={labState.graphSpec.objective}>
             <option value="max_edges">最大边数</option>
             <option value="max_spectral_radius">最大邻接谱半径</option>
+            <option value="max_signless_laplacian_radius">最大无符号 Laplacian 谱半径</option>
+            <option value="max_algebraic_connectivity">最大代数连通度</option>
             <option value="counterexample">寻找反例（猜想为假）</option>
           </select>
+          <em class="hint" data-testid="lab-objective-def">
+            {OBJECTIVE_DEFINITIONS[labState.graphSpec.objective] ??
+              '最大边数：在条件下找边数最多的图（同构类）。'}
+          </em>
         </label>
         <label class="field">
           <span>搜索方式</span>
@@ -522,6 +570,47 @@
       </details>
 
       <details class="details">
+        <summary>结构条件（围长 / 直径 / 色数）</summary>
+        <div class="row">
+          <label class="field small">
+            <span>围长 ≥</span>
+            <input
+              type="number"
+              min="3"
+              max="16"
+              data-testid="lab-graph-min-girth"
+              bind:value={labState.graphSpec.minGirth}
+            />
+          </label>
+          <label class="field small">
+            <span>直径 ≤</span>
+            <input
+              type="number"
+              min="0"
+              max="16"
+              data-testid="lab-graph-max-diameter"
+              bind:value={labState.graphSpec.maxDiameter}
+            />
+          </label>
+          <label class="field small">
+            <span>色数 ≤</span>
+            <input
+              type="number"
+              min="1"
+              max="16"
+              data-testid="lab-graph-max-chromatic"
+              bind:value={labState.graphSpec.maxChromatic}
+            />
+          </label>
+        </div>
+        <em class="hint">
+          围长用“去边 + 最短路”精确计算（森林为 ∞，不满足任何有限下限）；直径用全点对 BFS（不连通为
+          ∞，同样不满足有限上限）；色数在小规模（≤10
+          点）下回溯精确判定，更大图返回贪心上界。三项均为候选复核条件，不参与生成期剪枝。
+        </em>
+      </details>
+
+      <details class="details">
         <summary>预算</summary>
         <div class="row">
           <label class="field small">
@@ -540,8 +629,9 @@
           </label>
         </div>
         <em class="hint">
-          浏览器版在本地穷举标号图；建议 ≤8
-          阶（预算内未完成会标注“未完成”）。更大规模请使用原实验台（Sage/nauty）。
+          浏览器版在本地穷举标号图（引擎 browser-dfs-v1）；建议 ≤8
+          阶（预算内未完成会标注“未完成”）。更大规模或严格谱比较请用原实验台（Sage/nauty
+          第五版）：两者结论应为一致，但检查计数不同。
         </em>
       </details>
 

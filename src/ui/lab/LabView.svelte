@@ -183,11 +183,25 @@
       case 'verified_counterexample':
         return '已复核反例'
       case 'finite_optimum':
-        return '有限极值（同构类完整）'
+        return '已证最优（同构类完整）'
       case 'finite_exhaustive':
-        return '有限范围穷举完成'
+        return '已找齐（有限范围穷举完成）'
       default:
-        return '搜索未完成'
+        return '未完成（预算耗尽/取消）'
+    }
+  }
+
+  /** 谱目标符号：按目标的数学定义标注候选值 */
+  function objectiveSymbol(objective: string): string {
+    switch (objective) {
+      case 'max_spectral_radius':
+        return 'ρ(A)'
+      case 'max_signless_laplacian_radius':
+        return 'q(Q)'
+      case 'max_algebraic_connectivity':
+        return 'λ₂(L)'
+      default:
+        return 'ρ'
     }
   }
 
@@ -310,9 +324,16 @@
         </div>
         <div class="strip-actions">
           {#if !result.complete}
-            <span class="warn">未完成：{terminationLabel(result.termination)}</span>
+            <span class="warn"
+              >未完成：{terminationLabel(result.termination)}（不视为已证最优）</span
+            >
           {/if}
         </div>
+      </div>
+      <div class="evi-line" data-testid="lab-evidence-line">
+        <span class="dim"
+          >结构枚举：{coverageLabel(result.coverage)}；谱比较：{result.spectralComparison}</span
+        >
       </div>
       {#each result.orders as order, orderIndex (order.n)}
         <section class="order">
@@ -343,7 +364,7 @@
                 <CandidateGraph n={candidate.n} edges={candidate.edges} size={150} />
                 <span class="card-meta">
                   m = {candidate.m}{candidate.rho !== null
-                    ? ` · ρ ≈ ${formatNumber(candidate.rho)}`
+                    ? ` · ${objectiveSymbol(result.spec.objective)} ≈ ${formatNumber(candidate.rho)}`
                     : ''}
                 </span>
               </button>
@@ -663,6 +684,10 @@
   .warn {
     color: #d97706;
     font-size: 12px;
+  }
+  .evi-line {
+    margin: -4px 0 4px;
+    padding: 0 4px;
   }
   .badge {
     font-size: 11px;

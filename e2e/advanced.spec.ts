@@ -305,4 +305,76 @@ test.describe('v0.9 进阶（第五模式）', () => {
     await expect(page.getByTestId('alg-ring-facts')).toContainText('是（n 为素数）')
     await expect(page.getByTestId('alg-ring-mul').locator('.zero-product')).toHaveCount(0)
   })
+
+  test('代数·群作用（v3.0）：A₄ 的共轭类与轨道-稳定子联动', async ({ page }) => {
+    await page.goto('/?mode=advanced')
+    await page.getByTestId('adv-tab-algebra').click()
+    await page.getByTestId('adv-algebra-section-actions').click()
+    // 默认 A₄、元素 (123)：共轭类大小 4、中心化子大小 3
+    const view = page.getByTestId('alg-action-view')
+    await expect(view).toBeVisible()
+    await expect(page.getByTestId('alg-action-class')).toContainText('(123)')
+    await expect(page.getByTestId('alg-action-stabilizer')).toContainText('12 / 3 = 4')
+    await expect(page.getByTestId('alg-action-class-equation')).toContainText('= 12')
+    await expect(page.getByTestId('alg-action-center')).toContainText('{e}')
+    // H = ⟨(123)⟩：指数 4、不正规（左右陪集不同）
+    await expect(page.getByTestId('alg-action-not-normal')).toBeVisible()
+    // 切到 S₃ 的 (123)：H = A₃ 指数 2 正规 → 商群 C₂ 乘法表出现
+    await page.getByTestId('adv-action-group-s3').click()
+    await page.getByTestId('adv-action-element').selectOption('4')
+    await expect(page.getByTestId('alg-action-quotient')).toBeVisible()
+  })
+
+  test('代数·群作用（v3.0）：Burnside 计数（D₄ 正方形着色 2 色 → 6、3 色 → 21）', async ({
+    page,
+  }) => {
+    await page.goto('/?mode=advanced')
+    await page.getByTestId('adv-tab-algebra').click()
+    await page.getByTestId('adv-algebra-section-actions').click()
+    await page.getByTestId('adv-action-group-d4').click()
+    await expect(page.getByTestId('alg-action-burnside')).toContainText('= 6')
+    await page.getByTestId('alg-action-colors-3').click()
+    await expect(page.getByTestId('alg-action-burnside')).toContainText('= 21')
+  })
+
+  test('代数·Sylow 工作台（v3.0）：A₄ n₂=1（V₄ 正规）、n₃=4；A₅ n₅=6', async ({ page }) => {
+    await page.goto('/?mode=advanced')
+    await page.getByTestId('adv-tab-algebra').click()
+    await page.getByTestId('adv-algebra-section-sylow').click()
+    const view = page.getByTestId('alg-sylow-view')
+    await expect(view).toBeVisible()
+    // 默认 A₄、p=2：实际 1、允许 {1、3}、全部约束 ✓
+    await expect(page.getByTestId('alg-sylow-count')).toContainText('n_2 = 1')
+    await expect(page.getByTestId('alg-sylow-allowed')).toContainText('1、3')
+    const checks = page.getByTestId('alg-sylow-checks')
+    await expect(checks.locator('.sv-check')).toHaveCount(5)
+    await expect(checks.locator('.sv-check.bad')).toHaveCount(0)
+    await expect(page.getByTestId('alg-sylow-subgroup-0')).toContainText('正规 ✓')
+    await expect(page.getByTestId('alg-sylow-subgroup-0')).toContainText('(12)(34)')
+    // p=3：n₃ = 4（4 个 Sylow 3-子群，均非正规）
+    await page.getByTestId('adv-sylow-prime-3').click()
+    await expect(page.getByTestId('alg-sylow-count')).toContainText('n_3 = 4')
+    await expect(page.getByTestId('alg-sylow-subgroup-1')).toContainText('x·P1·x⁻¹')
+    // A₅：p=5 → n₅ = 6；p=2 → n₂ = 5
+    await page.getByTestId('adv-sylow-group-a5').click()
+    await page.getByTestId('adv-sylow-prime-5').click()
+    await expect(page.getByTestId('alg-sylow-count')).toContainText('n_5 = 6')
+    await page.getByTestId('adv-sylow-prime-2').click()
+    await expect(page.getByTestId('alg-sylow-count')).toContainText('n_2 = 5')
+    await page.getByTestId('adv-sylow-prime-3').click()
+    await expect(page.getByTestId('alg-sylow-count')).toContainText('n_3 = 10')
+  })
+
+  test('代数·群结构：S₄/A₅ 不出现在子群扫描列表（防 2²⁴ 冻结）', async ({ page }) => {
+    await page.goto('/?mode=advanced')
+    await page.getByTestId('adv-tab-algebra').click()
+    await page.getByTestId('adv-algebra-section-groups').click()
+    await expect(page.getByTestId('adv-algebra-group-s3')).toBeVisible()
+    await expect(page.getByTestId('adv-algebra-group-s4')).toHaveCount(0)
+    await expect(page.getByTestId('adv-algebra-group-a5')).toHaveCount(0)
+    // 群作用视图则提供 S₄/A₅
+    await page.getByTestId('adv-algebra-section-actions').click()
+    await expect(page.getByTestId('adv-action-group-s4')).toBeVisible()
+    await expect(page.getByTestId('adv-action-group-a5')).toBeVisible()
+  })
 })

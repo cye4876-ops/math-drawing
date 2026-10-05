@@ -26,7 +26,13 @@ import {
 } from './graph'
 import { toGraph6 } from './graph6'
 import { areIsomorphic, fingerprint } from './iso'
-import { GraphInvariants, spectralCannotTie } from './invariants'
+import {
+  GraphInvariants,
+  chromaticNumber,
+  diameterOf,
+  girthOf,
+  spectralCannotTie,
+} from './invariants'
 import { orderPlan, type OrderPlan } from './planner'
 import {
   GRAPH_BOOLEANS,
@@ -180,6 +186,19 @@ export function matches(
   }
   if (spec.bipartite !== 'any') {
     checks.push({ label: '二部性', passed: isBipartite(g) === (spec.bipartite === 'yes') })
+  }
+  // v3.0 结构条件：围长 / 直径 / 色数（仅在设置上限/下限时计算）
+  if (spec.minGirth !== null) {
+    checks.push({ label: `围长 ≥ ${spec.minGirth}`, passed: girthOf(g) >= spec.minGirth })
+  }
+  if (spec.maxDiameter !== null) {
+    checks.push({ label: `直径 ≤ ${spec.maxDiameter}`, passed: diameterOf(g) <= spec.maxDiameter })
+  }
+  if (spec.maxChromatic !== null) {
+    checks.push({
+      label: `色数 ≤ ${spec.maxChromatic}`,
+      passed: chromaticNumber(g) <= spec.maxChromatic,
+    })
   }
   if (!checks.every((check) => check.passed)) return { ok: false, checks }
   for (const pattern of patterns) {
@@ -470,15 +489,26 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
             return
           }
           const current = best
-          if (current !== null && spectralCannotTie(graph, current)) {
+          // 上界剪枝仅对邻接谱半径 ρ(A) 有效；q(Q) 与 λ₂(L) 全量评估
+          if (
+            current !== null &&
+            spec.objective === 'max_spectral_radius' &&
+            spectralCannotTie(graph, current)
+          ) {
             spectralPruned++
             order.spectralPruned++
             return
           }
           spectralEvaluations++
           order.spectralEvaluations++
-          const rho = new GraphInvariants(graph).rho()
-          recordCandidate(rho, rho, check.checks, null)
+          const invariants = new GraphInvariants(graph)
+          const objectiveValue =
+            spec.objective === 'max_signless_laplacian_radius'
+              ? invariants.q()
+              : spec.objective === 'max_algebraic_connectivity'
+                ? invariants.lambda2()
+                : invariants.rho()
+          recordCandidate(objectiveValue, objectiveValue, check.checks, null)
         }
 
         function recordCandidate(
@@ -584,7 +614,13 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
             ? 'finite_exhaustive'
             : 'incomplete_search',
     scope: '无向简单图、顶点 0…n−1；孤立点默认允许；同构类保留一个代表（发现标号）',
-    spectralComparison: '数值特征值（~1e-12）；比较容差 1e-9；严格小者才剪枝',
+    spectralComparison:
+      spec.objective === 'max_spectral_radius'
+        ? '数值特征值（~1e-12）；比较容差 1e-9；严格小者才剪枝'
+        : spec.objective === 'max_signless_laplacian_radius' ||
+            spec.objective === 'max_algebraic_connectivity'
+          ? '数值特征值（~1e-12）；比较容差 1e-9；无上界剪枝（全量评估）'
+          : '数值特征值（~1e-12）；比较容差 1e-9',
     coverage: orders.some(
       (order) => order.coverage !== 'enumeration' && order.coverage !== 'empty_by_bound',
     )

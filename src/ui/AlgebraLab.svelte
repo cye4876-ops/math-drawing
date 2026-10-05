@@ -24,9 +24,11 @@
   } from '../algebra/groups'
   import CayleyTable from './CayleyTable.svelte'
   import CaseDiagram from './CaseDiagram.svelte'
+  import GroupActionView from './GroupActionView.svelte'
   import GroupExplorer from './GroupExplorer.svelte'
   import RingExplorer from './RingExplorer.svelte'
   import SubgroupReport from './SubgroupReport.svelte'
+  import SylowView from './SylowView.svelte'
 
   const section = $derived(getAlgebraSection())
   const currentCase = $derived(getCounterexampleCase(getAlgebraCase()))
@@ -156,6 +158,10 @@
     {/key}
   {:else if section === 'groups'}
     <GroupExplorer />
+  {:else if section === 'actions'}
+    <GroupActionView />
+  {:else if section === 'sylow'}
+    <SylowView />
   {:else}
     <RingExplorer />
   {/if}
