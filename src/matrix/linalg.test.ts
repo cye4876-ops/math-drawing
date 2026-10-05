@@ -15,6 +15,7 @@ import {
   polyRoots,
   qrDecompose,
   rank,
+  rankTolerance,
   transpose,
 } from './linalg'
 
@@ -296,5 +297,80 @@ describe('v2.3 相似对角化（A = P·D·P⁻¹）', () => {
     expect(sorted[0]).toBeCloseTo(2 - Math.SQRT2, 6)
     expect(sorted[1]).toBeCloseTo(2, 6)
     expect(sorted[2]).toBeCloseTo(2 + Math.SQRT2, 6)
+  })
+})
+
+describe('v2.9 数值核验修正（单位阵/重特征值/小尺度）', () => {
+  it('单位阵 I4：全部特征值 1、可实对角化（回归：曾被误判复特征值）', () => {
+    const result = eigenDecompose(identity(4))
+    expect(result.hasComplex).toBe(false)
+    expect(result.diagonalizable).toBe(true)
+    expect(result.eigenvalues.map((z) => z.re)).toEqual([1, 1, 1, 1])
+    expect(result.distinctRealValues).toEqual([1])
+    expect(result.algebraicMultiplicities).toEqual([4])
+    expect(result.geometricMultiplicities).toEqual([4])
+    expect(result.residual).toBeLessThan(1e-9)
+    expect(result.diagonalizableOverComplex).toBe(true)
+  })
+
+  it('单位阵 I3：同样可实对角化（D = I、P = I）', () => {
+    const result = eigenDecompose(identity(3))
+    expect(result.diagonalizable).toBe(true)
+    expect(result.p).not.toBeNull()
+    expect(result.d).not.toBeNull()
+    expect(result.residual).toBeLessThan(1e-9)
+  })
+
+  it('Jordan 块：重根但几何重数 1 → ℝ 与 ℂ 上均不可对角化', () => {
+    const result = eigenDecompose([
+      [1, 1],
+      [0, 1],
+    ])
+    expect(result.hasComplex).toBe(false)
+    expect(result.diagonalizable).toBe(false)
+    expect(result.algebraicMultiplicities).toEqual([2])
+    expect(result.geometricMultiplicities).toEqual([1])
+    expect(result.diagonalizableOverComplex).toBe(false)
+  })
+
+  it('旋转矩阵：不能实对角化，但 ℂ 上可对角化（几何重数 = 代数重数 = 1）', () => {
+    const result = eigenDecompose([
+      [0, -1],
+      [1, 0],
+    ])
+    expect(result.hasComplex).toBe(true)
+    expect(result.diagonalizable).toBe(false)
+    expect(result.diagonalizableOverComplex).toBe(true)
+    expect(result.complexGeometricMultiplicities).toEqual([1, 1])
+  })
+
+  it('行列式不再被直接归零：det diag(1e-6, 1e-6) = 1e-12 且逆矩阵一致', () => {
+    const a = [
+      [1e-6, 0],
+      [0, 1e-6],
+    ]
+    const det = determinant(a)
+    expect(det).toBeGreaterThan(0)
+    expect(Math.abs(det - 1e-12)).toBeLessThan(1e-18)
+    const inv = inverse(a)
+    expect(inv).not.toBeNull()
+    expect(inv![0]![0]).toBeCloseTo(1e6, 0)
+  })
+
+  it('小尺度矩阵数值秩正确：1e-10·I2 秩 2（回归：曾被判秩 0）', () => {
+    expect(
+      rank([
+        [1e-10, 0],
+        [0, 1e-10],
+      ]),
+    ).toBe(2)
+    expect(rank(identity(2))).toBe(2)
+    expect(
+      rank([
+        [0, 0],
+        [0, 0],
+      ]),
+    ).toBe(0)
+    expect(rankTolerance(identity(2))).toBeCloseTo(1e-9, 20)
   })
 })

@@ -10,7 +10,7 @@
  * 与 Sage/nauty 版的差异：生成单位是标号图（原版按同构类流式输出），
  * “检查量”计数不同；大规模问题请使用原实验台。
  */
-import { evaluateClaim, parseClaim, rat, type ClaimNode, type ClaimValue } from './claims'
+import { evaluateClaimDetailed, parseClaim, rat, type ClaimNode, type ClaimValue } from './claims'
 import { containsPatternWithEdge, findPattern, patternInfo, type PatternInfo } from './containment'
 import {
   addEdgeAt,
@@ -100,6 +100,8 @@ export interface OrderRecord {
   checked: number
   feasible: number
   violations: number
+  /** v2.9：猜想比较“精度不足”而未能判定的候选数（不计入反例） */
+  uncertainViolations: number
   complete: boolean
   best: number | null
   candidateCount: number
@@ -130,6 +132,8 @@ export interface GraphSearchResult {
   checked: number
   feasible: number
   violations: number
+  /** v2.9：精度不足未能判定的候选数（不计入反例） */
+  uncertainViolations: number
   nodes: number
   elapsed: number
   termination: SearchTermination
@@ -229,6 +233,7 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
   let checked = 0
   let feasible = 0
   let violations = 0
+  let uncertainViolations = 0
   let nodes = 0
   let spectralEvaluations = 0
   let spectralPruned = 0
@@ -270,6 +275,7 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
         checked: 0,
         feasible: 0,
         violations: 0,
+        uncertainViolations: 0,
         complete: false,
         best: null,
         candidateCount: 0,
@@ -438,7 +444,14 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
 
           if (claim) {
             const values = new GraphInvariants(graph)
-            if (evaluateClaim(claim, claimGetter(values))) return // 猜想成立：不是反例
+            const verdict = evaluateClaimDetailed(claim, claimGetter(values))
+            if (verdict === true) return // 猜想成立：不是反例
+            if (verdict === 'uncertain') {
+              // v2.9：精度不足（如谱值临界比较）——不计入反例，单独计数
+              uncertainViolations++
+              order.uncertainViolations++
+              return
+            }
             // 反例按同构类计数（原版 geng 流一个同构类只出现一次）
             const fp = fingerprint(graph)
             const bucket = violationClasses.get(fp) ?? []
@@ -553,6 +566,7 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
     checked,
     feasible,
     violations,
+    uncertainViolations,
     nodes,
     elapsed: Math.round((now() - start) * 1000) / 1000,
     termination,

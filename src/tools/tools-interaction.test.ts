@@ -299,6 +299,18 @@ describe('tools/integral: 定积分', () => {
     expect(Number(rows[2]!.value)).toBeCloseTo((27 + 15.625) / 3, 6)
   })
 
+  it('振荡函数（sin²(4x)）仍给精确 π/2（回归：数值假收敛不得否决解析值）', () => {
+    const f = createFixture([createIntegralTool()])
+    f.store.addCurve({ kind: 'explicit', expr: 'sin(4*x)^2' })
+    f.registry.activate('integral')
+    const tool = f.registry.getActive()!
+    tool.onControl!('a', '0', f.ctx)
+    tool.onControl!('b', 'pi', f.ctx)
+    const rows = readoutOf(f).rows
+    expect(rows[1]!.value).toBe('[0, π]')
+    expect(rows[2]!.value).toBe('π/2')
+  })
+
   it('覆盖层绘制阴影区域', () => {
     const f = createFixture([createIntegralTool()])
     f.store.addCurve({ kind: 'explicit', expr: 'x^2' })

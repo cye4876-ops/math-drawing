@@ -14,7 +14,9 @@ function exactDisplay(fn: string, lo: string, hi: string): string {
 
 function fallbackOf(fn: string, lo: string, hi: string): FallbackIntegralResult {
   const outcome = definiteIntegral(fn, 'x', lo, hi)
-  if (outcome.kind === 'exact') throw new Error('期望回退结果，实际为精确结果')
+  if (outcome.kind !== 'none' && outcome.kind !== 'approx') {
+    throw new Error(`期望回退结果，实际为：${outcome.kind}`)
+  }
   return outcome
 }
 
@@ -37,6 +39,7 @@ describe('定积分：精确结果', () => {
     ['x', '-1', '1', '0'],
     ['2*x+1', '0', '1', '2'],
     ['sin(x)^2', '0', 'pi', 'π/2'],
+    ['sin(4*x)^2', '0', 'pi', 'π/2'],
     ['cos(x)^2', '0', 'pi/2', 'π/4'],
     ['tan(x)^2', '0', 'pi/4', '−π/4 + 1'],
     ['sin(x)*cos(x)', '0', 'pi/2', '1/2'],

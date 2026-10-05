@@ -18,6 +18,7 @@ import { GraphInvariants, maxClique, maxMatching } from './invariants'
 import { charPolyCoefficients, adjacencyIntMatrix, laplacianIntMatrix } from './charpoly'
 import {
   evaluateClaim,
+  evaluateClaimDetailed,
   ClaimError,
   parseClaim,
   rat,
@@ -187,6 +188,35 @@ describe('claim 表达式', () => {
     const tree = parseClaim('min(m, n) <= delta < max(m, n)', context)
     expect(evaluateClaim(tree, getter({ n: 5, m: 2, delta: 3 }))).toBe(true)
     expect(evaluateClaim(tree, getter({ n: 5, m: 2, delta: 8 }))).toBe(false)
+  })
+
+  it('v2.9：根式与小数常量精确比较（sqrt(2) < 1.4142135623730951 为真）', () => {
+    const less = parseClaim('sqrt(2) < 1.4142135623730951', context)
+    expect(evaluateClaim(less, () => 0)).toBe(true)
+    const equal = parseClaim('sqrt(2) == 1.4142135623730951', context)
+    expect(evaluateClaim(equal, () => 0)).toBe(false) // 小数略大于 √2
+    const square = parseClaim('sqrt(2)*sqrt(2) == 2 and sqrt(8) == 2*sqrt(2)', context)
+    expect(evaluateClaim(square, () => 0)).toBe(true)
+  })
+
+  it('v2.9：谱值临界比较返回“精度不足”（不冒充严格结论）', () => {
+    const tree = parseClaim('rho <= 2*sqrt(2)', context)
+    // 双精度 ρ ≈ 2√2（差在 1e-9 容差内）→ uncertain
+    expect(evaluateClaimDetailed(tree, () => 2 * Math.SQRT2)).toBe('uncertain')
+    // 明显小于/大于 → 明确真/假
+    expect(
+      evaluateClaimDetailed(parseClaim('rho <= 2*sqrt(2)', context), () => 2 * Math.SQRT2 - 1e-3),
+    ).toBe(true)
+    expect(
+      evaluateClaimDetailed(parseClaim('rho <= 2*sqrt(2)', context), () => 2 * Math.SQRT2 + 1e-3),
+    ).toBe(false)
+    // 与判定无关的确定假优先
+    expect(
+      evaluateClaimDetailed(
+        parseClaim('rho <= 1 and rho <= 2*sqrt(2)', context),
+        () => 2 * Math.SQRT2,
+      ),
+    ).toBe(false)
   })
 
   it('拒绝非法表达式', () => {

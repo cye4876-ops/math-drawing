@@ -242,7 +242,32 @@ export function createIntegralTool(): Tool {
           return {
             title: '定积分',
             rows,
-            note: '精确结果来自符号积分（含 π/e/根式的精确端点求值），并用自适应 Simpson 独立校验；将端点改为拖动手柄或超出规则集的函数会自动回退数值。',
+            note:
+              (outcome.note ? `${outcome.note} ` : '') +
+              '精确结果来自符号积分（含 π/e/根式的精确端点求值），并用自适应 Simpson 独立校验（含均匀多段与 Gauss 复核）；将端点改为拖动手柄或超出规则集的函数会自动回退数值。',
+          }
+        }
+        if (outcome.kind === 'conflict') {
+          // v2.9：不预设任何一方正确——并排保留解析候选与两种数值结果
+          rows[1] = { label: '区间', value: `[${outcome.loText}, ${outcome.hiText}]` }
+          rows.push({ label: '解析候选（符号积分）', value: outcome.exactDisplay })
+          if (outcome.numeric && Number.isFinite(outcome.numeric.value)) {
+            rows.push({
+              label: '数值候选（自适应 Simpson）',
+              value: formatNum(outcome.numeric.value, 9),
+            })
+          }
+          if (outcome.gaussValue !== null) {
+            rows.push({
+              label: '数值复核（Gauss–Legendre）',
+              value: formatNum(outcome.gaussValue, 9),
+            })
+          }
+          rows.push({ label: '原函数', value: `F(x) = ${outcome.antiderivativeText}` })
+          return {
+            title: '定积分',
+            rows,
+            note: `${outcome.reason}；两侧结果与计算依据均已保留，请人工判断（可缩小分段或改用更细的采样）。`,
           }
         }
         rows.push({ label: '∫ f(x) dx ≈', value: formatNum(result.value, 9) })
@@ -268,16 +293,22 @@ export function createIntegralTool(): Tool {
       }
       rows.push({ label: '∫ f(x) dx ≈', value: formatNum(result.value, 9) })
       rows.push({
-        label: '误差估计',
+        label: '误差估计（数值）',
         value: result.truncated
           ? `${formatNum(result.error, 3)}（截断）`
           : formatNum(result.error, 3),
       })
       rows.push({ label: '求值次数', value: String(result.evaluations) })
+      const refinedNote =
+        result.verification.status === 'resolved'
+          ? '检测到采样假收敛，已用均匀多段细分 + 独立 Gauss 复核纠正（误差为两法差的估计值）。'
+          : result.verification.status === 'mismatch'
+            ? '两种数值方法结果不一致，当前值为均匀细分的估计，可信度较低。'
+            : '误差为数值估计值。'
       return {
         title: '定积分',
         rows,
-        note: '拖动端点或输入区间端点调整范围；在下方输入两端点（如 0 与 pi）即可给出精确解析结果；自适应 Simpson 为数值兜底，不支持奇异积分。',
+        note: `拖动端点或输入区间端点调整范围；在下方输入两端点（如 0 与 pi）即可给出精确解析结果；自适应 Simpson 为数值兜底，${refinedNote}`,
       }
     },
   }

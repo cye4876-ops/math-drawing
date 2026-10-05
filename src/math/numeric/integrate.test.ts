@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adaptiveSimpson } from './integrate'
+import { adaptiveSimpson, compositeGauss } from './integrate'
 
 describe('numeric/integrate: 自适应 Simpson', () => {
   it('∫₀^π sin(x)dx = 2，误差 < 1e-9', () => {
@@ -54,5 +54,29 @@ describe('numeric/integrate: 自适应 Simpson', () => {
       best = Math.min(best, performance.now() - t0)
     }
     expect(best).toBeLessThan(5)
+  })
+})
+
+describe('v2.9 振荡积分防护', () => {
+  it('sin²(4x) 在 [0, π] = π/2（回归：五点采样对齐零点曾误报 2.5e-31）', () => {
+    const result = adaptiveSimpson((x) => Math.sin(4 * x) ** 2, 0, Math.PI)
+    expect(Math.abs(result.value - Math.PI / 2)).toBeLessThan(1e-9)
+    // 自适应结果被均匀细分/Gauss 复核纠正
+    expect(result.verification.status).toBe('resolved')
+    expect(result.verification.gauss).not.toBeNull()
+    expect(Math.abs((result.verification.uniform ?? 0) - Math.PI / 2)).toBeLessThan(1e-9)
+    expect(Math.abs((result.verification.gauss ?? 0) - Math.PI / 2)).toBeLessThan(1e-9)
+  })
+
+  it('光滑函数两法一致（matched），误差为估计值', () => {
+    const result = adaptiveSimpson(Math.sin, 0, Math.PI)
+    expect(result.verification.status).toBe('matched')
+    expect(result.verification.uniform).not.toBeNull()
+    expect(result.error).toBeLessThan(1e-8)
+  })
+
+  it('compositeGauss 独立可用：∫₀¹ 4/(1+x²) = π', () => {
+    const { value } = compositeGauss((x) => 4 / (1 + x * x), 0, 1, 32)
+    expect(Math.abs(value - Math.PI)).toBeLessThan(1e-12)
   })
 })

@@ -303,7 +303,8 @@
           >
           <span class="badge">{evidenceLabel(result.evidence)}</span>
           <span class="dim">
-            检查 {result.checked.toLocaleString()} · 可行 {result.feasible.toLocaleString()} · 反例 {result.violations}
+            检查 {result.checked.toLocaleString()} · 可行 {result.feasible.toLocaleString()} · 反例 {result.violations}{#if result.uncertainViolations > 0}
+              · 未判定（精度不足）{result.uncertainViolations}{/if}
             · 候选 {result.candidateCount} · 节点 {result.nodes.toLocaleString()} · 用时 {result.elapsed}s
           </span>
         </div>
@@ -428,7 +429,8 @@
           >
           <span class="badge">{evidenceLabel(result.evidence)}</span>
           <span class="dim">
-            检查 {result.checked.toLocaleString()} · 可行 {result.feasible} · 反例 {result.violations}
+            检查 {result.checked.toLocaleString()} · 可行 {result.feasible} · 反例 {result.violations}{#if result.uncertainViolations > 0}
+              · 未判定（精度不足）{result.uncertainViolations}{/if}
             · 候选 {result.candidateCount} · 节点 {result.nodes.toLocaleString()} · 用时 {result.elapsed}s
           </span>
         </div>

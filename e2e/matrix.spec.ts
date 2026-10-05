@@ -65,7 +65,34 @@ test.describe('v2.3 矩阵分解（第七模式）', () => {
     const results = page.getByTestId('matrix-results')
     await expect(results).toContainText('det A = -2')
     await expect(results).toContainText('rank A = 2')
-    await expect(results).toContainText('数值精度内')
+    await expect(results).toContainText('A·A⁻¹')
+  })
+
+  test('v2.9 回归：4 阶单位矩阵可实对角化（曾被误判复特征值）', async ({ page }) => {
+    await page.goto('/?mode=matrix')
+    await page.getByTestId('matrix-size-n').fill('4')
+    await page.getByTestId('matrix-clear').click()
+    await page.getByTestId('matrix-identity').click()
+    await page.getByTestId('matrix-op-eigen').click()
+    await page.getByTestId('matrix-run').click()
+    const results = page.getByTestId('matrix-results')
+    await expect(results).toContainText('验证')
+    await expect(results).toContainText('几何重数 4')
+    await expect(results).not.toContainText('复特征值')
+  })
+
+  test('v2.9 回归：小尺度 diag(1e-6,1e-6) 行列式保留为 1e-12、秩 2、逆一致', async ({ page }) => {
+    await page.goto('/?mode=matrix')
+    await page.getByTestId('matrix-cell-1-1').fill('1e-6')
+    await page.getByTestId('matrix-cell-1-2').fill('0')
+    await page.getByTestId('matrix-cell-2-1').fill('0')
+    await page.getByTestId('matrix-cell-2-2').fill('1e-6')
+    await page.getByTestId('matrix-op-summary').click()
+    await page.getByTestId('matrix-run').click()
+    const results = page.getByTestId('matrix-results')
+    await expect(results).toContainText('det A = 1.00e-12')
+    await expect(results).toContainText('rank A = 2')
+    await expect(results).toContainText('A·A⁻¹')
   })
 
   test('n 阶参数：3 阶输入格生效、行列式 24', async ({ page }) => {

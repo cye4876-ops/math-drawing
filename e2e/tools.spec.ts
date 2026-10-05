@@ -320,6 +320,19 @@ test.describe('v0.4 交互分析工具', () => {
     expect(values[4]).toContain('F(x) = −cos(x)')
   })
 
+  test('定积分：∫₀^π sin²(4x) = π/2（回归：振荡采样假收敛不再否决解析值）', async ({ page }) => {
+    await page.goto('/?curves=sin(4*x)^2')
+    await activateTool(page, 'integral')
+    await page.getByTestId('tool-control-a').fill('0')
+    await page.getByTestId('tool-control-a').press('Enter')
+    await page.getByTestId('tool-control-b').fill('pi')
+    await page.getByTestId('tool-control-b').press('Enter')
+
+    const values = await readoutValues(page)
+    expect(values[1]).toBe('[0, π]')
+    expect(values[2]).toBe('π/2')
+  })
+
   test('围成面积：y=x 与 y=x² 在 [0,1] 上精确 1/6', async ({ page }) => {
     await page.goto('/?curves=x;x^2')
     await activateTool(page, 'area')

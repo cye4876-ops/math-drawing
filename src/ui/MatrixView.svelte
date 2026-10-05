@@ -14,7 +14,16 @@
     toMatrix,
     type MatrixOutput,
   } from '../state/matrix-state.svelte'
-  import { characteristicPolynomial, cleanNumber, inverse, type Matrix } from '../matrix/linalg'
+  import {
+    characteristicPolynomial,
+    cleanNumber,
+    identity,
+    inverse,
+    matmul,
+    maxAbsDiff,
+    rankTolerance,
+    type Matrix,
+  } from '../matrix/linalg'
 
   let { active = false }: { active?: boolean } = $props()
 
@@ -24,8 +33,8 @@
 
   // ---------- 格式化 ----------
 
-  function fmt(value: number): string {
-    const cleaned = cleanNumber(value, 1e-9)
+  function fmt(value: number, eps = 1e-9): string {
+    const cleaned = cleanNumber(value, eps)
     const abs = Math.abs(cleaned)
     if (abs !== 0 && (abs < 1e-3 || abs >= 1e5)) return cleaned.toExponential(2)
     return String(Number(cleaned.toFixed(4)))
@@ -141,9 +150,24 @@
       } else if (eigen.hasComplex) {
         result.push({
           kind: 'text',
-          value: '存在复特征值：在 ℝ 上没有特征向量基，不能实对角化（复数域上仍可对角化）。',
+          value: '存在复特征值：在 ℝ 上没有特征向量基，不能实对角化。',
           tone: 'warn',
         })
+        // v2.9：复对角化结论须有依据（几何重数 vs 代数重数），不再默认“复数域上仍可对角化”
+        result.push({
+          kind: 'text',
+          value: eigen.diagonalizableOverComplex
+            ? 'ℂ 上可对角化：各特征值的几何重数 = 代数重数（已用复数零空间复核）。'
+            : 'ℂ 上也不可对角化：存在几何重数 < 代数重数的特征值（对应非平凡 Jordan 块）。',
+          tone: eigen.diagonalizableOverComplex ? 'ok' : 'warn',
+        })
+        const complexText = eigen.complexDistinct
+          .map(
+            (value, i) =>
+              `λ=${fmtComplex(value.re, value.im)}：代数重数 ${eigen.complexAlgebraicMultiplicities[i] ?? 0}、几何重数 ${eigen.complexGeometricMultiplicities[i] ?? 0}`,
+          )
+          .join('；')
+        if (complexText) result.push({ kind: 'text', value: complexText, tone: 'dim' })
       } else {
         result.push({
           kind: 'text',
@@ -161,13 +185,29 @@
     } else if (output.op === 'summary' && output.summary) {
       const { det, trace, rank: rk, inverse: inv } = output.summary
       result.push({ kind: 'text', value: '行列式 · 迹 · 秩 · 逆矩阵' })
+      // v2.9：极小行列式保留科学计数法显示（不再被显示层归零）
+      const detText =
+        det === 0
+          ? '0'
+          : Math.abs(det) < 1e-9
+            ? `${det.toExponential(2)}（极小但非零）`
+            : fmt(det, 0)
+      const tolText = rankTolerance(output.input).toExponential(1)
+      result.push({ kind: 'text', value: `det A = ${detText}；tr A = ${fmt(trace, 0)}` })
       result.push({
         kind: 'text',
-        value: `det A = ${fmt(det)}；tr A = ${fmt(trace)}；rank A = ${rk}`,
+        value: `rank A = ${rk}（数值秩：相对容差 1e-9·max|aᵢⱼ| = ${tolText}）`,
+        tone: 'dim',
       })
       if (inv) {
         result.push({ kind: 'latex', value: `A^{-1} = ${pmatrix(inv)}` })
-        result.push({ kind: 'text', value: '验证：A·A⁻¹ = I（数值精度内）。', tone: 'ok' })
+        const n = output.input.length
+        const identityResidual = maxAbsDiff(matmul(output.input, inv), identity(n))
+        result.push({
+          kind: 'text',
+          value: `验证 ‖A·A⁻¹ − I‖∞ = ${residualText(identityResidual)}`,
+          tone: identityResidual < 1e-8 ? 'ok' : 'warn',
+        })
       } else {
         result.push({ kind: 'text', value: '矩阵不可逆（det = 0 / 秩亏）。', tone: 'warn' })
       }

@@ -7,7 +7,7 @@
  * - 预算按 DFS 节点计；耗尽标记为未完成。
  * 相对 genbg 智能版的差异：生成单位是标号超边集，规模建议控制在 r=2/3 且 n ≤ 6–7。
  */
-import { evaluateClaim, type ClaimNode } from './claims'
+import { evaluateClaimDetailed, type ClaimNode } from './claims'
 import {
   builtinHyperPattern,
   findHyperPattern,
@@ -103,6 +103,8 @@ export interface HyperOrderRecord {
   checked: number
   feasible: number
   violations: number
+  /** v2.9：精度不足未能判定的候选数（不计入反例） */
+  uncertainViolations: number
   complete: boolean
   best: number | null
   candidateCount: number
@@ -121,6 +123,8 @@ export interface HyperSearchResult {
   checked: number
   feasible: number
   violations: number
+  /** v2.9：精度不足未能判定的候选数（不计入反例） */
+  uncertainViolations: number
   nodes: number
   elapsed: number
   termination: HyperTermination
@@ -324,6 +328,7 @@ export function runHyperSearch(
         checked: 0,
         feasible: 0,
         violations: 0,
+        uncertainViolations: 0,
         complete: false,
         best: null,
         candidateCount: 0,
@@ -500,8 +505,13 @@ export function runHyperSearch(
         layer.feasible++
 
         if (claim) {
-          const holds = evaluateClaim(claim, hyperClaimGetter(h, spec.r))
-          if (holds) return
+          const verdict = evaluateClaimDetailed(claim, hyperClaimGetter(h, spec.r))
+          if (verdict === true) return
+          if (verdict === 'uncertain') {
+            // v2.9：精度不足（如谱值临界比较）——不计入反例，单独计数
+            context.order.uncertainViolations++
+            return
+          }
           const fp = hyperFingerprint(h)
           const bucket = context.violationClasses.get(fp) ?? []
           for (const existing of bucket) {
@@ -601,6 +611,7 @@ export function runHyperSearch(
     checked,
     feasible,
     violations,
+    uncertainViolations: orders.reduce((sum, order) => sum + order.uncertainViolations, 0),
     nodes,
     elapsed: Math.round((now() - start) * 1000) / 1000,
     termination,
