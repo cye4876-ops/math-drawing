@@ -3,6 +3,7 @@
   import type { AppStore } from '../state/store'
   import type { AppState, Curve, CurveKind, DocState, LineStyle } from '../state/types'
   import { DEFAULT_PARAMETER_BOUNDS, extractParameters, parse, parseProgram } from '../expr'
+  import { parseCurveEquation } from '../core/curve-equation'
   import ChevronDown from '@lucide/svelte/icons/chevron-down'
   import ChevronUp from '@lucide/svelte/icons/chevron-up'
   import X from '@lucide/svelte/icons/x'
@@ -17,7 +18,9 @@
     })
   })
 
-  let draftKind = $state<CurveKind>('explicit')
+  /** v3.1：「自定义方程」为添加表单的辅助模式（自动识别类型后写入四种曲线之一） */
+  type DraftKind = CurveKind | 'custom'
+  let draftKind = $state<DraftKind>('explicit')
   let draftExpr = $state('')
   let draftExpr2 = $state('')
 
@@ -31,6 +34,14 @@
     parametric: '参数方程 (x(t), y(t))',
     polar: '极坐标 r(θ)',
   }
+
+  const DRAFT_KINDS: { value: DraftKind; label: string }[] = [
+    { value: 'explicit', label: KIND_LABELS.explicit },
+    { value: 'implicit', label: KIND_LABELS.implicit },
+    { value: 'parametric', label: KIND_LABELS.parametric },
+    { value: 'polar', label: KIND_LABELS.polar },
+    { value: 'custom', label: '自定义方程（自动识别）' },
+  ]
 
   const QUALITY_LABELS: Record<number, string> = {
     1: '低',
@@ -64,7 +75,19 @@
     const expr = draftExpr.trim()
     const expr2 = draftExpr2.trim()
     if (!expr) return
-    if (draftKind === 'parametric') {
+    if (draftKind === 'custom') {
+      const resolved = parseCurveEquation(expr)
+      if (!resolved.ok) return
+      if (resolved.spec.kind === 'parametric') {
+        store.addCurve({
+          kind: 'parametric',
+          expr: resolved.spec.expr,
+          expr2: resolved.spec.expr2 ?? '',
+        })
+      } else {
+        store.addCurve({ kind: resolved.spec.kind, expr: resolved.spec.expr })
+      }
+    } else if (draftKind === 'parametric') {
       if (!expr2) return
       store.addCurve({ kind: 'parametric', expr, expr2 })
       draftExpr2 = ''
@@ -135,20 +158,38 @@
     return String(Number(value.toFixed(2)))
   }
 
+  /** v3.1：自定义方程的实时识别结果（用于反馈与参数提示） */
+  const customResolved = $derived(
+    draftKind === 'custom' && draftExpr.trim() !== '' ? parseCurveEquation(draftExpr) : null,
+  )
+
   /** 输入反馈（v2.5）：草稿表达式的实时校验与参数识别提示（不阻断添加，错误仍可入列表修正） */
-  const draftError = $derived(
-    draftExpr.trim() === ''
+  const draftError = $derived.by(() => {
+    if (draftKind === 'custom') {
+      if (draftExpr.trim() === '') return null
+      const resolved = parseCurveEquation(draftExpr)
+      return resolved.ok ? null : resolved.error
+    }
+    return draftExpr.trim() === ''
       ? null
       : draftKind === 'parametric'
         ? (parseError(draftExpr) ??
           (draftExpr2.trim() === '' ? '请输入 y(t) 表达式' : parseError(draftExpr2)))
-        : parseError(draftExpr),
-  )
+        : parseError(draftExpr)
+  })
 
   const draftParams = $derived.by(() => {
     if (draftError !== null) return [] as string[]
     try {
-      const programs = parseProgram(draftExpr)
+      const programs =
+        draftKind === 'custom'
+          ? customResolved?.ok
+            ? [
+                ...parseProgram(customResolved.spec.expr),
+                ...(customResolved.spec.expr2 ? parseProgram(customResolved.spec.expr2) : []),
+              ]
+            : []
+          : parseProgram(draftExpr)
       if (draftKind === 'parametric' && draftExpr2.trim() !== '') {
         programs.push(...parseProgram(draftExpr2))
       }
@@ -169,23 +210,25 @@
     <select
       data-testid="curve-kind-select"
       value={draftKind}
-      onchange={(e) => (draftKind = (e.currentTarget as HTMLSelectElement).value as CurveKind)}
+      onchange={(e) => (draftKind = (e.currentTarget as HTMLSelectElement).value as DraftKind)}
     >
-      {#each Object.entries(KIND_LABELS) as [value, label] (value)}
-        <option {value}>{label}</option>
+      {#each DRAFT_KINDS as option (option.value)}
+        <option value={option.value}>{option.label}</option>
       {/each}
     </select>
     <input
       data-testid="curve-expr-input"
       type="text"
       bind:this={exprInput}
-      placeholder={draftKind === 'implicit'
-        ? '如 x^2 + y^2 - 4'
-        : draftKind === 'polar'
-          ? '如 1 + cos(theta)'
-          : draftKind === 'parametric'
-            ? 'x(t)，如 cos(t)'
-            : '如 sin(x)'}
+      placeholder={draftKind === 'custom'
+        ? '如 x^2 + y^2 = 4 、y = sin(x) + a 、r = 2*cos(3*theta) 、x = cos(t); y = sin(t)'
+        : draftKind === 'implicit'
+          ? '如 x^2 + y^2 - 4'
+          : draftKind === 'polar'
+            ? '如 1 + cos(theta)'
+            : draftKind === 'parametric'
+              ? 'x(t)，如 cos(t)'
+              : '如 sin(x)'}
       bind:value={draftExpr}
       onkeydown={(e) => {
         if (e.key === 'Enter') addCurve()
@@ -220,9 +263,11 @@
         <div class="draft-feedback error" data-testid="draft-error">✗ {draftError}</div>
       {:else}
         <div class="draft-feedback ok" data-testid="draft-ok">
-          ✓ 表达式有效{draftParams.length > 0
-            ? ` · 参数 ${draftParams.join('、')}（添加后用滑块调值）`
-            : ''}
+          ✓ {customResolved?.ok ? `${customResolved.note}；` : '表达式有效'}{draftParams.length > 0
+            ? `参数 ${draftParams.join('、')}（添加后用滑块调值）`
+            : customResolved?.ok
+              ? '无待定参数'
+              : ''}
         </div>
       {/if}
     {/if}

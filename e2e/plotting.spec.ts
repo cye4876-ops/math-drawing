@@ -69,6 +69,47 @@ test.describe('v0.3 曲线绘制', () => {
     await expect.poll(() => countRedPixels(page)).toBeGreaterThan(50)
   })
 
+  test('自定义方程：粘贴方程自动识别四种类型并添加（v3.1-B）', async ({ page }) => {
+    await page.goto('/')
+    await page.getByTestId('curve-kind-select').selectOption('custom')
+    // 自定义模式不显示第二个表达式输入框（参数方程在单框内用分号书写）
+    await expect(page.getByTestId('curve-expr2-input')).toHaveCount(0)
+
+    // 隐函数：x^2 + y^2 = 4 → F = (x^2 + y^2) - (4)
+    await page.getByTestId('curve-expr-input').fill('x^2 + y^2 = 4')
+    await expect(page.getByTestId('draft-ok')).toContainText('识别为隐函数')
+    await page.getByTestId('curve-add').click()
+    await expect(page.getByTestId('curve-item')).toHaveCount(1)
+    await expect(page.getByTestId('curve-expr')).toHaveValue('(x^2 + y^2) - (4)')
+
+    // 显函数：y = 2*sin(x) + a（参数 a 实时提示）
+    await page.getByTestId('curve-expr-input').fill('y = 2*sin(x) + a')
+    await expect(page.getByTestId('draft-ok')).toContainText('识别为显函数')
+    await expect(page.getByTestId('draft-ok')).toContainText('参数 a')
+    await page.getByTestId('curve-add').click()
+    await expect(page.getByTestId('curve-item')).toHaveCount(2)
+
+    // 极坐标：r = 2*cos(3*theta)
+    await page.getByTestId('curve-expr-input').fill('r = 2*cos(3*theta)')
+    await expect(page.getByTestId('draft-ok')).toContainText('识别为极坐标')
+    await page.getByTestId('curve-add').click()
+    await expect(page.getByTestId('curve-item')).toHaveCount(3)
+
+    // 参数方程：x = cos(t); y = sin(t)
+    await page.getByTestId('curve-expr-input').fill('x = cos(t); y = sin(t)')
+    await expect(page.getByTestId('draft-ok')).toContainText('识别为参数方程')
+    await page.getByTestId('curve-add').click()
+    await expect(page.getByTestId('curve-item')).toHaveCount(4)
+    await expect(page.getByTestId('curve-expr2')).toHaveValue('sin(t)')
+    await expect(page.getByTestId('curve-error')).toHaveCount(0)
+
+    // 非法输入：给出错误反馈且不添加
+    await page.getByTestId('curve-expr-input').fill('x = 1 = 2')
+    await expect(page.getByTestId('draft-error')).toContainText('最多包含一个等号')
+    await page.getByTestId('curve-add').click()
+    await expect(page.getByTestId('curve-item')).toHaveCount(4)
+  })
+
   test('表达式错误提示，不产生曲线段', async ({ page }) => {
     await page.goto('/')
     await page.getByTestId('curve-expr-input').fill('sin(')
