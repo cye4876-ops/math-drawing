@@ -67,7 +67,7 @@ export function automorphismGroup(g: LabGraph, budget = 2_000_000): Automorphism
   const degrees = Array.from({ length: n }, (_, v) => bitsOf(g.adj[v]!).length)
   const signature = (v: number): string =>
     `${degrees[v]}|${bitsOf(g.adj[v]!)
-      .map((u) => degrees[u])
+      .map((u) => degrees[u] ?? 0)
       .sort((a, b) => a - b)
       .join(',')}`
   const signatures = Array.from({ length: n }, (_, v) => signature(v))

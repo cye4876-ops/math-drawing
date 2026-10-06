@@ -209,14 +209,14 @@ function lrRun(g: LabGraph): LrTables {
     if (S.length > 0) {
       const P = S.pop()!
       while (P.left.high !== null && P.left.high % n === u) {
-        P.left.high = ref[P.left.high]
+        P.left.high = ref[P.left.high] ?? null
       }
       if (P.left.high === null && P.left.low !== null) {
         ref[P.left.low] = P.right.low
         P.left.low = null
       }
       while (P.right.high !== null && P.right.high % n === u) {
-        P.right.high = ref[P.right.high]
+        P.right.high = ref[P.right.high] ?? null
       }
       if (P.right.high === null && P.right.low !== null) {
         ref[P.right.low] = P.left.low
