@@ -189,6 +189,25 @@ export function isNormal(group: FiniteGroup, subgroup: number[]): boolean {
   return normalizerOfSubgroup(group, subgroup).length === group.order
 }
 
+/**
+ * v3.1 陪集作用的核（core）：core_G(H) = ∩_{x∈G} xHx⁻¹，
+ * 即 G 作用在左陪集集 G/H 上的同态核；恒为正规子群，是含于 H 的最大正规子群。
+ */
+export function coreOfSubgroup(group: FiniteGroup, subgroup: number[]): number[] {
+  let current: number[] | null = null
+  for (let x = 0; x < group.order; x++) {
+    const conjugate = conjugateSubgroup(group, subgroup, x)
+    if (current === null) {
+      current = conjugate
+    } else {
+      const set = new Set(conjugate)
+      current = current.filter((member) => set.has(member))
+    }
+    if (current.length === 1) break // 已含单位元，不可能再小
+  }
+  return sortUnique(current ?? [])
+}
+
 /** 寻找把 P 共轭到 Q 的见证元 x（即 xPx⁻¹ = Q）；找不到返回 null */
 export function findConjugator(group: FiniteGroup, p: number[], q: number[]): number | null {
   const target = setKey(q)

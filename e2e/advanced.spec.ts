@@ -323,6 +323,10 @@ test.describe('v0.9 进阶（第五模式）', () => {
     await page.getByTestId('adv-action-group-s3').click()
     await page.getByTestId('adv-action-element').selectOption('4')
     await expect(page.getByTestId('alg-action-quotient')).toBeVisible()
+    // v3.1：陪集作用的核（A₄ 案例中 ⟨(123)⟩ 的核平凡 = 作用忠实）
+    await page.getByTestId('adv-action-group-a4').click()
+    await page.getByTestId('adv-action-element').selectOption('1')
+    await expect(page.getByTestId('alg-action-core')).toContainText('{e}')
   })
 
   test('代数·群作用（v3.0）：Burnside 计数（D₄ 正方形着色 2 色 → 6、3 色 → 21）', async ({

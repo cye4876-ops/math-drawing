@@ -14,6 +14,7 @@
   import { parseGraph6 } from '../../lab/graph6'
   import { GraphInvariants, girthOf } from '../../lab/invariants'
   import { isPlanar } from '../../lab/planarity'
+  import { automorphismGroup } from '../../lab/automorphism'
 
   let {
     active,
@@ -143,6 +144,15 @@
       : value.toFixed(6)
   }
 
+  const selectedGraphAut = $derived.by(() => {
+    const selected = selectedGraphCandidate
+    if (!selected || !('graph6' in selected.candidate)) return null
+    try {
+      return automorphismGroup(parseGraph6((selected.candidate as StoredCandidateGraph).graph6))
+    } catch {
+      return null
+    }
+  })
   function formatEigenvalues(values: number[], limit = 6): string {
     const head = values.slice(0, limit).map(formatNumber).join('，')
     return values.length > limit ? `${head}，…` : head
@@ -681,6 +691,32 @@
               <code>{selectedGraphSpectra.Q.coefficients.join('  ')}</code>
             </div>
           {/if}
+          <div class="detail-aut" data-testid="lab-detail-aut">
+            <div class="dim">自同构群 |Aut(G)|（保持邻接的置换；连接群论）</div>
+            {#if selectedGraphAut}
+              <div>|Aut(G)| = {selectedGraphAut.order}</div>
+              <div>
+                顶点轨道（{selectedGraphAut.orbits.length} 条）：{selectedGraphAut.orbits
+                  .map((orbit) => `{${orbit.join(',')}}`)
+                  .join(' ')}
+              </div>
+              <div>
+                稳定子：v = {selectedGraphAut.orbits[0]?.[0] ?? 0} → |Stab| = {selectedGraphAut
+                  .stabilizerSizes[selectedGraphAut.orbits[0]?.[0] ?? 0]}
+                （|Aut| = |orbit| · |Stab|）
+              </div>
+              {#if selectedGraphAut.sampleGenerators.length > 0}
+                <div class="dim">生成元样本（≤4 个非恒等置换，0 起点）：</div>
+                <code
+                  >{selectedGraphAut.sampleGenerators.map((p) => `(${p.join('')})`).join(' ')}</code
+                >
+              {/if}
+            {:else}
+              <div class="dim">
+                超出自同构枚举预算（n 较大或对称性强）；C₅ → 10、Petersen → 120 已由单测核验。
+              </div>
+            {/if}
+          </div>
         </div>
         <ul class="checks">
           {#each candidate.checks as check (check.label)}

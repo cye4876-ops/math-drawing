@@ -12,6 +12,7 @@
     centralizerOf,
     classEquation,
     conjugacyClassOf,
+    coreOfSubgroup,
     cosets,
     quotientGroup,
   } from '../algebra/actions'
@@ -30,6 +31,7 @@
   const cyclic = $derived(cyclicSubgroup(group, element))
   const cosetInfo = $derived(cosets(group, cyclic))
   const quotient = $derived(quotientGroup(group, cyclic))
+  const core = $derived(coreOfSubgroup(group, cyclic))
 
   let colors = $state(2)
   const burnside = $derived(burnsideColoring(group, colors))
@@ -123,6 +125,16 @@
         ✗ 左右陪集集合不同 ⇒ H 不正规，无法构造商群（陪集乘法无定义）
       </div>
     {/if}
+    <div class="av-row" data-testid="alg-action-core">
+      <span class="av-key">陪集作用的核 core(H) = ∩ xHx⁻¹</span>
+      <span class="av-val mono">{`{${labelsOf(core)}}`}</span>
+      <span class="av-count">|core| = {core.length}</span>
+    </div>
+    <div class="av-note">
+      G 作用于左陪集集 G/H 的置换表示：核 = 含于 H
+      的最大正规子群；核为平凡子群（仅含单位元）时作用忠实（如 A₄ 作用于 V₄ 的 4 个陪集 → 单射同态
+      A₄ ↪ S₄）。
+    </div>
   </section>
 
   <section class="av-panel">

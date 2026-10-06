@@ -190,6 +190,21 @@ test.describe('v2.7 图论实验台', () => {
     await expect(page.getByTestId('lab-graph-resume')).toBeVisible({ timeout: 30_000 })
   })
 
+  test('v3.1 图的自同构群：候选详情显示 |Aut(G)|、轨道与稳定子（三角形 + 悬挂边 → 2）', async ({
+    page,
+  }) => {
+    await openLab(page)
+    await page.getByTestId('lab-template-c4-ord').click()
+    await page.getByTestId('lab-graph-run').click()
+    await expect(page.getByText('范围穷举完成', { exact: true })).toBeVisible({ timeout: 15_000 })
+    await page.getByTestId('lab-candidate').first().click()
+    const aut = page.getByTestId('lab-detail-aut')
+    await expect(aut).toBeVisible()
+    await expect(aut).toContainText('|Aut(G)| = 2')
+    await expect(aut).toContainText('顶点轨道（3 条）')
+    await expect(aut).toContainText('|Stab| =')
+  })
+
   test('v3.1 平面性条件：无三角形 n=6 要求平面 → 最优 8 边（K₃,₃ 被排除）', async ({ page }) => {
     await openLab(page)
     await page.getByText('禁图与图性质').click()

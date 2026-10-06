@@ -28,6 +28,7 @@ import {
   conjugacyClassOf,
   conjugacyClasses,
   conjugateSubgroup,
+  coreOfSubgroup,
   cosets,
   findConjugator,
   isNormal,
@@ -239,6 +240,23 @@ describe('v3.0 陪集作用与商群', () => {
     expect(info.index).toBe(3)
     expect(info.normal).toBe(false)
     expect(quotientGroup(GROUP_S3, h)).toBeNull()
+  })
+})
+
+describe('v3.1 陪集作用的核（core）', () => {
+  it('A₄：core(⟨(123)⟩) 平凡（作用忠实）；core(V₄) = V₄（正规）', () => {
+    const h3 = cyclicSubgroup(GROUP_A4, Math.max(0, GROUP_A4.elements.indexOf('(123)')))
+    expect(h3.length).toBe(3)
+    expect(coreOfSubgroup(GROUP_A4, h3).map((index) => labelOf(GROUP_A4, index))).toEqual(['e'])
+    const v4 = sylowSubgroups(GROUP_A4, 2)[0] ?? []
+    expect(coreOfSubgroup(GROUP_A4, v4)).toEqual(v4)
+  })
+
+  it('S₃：core(⟨(12)⟩) = {e}；核恒为正规子群', () => {
+    const h = cyclicSubgroup(GROUP_S3, Math.max(0, GROUP_S3.elements.indexOf('(12)')))
+    const core = coreOfSubgroup(GROUP_S3, h)
+    expect(core.length).toBe(1)
+    expect(isNormal(GROUP_S3, core)).toBe(true)
   })
 })
 

@@ -1,0 +1,252 @@
+[
+  {
+    "name": "C5",
+    "graph6": "Dhc",
+    "aut": 10
+  },
+  {
+    "name": "C6",
+    "graph6": "EhEG",
+    "aut": 12
+  },
+  {
+    "name": "Petersen",
+    "graph6": "IheA@GUAo",
+    "aut": 120
+  },
+  {
+    "name": "K4",
+    "graph6": "C~",
+    "aut": 24
+  },
+  {
+    "name": "K33",
+    "graph6": "EFz_",
+    "aut": 72
+  },
+  {
+    "name": "P4",
+    "graph6": "Ch",
+    "aut": 2
+  },
+  {
+    "name": "cube",
+    "graph6": "Gr`HOk",
+    "aut": 48
+  },
+  {
+    "name": "wheel W6",
+    "graph6": "E|fG",
+    "aut": 10
+  },
+  {
+    "name": "grid 3x3",
+    "graph6": "HkSg_SD",
+    "aut": 8
+  },
+  {
+    "name": "tree n=8",
+    "graph6": "GH?[OC",
+    "aut": 2
+  },
+  {
+    "name": "rand n=7 p=0.2 #0",
+    "graph6": "F_@A_",
+    "aut": 4
+  },
+  {
+    "name": "rand n=9 p=0.45 #1",
+    "graph6": "Ha|GP?c",
+    "aut": 2
+  },
+  {
+    "name": "rand n=6 p=0.3 #2",
+    "graph6": "ESx?",
+    "aut": 1
+  },
+  {
+    "name": "rand n=8 p=0.3 #3",
+    "graph6": "G@IbEw",
+    "aut": 2
+  },
+  {
+    "name": "rand n=8 p=0.2 #4",
+    "graph6": "G?@AGk",
+    "aut": 12
+  },
+  {
+    "name": "rand n=4 p=0.2 #5",
+    "graph6": "C@",
+    "aut": 4
+  },
+  {
+    "name": "rand n=5 p=0.2 #6",
+    "graph6": "DL?",
+    "aut": 2
+  },
+  {
+    "name": "rand n=4 p=0.45 #7",
+    "graph6": "CH",
+    "aut": 2
+  },
+  {
+    "name": "rand n=7 p=0.6 #8",
+    "graph6": "F^teo",
+    "aut": 2
+  },
+  {
+    "name": "rand n=6 p=0.3 #9",
+    "graph6": "EQB?",
+    "aut": 2
+  },
+  {
+    "name": "rand n=4 p=0.2 #10",
+    "graph6": "C_",
+    "aut": 4
+  },
+  {
+    "name": "rand n=5 p=0.6 #11",
+    "graph6": "Dbc",
+    "aut": 2
+  },
+  {
+    "name": "rand n=5 p=0.3 #12",
+    "graph6": "D?_",
+    "aut": 12
+  },
+  {
+    "name": "rand n=5 p=0.3 #13",
+    "graph6": "DC?",
+    "aut": 12
+  },
+  {
+    "name": "rand n=9 p=0.6 #14",
+    "graph6": "Hv|U|]}",
+    "aut": 2
+  },
+  {
+    "name": "rand n=4 p=0.2 #15",
+    "graph6": "CK",
+    "aut": 8
+  },
+  {
+    "name": "rand n=9 p=0.2 #16",
+    "graph6": "H_Q?AP_",
+    "aut": 8
+  },
+  {
+    "name": "rand n=9 p=0.6 #17",
+    "graph6": "HyY@Ihm",
+    "aut": 1
+  },
+  {
+    "name": "rand n=4 p=0.3 #18",
+    "graph6": "C`",
+    "aut": 8
+  },
+  {
+    "name": "rand n=6 p=0.2 #19",
+    "graph6": "EG__",
+    "aut": 4
+  },
+  {
+    "name": "rand n=7 p=0.6 #20",
+    "graph6": "Fw}~W",
+    "aut": 6
+  },
+  {
+    "name": "rand n=5 p=0.3 #21",
+    "graph6": "Dc?",
+    "aut": 4
+  },
+  {
+    "name": "rand n=6 p=0.3 #22",
+    "graph6": "E@@o",
+    "aut": 4
+  },
+  {
+    "name": "rand n=4 p=0.6 #23",
+    "graph6": "Cd",
+    "aut": 2
+  },
+  {
+    "name": "rand n=4 p=0.3 #24",
+    "graph6": "Ca",
+    "aut": 2
+  },
+  {
+    "name": "rand n=9 p=0.3 #25",
+    "graph6": "Hj?COiI",
+    "aut": 2
+  },
+  {
+    "name": "rand n=4 p=0.2 #26",
+    "graph6": "CA",
+    "aut": 4
+  },
+  {
+    "name": "rand n=4 p=0.6 #27",
+    "graph6": "Cn",
+    "aut": 4
+  },
+  {
+    "name": "rand n=7 p=0.3 #28",
+    "graph6": "FDIa?",
+    "aut": 4
+  },
+  {
+    "name": "rand n=4 p=0.6 #29",
+    "graph6": "CX",
+    "aut": 6
+  },
+  {
+    "name": "rand n=9 p=0.45 #30",
+    "graph6": "HeKHO?Q",
+    "aut": 2
+  },
+  {
+    "name": "rand n=9 p=0.2 #31",
+    "graph6": "H@gCCoO",
+    "aut": 2
+  },
+  {
+    "name": "rand n=8 p=0.45 #32",
+    "graph6": "GZGHos",
+    "aut": 1
+  },
+  {
+    "name": "rand n=8 p=0.2 #33",
+    "graph6": "G@IA@g",
+    "aut": 2
+  },
+  {
+    "name": "rand n=6 p=0.45 #34",
+    "graph6": "EhqO",
+    "aut": 2
+  },
+  {
+    "name": "rand n=7 p=0.3 #35",
+    "graph6": "FPaCG",
+    "aut": 2
+  },
+  {
+    "name": "rand n=8 p=0.6 #36",
+    "graph6": "Gquz]s",
+    "aut": 4
+  },
+  {
+    "name": "rand n=5 p=0.2 #37",
+    "graph6": "DC_",
+    "aut": 4
+  },
+  {
+    "name": "rand n=5 p=0.2 #38",
+    "graph6": "D?W",
+    "aut": 4
+  },
+  {
+    "name": "rand n=7 p=0.2 #39",
+    "graph6": "Fc???",
+    "aut": 48
+  }
+]
