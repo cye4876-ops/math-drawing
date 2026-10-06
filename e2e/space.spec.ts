@@ -151,7 +151,7 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
       input.dispatchEvent(new Event('change', { bubbles: true }))
     })
     await expect(page.getByTestId('space-expr3')).toHaveValue('3*cos(u)')
-    await expect(page.getByTestId('space-object-0')).toContainText('c=3')
+    await expect(page.getByTestId('space-object-0')).toHaveValue(/c=3/)
   })
 
   test('参数化预设：洛伦兹 σ/ρ/β 滑块存在且可调', async ({ page }) => {
@@ -166,7 +166,36 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
       input.dispatchEvent(new Event('input', { bubbles: true }))
       input.dispatchEvent(new Event('change', { bubbles: true }))
     })
-    await expect(page.getByTestId('space-object-0')).toContainText('ρ=40')
+    await expect(page.getByTestId('space-object-0')).toHaveValue(/ρ=40/)
+  })
+
+  test('对象点击编辑与改名 + 隐式空曲面警告（v3.1.3）', async ({ page }) => {
+    await page.goto('/?mode=space')
+    await page.getByTestId('space-add-kind').selectOption('custom')
+    const input = page.getByTestId('space-custom-input')
+    await input.fill('z = x^2 + y^2')
+    await page.getByTestId('space-add').click()
+
+    // 用户样例：sqrt(x²+y²+z²+1/(1+x²)) 恒 ≥ 1 → F = 0 无解 → 面板给出警告
+    await input.fill('sqrt(x^2 + y^2 + z^2 + 1/(1 + x^2))')
+    await page.getByTestId('space-custom-note').waitFor({ state: 'visible' })
+    await page.getByTestId('space-add').click()
+    await expect(page.getByTestId('space-implicit-warning')).toContainText('恒正')
+    await expect(page.getByTestId('space-implicit-warning')).toContainText('未找到 F = 0')
+
+    // 列表改名：点击名称直接编辑（选中联动）
+    const name0 = page.getByTestId('space-object-0')
+    await name0.click()
+    await name0.fill('恒正曲面（无解示例）')
+    await name0.blur()
+    await expect(name0).toHaveValue('恒正曲面（无解示例）')
+    await expect(page.getByTestId('space-editor-title')).toContainText('恒正曲面（无解示例）')
+
+    // 修正为有解方程后警告消失
+    const expr = page.getByTestId('space-expr')
+    await expr.fill('x^2 + y^2 + z^2 - 4')
+    await expr.blur()
+    await expect(page.getByTestId('space-implicit-warning')).toHaveCount(0)
   })
 
   test('自定义方程：显式/隐式/旋转体曲面与空间曲线自动识别（v3.1.1）', async ({ page }) => {
@@ -212,8 +241,10 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
 
     const rows = page.getByTestId('space-object-list').locator('.object-row')
     await expect(rows).toHaveCount(5)
-    await expect(page.getByTestId('space-object-0')).toContainText('sin(u)*cos(v)')
-    await expect(page.getByTestId('space-object-1')).toContainText('x = cos(t); y = sin(t)')
+    await expect(page.getByTestId('space-object-0')).toHaveValue(
+      'x = sin(u)*cos(v); y = sin(u)*sin(v); z = cos(u)',
+    )
+    await expect(page.getByTestId('space-object-1')).toHaveValue('x = cos(t); y = sin(t); z = t/5')
 
     // 非法输入：错误提示且不添加
     await input.fill('x = 1 = 2')

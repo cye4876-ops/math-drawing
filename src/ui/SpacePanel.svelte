@@ -31,6 +31,7 @@
     type PresetDefinition,
   } from '../render3d/objects'
   import { compileDerivative, compileExpr } from '../render3d/compile'
+  import { probeImplicitSurface } from '../render3d/implicit-probe'
   import { parseSpaceEquation } from '../core/space-equation'
   import { tangentPlaneAt } from '../render3d/tangent'
   import { doubleIntegral } from '../math/numeric/double-integral'
@@ -84,6 +85,20 @@
   const selected = $derived(
     objects.find((object) => object.id === selectedId) ?? objects[0] ?? null,
   )
+
+  /** v3.1.3：选中隐式曲面时探测 F = 0 在范围内是否有解（空曲面警告） */
+  const implicitProbe = $derived.by(() => {
+    const object = selected
+    if (!object || object.type !== 'surface3d' || object.kind !== 'implicit') return null
+    return probeImplicitSurface(object.expr, {
+      xMin: object.xMin,
+      xMax: object.xMax,
+      yMin: object.yMin,
+      yMax: object.yMax,
+      zMin: object.zMin,
+      zMax: object.zMax,
+    })
+  })
 
   // ---------- 添加 ----------
   let addKind = $state<'surface' | 'curve' | 'field' | 'ode' | 'custom'>('surface')
@@ -430,23 +445,25 @@
               onchange={(event) =>
                 patch(object.id, { visible: (event.currentTarget as HTMLInputElement).checked })}
             />
-            <button
-              type="button"
+            <span class="badge"
+              >{object.type === 'surface3d'
+                ? '面'
+                : object.type === 'curve3d'
+                  ? '线'
+                  : object.type === 'field3d'
+                    ? '场'
+                    : 'ODE'}</span
+            >
+            <input
               class="object-name"
               data-testid={`space-object-${index}`}
+              value={object.name}
+              title="点击选中对象；名称可直接编辑"
+              onfocus={() => (selectedId = object.id)}
               onclick={() => (selectedId = object.id)}
-            >
-              <span class="badge"
-                >{object.type === 'surface3d'
-                  ? '面'
-                  : object.type === 'curve3d'
-                    ? '线'
-                    : object.type === 'field3d'
-                      ? '场'
-                      : 'ODE'}</span
-              >
-              {object.name}
-            </button>
+              onchange={(event) =>
+                patch(object.id, { name: (event.currentTarget as HTMLInputElement).value })}
+            />
             <button
               type="button"
               class="remove"
@@ -491,7 +508,9 @@
           </div>
         {/each}
       {/if}
-      <div class="section-title">参数</div>
+      <div class="section-title editor-title" data-testid="space-editor-title">
+        编辑：{selected.name}
+      </div>
       {#if selected.type === 'surface3d'}
         {@const surface = selected as Surface3D}
         <div class="row">
@@ -504,6 +523,18 @@
               patch(surface.id, { expr: (event.currentTarget as HTMLInputElement).value })}
           />
         </div>
+        {#if surface.kind === 'implicit' && implicitProbe && implicitProbe.status !== 'ok'}
+          <div class="implicit-warning" data-testid="space-implicit-warning">
+            {#if implicitProbe.status === 'empty'}
+              ⚠ 未找到 F = 0 的曲面：表达式在当前范围内恒{implicitProbe.min > 0 ? '正' : '负'}
+              （F ∈ [{format(implicitProbe.min)}, {format(implicitProbe.max)}]），方程可能无解。
+              如要画等值面，可写成「表达式 = 常数」（如 sqrt(x^2 + y^2 + z^2) =
+              2）；也可调整范围或改用 z = f(x, y) 写法。
+            {:else}
+              ⚠ 未找到 F = 0 的曲面：采样点全部为非有限值（检查定义域、除法与开方）。
+            {/if}
+          </div>
+        {/if}
         {#if surface.kind === 'parametric'}
           <div class="row">
             <span class="dim">y(u,v)</span>
@@ -1080,13 +1111,36 @@
 
   .object-name {
     flex: 1;
-    text-align: left;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+    min-width: 0;
+    font-size: 12px;
+    padding: 1px 6px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .object-name:hover {
+    border-color: var(--border);
+  }
+
+  .editor-title {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+
+  .implicit-warning {
+    margin: 4px 0 2px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #b45309;
+    background: rgba(251, 191, 36, 0.14);
+    border: 1px solid rgba(180, 83, 9, 0.35);
+    border-radius: 6px;
+    padding: 6px 8px;
   }
 
   .badge {

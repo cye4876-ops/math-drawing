@@ -152,7 +152,7 @@ export function parseSpaceEquation(input: string): SpaceEquationResult {
       ok: true,
       target: 'surface',
       fields: { kind: 'implicit', expr: raw, name: raw, ...IMPLICIT_BOX },
-      note: '含 z 且无等号：按隐式曲面 F(x, y, z) = 0 处理',
+      note: '含 z 且无等号：按隐式曲面 F(x, y, z) = 0 处理（要画显式曲面请写 z = …）',
     }
   }
   const error = expressionError(raw, 'f(x, y)')
