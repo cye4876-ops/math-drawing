@@ -98,7 +98,8 @@
   }
 
   function applyGraphTemplate(
-    template: 'edges' | 'spectral' | 'counter' | 'c4' | 'n8' | 'c4ord' | 'c4ind',
+    template:
+      'edges' | 'spectral' | 'counter' | 'c4' | 'n8' | 'c4ord' | 'c4ind' | 'cover' | 'matching',
   ): void {
     const base: GraphSpec = {
       ...labState.graphSpec,
@@ -175,6 +176,25 @@
         forbidden: ['C4'],
         forbiddenMode: 'induced',
         objective: 'max_edges',
+        claim: 'bipartite',
+      }
+    } else if (template === 'cover') {
+      labState.graphSpec = {
+        ...base,
+        title: '对照·覆盖与匹配 ν ≤ τ ≤ 2ν',
+        nMin: 3,
+        nMax: 5,
+        forbidden: [],
+        objective: 'counterexample',
+        claim: 'nu <= tau and tau <= 2*nu',
+      }
+    } else if (template === 'matching') {
+      labState.graphSpec = {
+        ...base,
+        title: '无三角形图的最大匹配数 ν',
+        nMin: 6,
+        nMax: 6,
+        objective: 'max_matching',
         claim: 'bipartite',
       }
     } else {
@@ -420,6 +440,16 @@
           data-testid="lab-template-c4-ind"
           onclick={() => applyGraphTemplate('c4ind')}>对照·诱导禁 C₄</button
         >
+        <button
+          type="button"
+          data-testid="lab-template-cover"
+          onclick={() => applyGraphTemplate('cover')}>对照·ν ≤ τ ≤ 2ν</button
+        >
+        <button
+          type="button"
+          data-testid="lab-template-matching"
+          onclick={() => applyGraphTemplate('matching')}>无三角形·最大匹配 ν</button
+        >
       </div>
       <em class="hint" data-testid="lab-c4-compare-hint">
         普通包含 vs 诱导包含：同一个 n = 4 的对照——普通禁 C₄ 时最大 4
@@ -451,6 +481,9 @@
             <option value="max_spectral_radius">最大邻接谱半径</option>
             <option value="max_signless_laplacian_radius">最大无符号 Laplacian 谱半径</option>
             <option value="max_algebraic_connectivity">最大代数连通度</option>
+            <option value="max_matching">最大匹配数 ν</option>
+            <option value="max_independence">最大独立数 α</option>
+            <option value="max_clique">最大团数 ω</option>
             <option value="counterexample">寻找反例（猜想为假）</option>
           </select>
           <em class="hint" data-testid="lab-objective-def">

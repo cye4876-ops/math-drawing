@@ -33,6 +33,7 @@
     degrees: number[]
     edges: Array<[number, number]>
     rho: number | null
+    objectiveValue?: number | null
     claimHolds: boolean | null
     checks: Array<{ label: string; passed: boolean }>
   }
@@ -196,7 +197,7 @@
     }
   }
 
-  /** 谱目标符号：按目标的数学定义标注候选值 */
+  /** 谱/整数目标符号：按目标的数学定义标注候选值 */
   function objectiveSymbol(objective: string): string {
     switch (objective) {
       case 'max_spectral_radius':
@@ -205,6 +206,12 @@
         return 'q(Q)'
       case 'max_algebraic_connectivity':
         return 'λ₂(L)'
+      case 'max_matching':
+        return 'ν'
+      case 'max_independence':
+        return 'α'
+      case 'max_clique':
+        return 'ω'
       default:
         return 'ρ'
     }
@@ -447,7 +454,9 @@
                 <span class="card-meta">
                   m = {candidate.m}{candidate.rho !== null
                     ? ` · ${objectiveSymbol(result.spec.objective)} ≈ ${formatNumber(candidate.rho)}`
-                    : ''}
+                    : candidate.objectiveValue !== null && candidate.objectiveValue !== undefined
+                      ? ` · ${objectiveSymbol(result.spec.objective)} = ${Number.isInteger(candidate.objectiveValue) ? candidate.objectiveValue : formatNumber(candidate.objectiveValue)}`
+                      : ''}
                 </span>
               </button>
             {/each}

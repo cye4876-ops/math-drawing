@@ -106,6 +106,8 @@ export interface CandidateRecord {
   edges: Array<[number, number]>
   /** 谱目标时的数值谱半径 */
   rho: number | null
+  /** v3.1：非谱目标的数值目标值（ν/α/ω 等；max_edges 与反例为 null） */
+  objectiveValue: number | null
   /** 逐项复核明细 */
   checks: CheckRecord[]
   /** 反例候选固定为 false（已确认违反猜想）；其他目标为 null */
@@ -536,6 +538,22 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
             recordCandidate(layerM, null, check.checks, null)
             return
           }
+          if (
+            spec.objective === 'max_matching' ||
+            spec.objective === 'max_independence' ||
+            spec.objective === 'max_clique'
+          ) {
+            // v3.1 整数目标（ν/α/ω）：全量评估、无上界剪枝
+            const key =
+              spec.objective === 'max_matching'
+                ? 'nu'
+                : spec.objective === 'max_independence'
+                  ? 'alpha'
+                  : 'omega'
+            const value = new GraphInvariants(graph).get(key) as number
+            recordCandidate(value, null, check.checks, null)
+            return
+          }
           const current = best
           // 上界剪枝仅对邻接谱半径 ρ(A) 有效；q(Q) 与 λ₂(L) 全量评估
           if (
@@ -591,6 +609,7 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
             degrees: degrees(witness),
             edges: edgeList(witness),
             rho,
+            objectiveValue: claimHolds === null && spec.objective !== 'max_edges' ? value : null,
             checks,
             claimHolds,
           }
@@ -669,7 +688,11 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
         : spec.objective === 'max_signless_laplacian_radius' ||
             spec.objective === 'max_algebraic_connectivity'
           ? '数值特征值（~1e-12）；比较容差 1e-9；无上界剪枝（全量评估）'
-          : '数值特征值（~1e-12）；比较容差 1e-9',
+          : spec.objective === 'max_matching' ||
+              spec.objective === 'max_independence' ||
+              spec.objective === 'max_clique'
+            ? '整数目标（ν/α/ω）：精确整数评估；无谱剪枝'
+            : '数值特征值（~1e-12）；比较容差 1e-9',
     coverage: orders.some(
       (order) => order.coverage !== 'enumeration' && order.coverage !== 'empty_by_bound',
     )

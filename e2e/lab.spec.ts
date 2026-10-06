@@ -128,12 +128,34 @@ test.describe('v2.7 图论实验台', () => {
       .filter({ hasText: '最大无符号 Laplacian 谱半径' })
       .selectOption('max_signless_laplacian_radius')
     await expect(page.getByTestId('lab-objective-def')).toContainText('D + A')
+    // v3.1：ν / α / ω 整数目标同样有定义
+    await page.locator('select').filter({ hasText: '最大独立数 α' }).selectOption('max_matching')
+    await expect(page.getByTestId('lab-objective-def')).toContainText('ν')
+    await page.locator('select').filter({ hasText: '最大团数 ω' }).selectOption('max_clique')
+    await expect(page.getByTestId('lab-objective-def')).toContainText('ω')
     // 用普通禁 C₄ 小实验跑出结果：证据行同时标注结构枚举与谱比较
     await page.getByTestId('lab-template-c4-ord').click()
     await page.getByTestId('lab-graph-run').click()
     await expect(page.getByText('范围穷举完成', { exact: true })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('lab-evidence-line')).toContainText('结构枚举')
     await expect(page.getByTestId('lab-evidence-line')).toContainText('谱比较')
+  })
+
+  test('v3.1 整数目标 ν：无三角形 n=6 → 候选卡片显示 ν = 3', async ({ page }) => {
+    await openLab(page)
+    await page.getByTestId('lab-template-matching').click()
+    await page.getByTestId('lab-graph-run').click()
+    await expect(page.getByText('范围穷举完成', { exact: true })).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByTestId('lab-candidate').first()).toContainText('ν = 3')
+    await expect(page.getByTestId('lab-evidence-line')).toContainText('整数目标')
+  })
+
+  test('v3.1 覆盖-匹配对照：ν ≤ τ ≤ 2ν（n=3..5 全图）无范围内反例', async ({ page }) => {
+    await openLab(page)
+    await page.getByTestId('lab-template-cover').click()
+    await page.getByTestId('lab-graph-run').click()
+    await expect(page.getByText('范围穷举完成', { exact: true })).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByTestId('lab-view')).toContainText('已找齐（有限范围穷举完成）')
   })
 
   test('v3.0 结构条件：围长下限 + 色数上限输入并参与搜索（校验即时反馈）', async ({ page }) => {

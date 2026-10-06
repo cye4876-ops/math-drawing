@@ -30,6 +30,8 @@ export interface StoredCandidateGraph {
   degrees: number[]
   edges: Array<[number, number]>
   rho: number | null
+  /** v3.1：非谱目标值（ν/α/ω；旧档案缺省为 null） */
+  objectiveValue?: number | null
   claimHolds: boolean | null
   checks: Array<{ label: string; passed: boolean }>
 }
@@ -322,6 +324,7 @@ export function resumeSeedFromGraphExperiment(experiment: LabExperiment): Search
         degrees: candidate.degrees,
         edges: candidate.edges,
         rho: candidate.rho,
+        objectiveValue: candidate.objectiveValue ?? null,
         checks: candidate.checks,
         claimHolds: candidate.claimHolds,
       }
@@ -390,6 +393,7 @@ export function experimentFromGraphSearch(
         degrees: candidate.degrees,
         edges: candidate.edges,
         rho: candidate.rho,
+        objectiveValue: candidate.objectiveValue,
         claimHolds: candidate.claimHolds,
         checks: candidate.checks,
       })),

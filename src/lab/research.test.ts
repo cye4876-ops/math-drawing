@@ -14,7 +14,7 @@ import {
   pathGraph,
   petersenGraph,
 } from './graph'
-import { chromaticNumber, diameterOf, girthOf } from './invariants'
+import { chromaticNumber, diameterOf, girthOf, GraphInvariants } from './invariants'
 import { matches, runGraphSearch, type SearchResumeSeed } from './search'
 import { DEFAULT_GRAPH_SPEC, validateGraphSpec } from './spec'
 import {
@@ -48,6 +48,52 @@ describe('v3.0 结构不变量：围长 / 直径 / 色数', () => {
     expect(chromaticNumber(completeBipartiteGraph(3, 3))).toBe(2)
     expect(chromaticNumber(petersenGraph())).toBe(3)
     expect(chromaticNumber(emptyGraph(3))).toBe(1)
+  })
+})
+
+describe('v3.1 目标扩展（ν/α/ω 与覆盖-匹配关系）', () => {
+  const base = {
+    ...DEFAULT_GRAPH_SPEC,
+    nMin: 6,
+    nMax: 6,
+    forbidden: ['K3'],
+    claim: 'bipartite',
+    timeLimit: 60,
+  } as const
+
+  it('无三角形 n=6：ν 最优 3；α 最优 6（空图）；ω 最优 2', () => {
+    const matching = runGraphSearch(validateGraphSpec({ ...base, objective: 'max_matching' }))
+    expect(matching.orders[0]?.best).toBe(3)
+    expect(matching.orders[0]?.candidates[0]?.objectiveValue).toBe(3)
+    const independence = runGraphSearch(
+      validateGraphSpec({ ...base, objective: 'max_independence' }),
+    )
+    expect(independence.orders[0]?.best).toBe(6)
+    const clique = runGraphSearch(validateGraphSpec({ ...base, objective: 'max_clique' }))
+    expect(clique.orders[0]?.best).toBe(2)
+    // 整数目标无谱剪枝（全量评估）
+    expect(matching.spectralComparison).toContain('整数目标')
+  })
+
+  it('τ 变量：τ = n − α（C₅ → 3；K₄ → 3）', () => {
+    expect(new GraphInvariants(cycleGraph(5)).get('tau')).toBe(3)
+    expect(new GraphInvariants(completeGraph(4)).get('tau')).toBe(3)
+  })
+
+  it('覆盖-匹配对照：ν ≤ τ ≤ 2ν 在 n=3..5 全部图无（该范围内）反例', () => {
+    const spec = validateGraphSpec({
+      ...DEFAULT_GRAPH_SPEC,
+      title: '对照·覆盖与匹配 ν ≤ τ ≤ 2ν',
+      nMin: 3,
+      nMax: 5,
+      forbidden: [],
+      objective: 'counterexample',
+      claim: 'nu <= tau and tau <= 2*nu',
+      timeLimit: 60,
+    })
+    const result = runGraphSearch(spec)
+    expect(result.violations).toBe(0)
+    expect(result.complete).toBe(true)
   })
 })
 

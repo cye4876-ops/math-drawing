@@ -24,6 +24,9 @@ export type Objective =
   | 'max_spectral_radius'
   | 'max_signless_laplacian_radius'
   | 'max_algebraic_connectivity'
+  | 'max_matching'
+  | 'max_independence'
+  | 'max_clique'
   | 'counterexample'
 export type ForbiddenMode = 'subgraph' | 'induced'
 export type TriState = 'any' | 'yes' | 'no'
@@ -34,6 +37,9 @@ export const OBJECTIVE_DEFINITIONS: Partial<Record<Objective, string>> = {
   max_spectral_radius: 'ρ(A)：邻接矩阵最大特征值',
   max_signless_laplacian_radius: 'q(Q)：无符号 Laplacian Q = D + A 的最大特征值',
   max_algebraic_connectivity: 'λ₂(L)：Laplacian L = D − A 的第二小特征值（不连通为 0）',
+  max_matching: 'ν(G)：最大匹配的大小（匹配 = 两两不共端点的边集）',
+  max_independence: 'α(G)：最大独立集的大小（独立集 = 两两不相邻的顶点集）',
+  max_clique: 'ω(G)：最大团的大小（团 = 两两相邻的顶点集）',
 }
 
 export interface GraphSpec {
@@ -76,6 +82,7 @@ export const GRAPH_VARIABLES = new Set([
   'omega',
   'alpha',
   'nu',
+  'tau',
   'rho',
   'q',
   'lambda2',
@@ -161,6 +168,9 @@ export function validateGraphSpec(input: unknown): GraphSpec {
       'max_spectral_radius',
       'max_signless_laplacian_radius',
       'max_algebraic_connectivity',
+      'max_matching',
+      'max_independence',
+      'max_clique',
       'counterexample',
     ].includes(spec.objective)
   ) {

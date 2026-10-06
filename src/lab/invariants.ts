@@ -183,6 +183,10 @@ export class GraphInvariants {
       case 'nu':
         value = maxMatching(g)
         break
+      case 'tau':
+        // 顶点覆盖数 τ = n − α（覆盖与匹配的关系：ν ≤ τ ≤ 2ν）
+        value = g.n - maxClique(complementOf(g))
+        break
       case 'triangles':
         value = triangleCountLocal(g)
         break
