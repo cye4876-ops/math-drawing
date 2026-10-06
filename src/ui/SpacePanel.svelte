@@ -30,6 +30,7 @@
     type PresetDefinition,
   } from '../render3d/objects'
   import { compileDerivative, compileExpr } from '../render3d/compile'
+  import { parseSpaceEquation } from '../core/space-equation'
   import { tangentPlaneAt } from '../render3d/tangent'
   import { doubleIntegral } from '../math/numeric/double-integral'
   import {
@@ -84,8 +85,14 @@
   )
 
   // ---------- 添加 ----------
-  let addKind = $state<'surface' | 'curve' | 'field' | 'ode'>('surface')
+  let addKind = $state<'surface' | 'curve' | 'field' | 'ode' | 'custom'>('surface')
   let presetId = $state('')
+
+  /** v3.1.1：自定义方程输入与实时识别结果 */
+  let customInput = $state('')
+  const customResult = $derived(
+    addKind === 'custom' && customInput.trim() !== '' ? parseSpaceEquation(customInput) : null,
+  )
 
   const presetOptions = $derived.by((): { id: string; label: string }[] => {
     if (addKind === 'surface')
@@ -105,6 +112,17 @@
   )
 
   function addSelected(): void {
+    if (addKind === 'custom') {
+      const resolved = parseSpaceEquation(customInput)
+      if (!resolved.ok) return
+      const created =
+        resolved.target === 'surface'
+          ? store.addSpaceObject(createSurface3D(resolved.fields))
+          : store.addSpaceObject(createCurve3D(resolved.fields))
+      selectedId = created.id
+      customInput = ''
+      return
+    }
     const id = effectivePresetId
     let created: SpaceObject | null = null
     if (addKind === 'surface') {
@@ -292,27 +310,48 @@
         <option value="curve">空间曲线</option>
         <option value="field">向量场</option>
         <option value="ode">ODE 解曲线</option>
+        <option value="custom">自定义方程（自动识别）</option>
       </select>
-      <select
-        data-testid="space-add-preset"
-        value={effectivePresetId}
-        onchange={(event) => (presetId = (event.currentTarget as HTMLSelectElement).value)}
-      >
-        {#each presetOptions as option (option.id)}
-          <option value={option.id}>{option.label}</option>
-        {/each}
-      </select>
+      {#if addKind === 'custom'}
+        <input
+          class="custom-input"
+          data-testid="space-custom-input"
+          type="text"
+          placeholder="如 z = x^2 − y^2 、x^2 + y^2 + z^2 = 1 、x = cos(t); y = sin(t); z = t/5"
+          bind:value={customInput}
+          onkeydown={(event) => {
+            if (event.key === 'Enter') addSelected()
+          }}
+        />
+      {:else}
+        <select
+          data-testid="space-add-preset"
+          value={effectivePresetId}
+          onchange={(event) => (presetId = (event.currentTarget as HTMLSelectElement).value)}
+        >
+          {#each presetOptions as option (option.id)}
+            <option value={option.id}>{option.label}</option>
+          {/each}
+        </select>
+      {/if}
       <button type="button" class="btn-primary" data-testid="space-add" onclick={addSelected}
         >添加</button
       >
     </div>
+    {#if addKind === 'custom' && customResult}
+      {#if customResult.ok}
+        <div class="custom-note" data-testid="space-custom-note">✓ {customResult.note}</div>
+      {:else}
+        <div class="custom-error" data-testid="space-custom-note">✗ {customResult.error}</div>
+      {/if}
+    {/if}
   </div>
 
   <div class="section">
     <div class="section-title">对象</div>
     {#if objects.length === 0}
       <div class="hint" data-testid="space-empty">
-        暂无 3D 对象：从上方预设添加（曲面 / 曲线 / 场 / ODE）
+        暂无 3D 对象：从上方预设添加（曲面 / 曲线 / 场 / ODE），或选「自定义方程」直接粘贴方程
       </div>
     {:else}
       <div class="object-list" data-testid="space-object-list">
@@ -1029,6 +1068,23 @@
   }
 
   .integral-error {
+    font-size: 12px;
+    color: #fca5a5;
+  }
+
+  .custom-input {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .custom-note {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .custom-error {
+    margin-top: 6px;
     font-size: 12px;
     color: #fca5a5;
   }

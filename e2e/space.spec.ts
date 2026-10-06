@@ -169,6 +169,55 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
     await expect(page.getByTestId('space-object-0')).toContainText('ρ=40')
   })
 
+  test('自定义方程：显式/隐式/旋转体曲面与空间曲线自动识别（v3.1.1）', async ({ page }) => {
+    await page.goto('/?mode=space')
+    await page.getByTestId('space-add-kind').selectOption('custom')
+    const input = page.getByTestId('space-custom-input')
+
+    // 显式曲面 z = f(x, y)
+    await input.fill('z = x^2 + y^2')
+    await expect(page.getByTestId('space-custom-note')).toContainText('显式曲面')
+    await page.getByTestId('space-add').click()
+
+    // 隐式曲面（含 z 的等式）
+    await input.fill('x^2 + y^2 + z^2 = 1')
+    await expect(page.getByTestId('space-custom-note')).toContainText('隐式曲面')
+    await page.getByTestId('space-add').click()
+
+    // 旋转体 r = f(x)
+    await input.fill('r = 1 + cos(x)')
+    await expect(page.getByTestId('space-custom-note')).toContainText('旋转体')
+    await page.getByTestId('space-add').click()
+
+    // 空间曲线（三段，使用 t）
+    await input.fill('x = cos(t); y = sin(t); z = t/5')
+    await expect(page.getByTestId('space-custom-note')).toContainText('空间曲线')
+    await page.getByTestId('space-add').click()
+
+    // 参数曲面（三段，使用 u、v）
+    await input.fill('x = sin(u)*cos(v); y = sin(u)*sin(v); z = cos(u)')
+    await expect(page.getByTestId('space-custom-note')).toContainText('参数曲面')
+    await page.getByTestId('space-add').click()
+
+    const rows = page.getByTestId('space-object-list').locator('.object-row')
+    await expect(rows).toHaveCount(5)
+    await expect(page.getByTestId('space-object-0')).toContainText('sin(u)*cos(v)')
+    await expect(page.getByTestId('space-object-1')).toContainText('x = cos(t); y = sin(t)')
+
+    // 非法输入：错误提示且不添加
+    await input.fill('x = 1 = 2')
+    await expect(page.getByTestId('space-custom-note')).toContainText('最多包含一个等号')
+    await page.getByTestId('space-add').click()
+    await expect(rows).toHaveCount(5)
+
+    // 添加后的对象可编辑表达式（隐式曲面）
+    await page.getByTestId('space-object-3').click()
+    await expect(page.getByTestId('space-expr')).toHaveValue('(x^2 + y^2 + z^2) - (1)')
+    if (await webglAvailable(page)) {
+      await expect.poll(() => countScenePixels(page), { timeout: 15000 }).toBeGreaterThan(500)
+    }
+  })
+
   test('截图导出：PNG 下载成功', async ({ page }) => {
     await page.goto('/?mode=space')
     test.skip(!(await webglAvailable(page)), 'WebGL 不可用')

@@ -9,7 +9,7 @@
  *
  * 解析结果直接对应 store.addCurve 的入参，UI 负责展示识别说明。
  */
-import { parse } from '../expr'
+import { expressionError, hasVariable, normalizeEquationText } from './equation-utils'
 
 export type CurveSpecKind = 'explicit' | 'implicit' | 'polar' | 'parametric'
 
@@ -22,28 +22,12 @@ export interface CurveSpec {
 export type CurveEquationResult =
   { ok: true; spec: CurveSpec; note: string } | { ok: false; error: string }
 
-/** 检查表达式能否被引擎解析（不判断定义域） */
-function expressionError(expr: string, label: string): string | null {
-  if (!expr.trim()) return `${label}为空`
-  try {
-    parse(expr)
-    return null
-  } catch (error) {
-    return `${label}解析失败：${error instanceof Error ? error.message : String(error)}`
-  }
-}
-
-/** 是否存在作为独立记号出现的变量名（避免匹配 x1、cr 等） */
-function hasVariable(text: string, name: string): boolean {
-  return new RegExp(`(^|[^0-9A-Za-z_])${name}([^0-9A-Za-z_]|$)`).test(text)
-}
-
 function hasTheta(text: string): boolean {
   return text.includes('θ') || hasVariable(text, 'theta')
 }
 
 export function parseCurveEquation(input: string): CurveEquationResult {
-  const raw = input.trim().replaceAll('；', ';').replaceAll('＝', '=')
+  const raw = normalizeEquationText(input)
   if (!raw) return { ok: false, error: '请输入方程' }
 
   // —— 参数方程：分号分隔两段 ——
