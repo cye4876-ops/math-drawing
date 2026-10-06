@@ -15,6 +15,11 @@
   import { GraphInvariants, girthOf } from '../../lab/invariants'
   import { isPlanar } from '../../lab/planarity'
   import { automorphismGroup } from '../../lab/automorphism'
+  import {
+    buildSageVerificationScript,
+    sageInputFromExperiment,
+    sageInputFromResult,
+  } from '../../lab/sage-export'
 
   let {
     active,
@@ -248,6 +253,24 @@
     }
   }
 
+  /** v3.1：导出 Sage 复算脚本（优先档案，其次实时结果）——浏览器 ↔ 第五版交接 */
+  function downloadSageScript(): void {
+    const viewing = viewingExperiment
+    const input =
+      (viewing && viewing.kind === 'graph' ? sageInputFromExperiment(viewing) : null) ??
+      (labState.graphResult ? sageInputFromResult(labState.graphResult) : null)
+    if (!input) return
+    const text = buildSageVerificationScript(input)
+    const blob = new Blob([text], { type: 'text/x-python;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'math-drawing-verify.py'
+    anchor.click()
+    URL.revokeObjectURL(url)
+    labState.archiveNotice = '已导出 Sage 复算脚本（math-drawing-verify.py）'
+  }
+
   /** 汇总行的结构标签：二部/连通/正则/围长（基于首个候选） */
   function structureLabel(candidate: { graph6: string; degrees: number[] } | undefined): string {
     if (!candidate) return '—'
@@ -323,6 +346,11 @@
         </span>
       </div>
       <div class="strip-actions">
+        {#if viewingExperiment.kind === 'graph'}
+          <button type="button" data-testid="lab-archive-sage-export" onclick={downloadSageScript}
+            >导出 Sage 复算脚本</button
+          >
+        {/if}
         {#if viewingExperiment.kind === 'graph' && !viewingExperiment.complete}
           <button
             type="button"
@@ -415,6 +443,9 @@
           </span>
         </div>
         <div class="strip-actions">
+          <button type="button" data-testid="lab-sage-export" onclick={downloadSageScript}
+            >导出 Sage 复算脚本</button
+          >
           {#if !result.complete}
             <button
               type="button"

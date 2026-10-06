@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
 /**
@@ -203,6 +204,25 @@ test.describe('v2.7 图论实验台', () => {
     await expect(aut).toContainText('|Aut(G)| = 2')
     await expect(aut).toContainText('顶点轨道（3 条）')
     await expect(aut).toContainText('|Stab| =')
+  })
+
+  test('v3.1 Sage 转交：导出复算脚本（下载 .py，内含 sage 复算逻辑与 graph6）', async ({
+    page,
+  }) => {
+    await openLab(page)
+    await page.getByTestId('lab-template-c4-ord').click()
+    await page.getByTestId('lab-graph-run').click()
+    await expect(page.getByText('范围穷举完成', { exact: true })).toBeVisible({ timeout: 15_000 })
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('lab-sage-export').click(),
+    ])
+    expect(download.suggestedFilename()).toBe('math-drawing-verify.py')
+    const path = await download.path()
+    const text = readFileSync(path!, 'utf-8')
+    expect(text).toContain('from sage.all import Graph')
+    expect(text).toContain('全部一致')
+    expect(text).toContain('"graph6"')
   })
 
   test('v3.1 平面性条件：无三角形 n=6 要求平面 → 最优 8 边（K₃,₃ 被排除）', async ({ page }) => {
