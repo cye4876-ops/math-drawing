@@ -148,4 +148,23 @@ test.describe('v2.7 图论实验台', () => {
     await page.getByTestId('lab-graph-run').click()
     await expect(page.getByTestId('lab-panel')).toContainText('围长下限')
   })
+
+  test('v3.1 续算与各阶汇总：预算耗尽 → 继续计算按钮 + 汇总表', async ({ page }) => {
+    await openLab(page)
+    // n = 8 无三角形 + 1 秒时间预算：必然未完成
+    await page.getByText('8 阶无三角形', { exact: true }).click()
+    await page.getByText('预算', { exact: true }).click()
+    await page.getByTestId('lab-graph-time-limit').fill('1')
+    await page.getByTestId('lab-graph-run').click()
+    // 未完成：显示“不视为已证最优”与续算按钮
+    await expect(page.getByTestId('lab-graph-resume')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('lab-view')).toContainText('不视为已证最优')
+    // 各阶汇总表：n = 8 行（未完成）
+    const summary = page.getByTestId('lab-summary-table')
+    await expect(summary).toBeVisible()
+    await expect(summary).toContainText('8')
+    // 续算（沿用已完成阶）：返回未完成态后按钮再次可见
+    await page.getByTestId('lab-graph-resume').click()
+    await expect(page.getByTestId('lab-graph-resume')).toBeVisible({ timeout: 30_000 })
+  })
 })

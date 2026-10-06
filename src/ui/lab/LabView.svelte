@@ -6,9 +6,13 @@
    */
   import CandidateGraph from './CandidateGraph.svelte'
   import HypergraphSVG from './HypergraphSVG.svelte'
-  import { labState, getExperimentById } from '../../state/lab-state.svelte'
+  import {
+    labState,
+    getExperimentById,
+    resumeGraphSearchAction,
+  } from '../../state/lab-state.svelte'
   import { parseGraph6 } from '../../lab/graph6'
-  import { GraphInvariants } from '../../lab/invariants'
+  import { GraphInvariants, girthOf } from '../../lab/invariants'
 
   let {
     active,
@@ -225,7 +229,65 @@
       labState.archiveNotice = '复制失败（浏览器限制）'
     }
   }
+
+  /** 汇总行的结构标签：二部/连通/正则/围长（基于首个候选） */
+  function structureLabel(candidate: { graph6: string; degrees: number[] } | undefined): string {
+    if (!candidate) return '—'
+    try {
+      const graph = parseGraph6(candidate.graph6)
+      const values = new GraphInvariants(graph)
+      const parts = [values.get('bipartite') ? '二部' : '非二部']
+      parts.push(values.get('connected') ? '连通' : '不连通')
+      const degrees = candidate.degrees
+      if (degrees.length > 0 && degrees.every((value) => value === degrees[0])) {
+        parts.push(`${degrees[0]}-正则`)
+      }
+      const girth = girthOf(graph)
+      if (Number.isFinite(girth)) parts.push(`围长 ${girth}`)
+      return parts.join(' · ')
+    } catch {
+      return '—'
+    }
+  }
 </script>
+
+{#snippet summaryTable(
+  rows: Array<{
+    n: number
+    best: number | null
+    candidateCount: number
+    complete: boolean
+    candidates: Array<{ graph6: string; degrees: number[] }>
+  }>,
+)}
+  <details class="summary" data-testid="lab-summary-table">
+    <summary>各阶汇总（{rows.length} 阶）</summary>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>n</th>
+          <th>最优值</th>
+          <th>候选</th>
+          <th>状态</th>
+          <th>代表度序列</th>
+          <th>结构</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each rows as order, rowIndex (order.n + ':' + rowIndex)}
+          <tr>
+            <td>{order.n}</td>
+            <td>{order.best === null ? '—' : formatNumber(order.best)}</td>
+            <td>{order.candidateCount}</td>
+            <td>{order.complete ? '✓ 完成' : '未完成'}</td>
+            <td class="mono">{order.candidates[0]?.degrees.join(' ') ?? '—'}</td>
+            <td>{structureLabel(order.candidates[0])}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </details>
+{/snippet}
 
 <div class="lab-view" class:inactive={!active} data-testid="lab-view">
   {#if viewingExperiment}
@@ -242,12 +304,23 @@
         </span>
       </div>
       <div class="strip-actions">
+        {#if viewingExperiment.kind === 'graph' && !viewingExperiment.complete}
+          <button
+            type="button"
+            data-testid="lab-archive-resume"
+            title="沿用已完成阶，只重算其余阶数（阶数级续算）"
+            onclick={() => resumeGraphSearchAction()}>继续计算</button
+          >
+        {/if}
         <button type="button" onclick={() => (labState.viewingExperimentId = null)}>关闭档案</button
         >
       </div>
     </div>
     {#if viewingExperiment.notes}
       <div class="notes-readonly">笔记:{viewingExperiment.notes}</div>
+    {/if}
+    {#if viewingExperiment.kind === 'graph' && viewingGraphOrders}
+      {@render summaryTable(viewingGraphOrders)}
     {/if}
     {#if viewingGraphOrders}
       {#each viewingGraphOrders as order, orderIndex (order.n)}
@@ -324,6 +397,12 @@
         </div>
         <div class="strip-actions">
           {#if !result.complete}
+            <button
+              type="button"
+              data-testid="lab-graph-resume"
+              title="沿用已完成阶，只重算其余阶数（阶数级续算）"
+              onclick={() => resumeGraphSearchAction()}>继续计算（跳过已完成阶）</button
+            >
             <span class="warn"
               >未完成：{terminationLabel(result.termination)}（不视为已证最优）</span
             >
@@ -335,6 +414,7 @@
           >结构枚举：{coverageLabel(result.coverage)}；谱比较：{result.spectralComparison}</span
         >
       </div>
+      {@render summaryTable(result.orders)}
       {#each result.orders as order, orderIndex (order.n)}
         <section class="order">
           <header>
@@ -688,6 +768,33 @@
   .evi-line {
     margin: -4px 0 4px;
     padding: 0 4px;
+  }
+  .summary {
+    margin: 0 0 6px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .summary summary {
+    cursor: pointer;
+    color: var(--text-dim);
+  }
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6px;
+  }
+  .summary-table th,
+  .summary-table td {
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    text-align: left;
+    color: var(--text-dim);
+  }
+  .summary-table th {
+    font-weight: 500;
   }
   .badge {
     font-size: 11px;

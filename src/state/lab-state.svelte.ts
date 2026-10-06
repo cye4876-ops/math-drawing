@@ -10,7 +10,9 @@ import {
   runGraphSearch,
   SEARCH_ALGORITHM,
   type GraphSearchResult,
+  type OrderRecord,
   type SearchProgress,
+  type SearchResumeSeed,
 } from '../lab/search'
 import {
   runHyperSearch,
@@ -30,6 +32,7 @@ import {
   LabArchiveStore,
   experimentFromGraphSearch,
   experimentFromHyperSearch,
+  resumeSeedFromGraphExperiment,
   type LabExperiment,
 } from '../lab/archive'
 import type { SearchWorkerRequest, SearchWorkerResponse } from '../lab/search-worker'
@@ -208,6 +211,72 @@ export function cancelGraphSearch(): void {
   if (!labState.graphRunning) return
   cancelWorker()
   labState.graphRunning = false
+}
+
+/** v3.1：由当前（未完成）搜索结果构造续算种子：只并入已完成的阶与它们的增量统计 */
+function seedFromResult(result: GraphSearchResult): SearchResumeSeed {
+  const completed = result.orders.filter((order) => order.complete)
+  const sum = (pick: (order: OrderRecord) => number): number =>
+    completed.reduce((total, order) => total + pick(order), 0)
+  return {
+    orders: completed,
+    checked: sum((order) => order.checked),
+    feasible: sum((order) => order.feasible),
+    violations: sum((order) => order.violations),
+    uncertainViolations: sum((order) => order.uncertainViolations),
+    nodes: sum((order) => order.nodes),
+    spectralEvaluations: sum((order) => order.spectralEvaluations),
+    spectralPruned: sum((order) => order.spectralPruned),
+  }
+}
+
+/**
+ * v3.1 续算：优先对“正在查看的未完成档案”续算，否则续算当前未完成结果。
+ * 已完成的阶直接沿用，本次仅重算其余阶。
+ */
+export function resumeGraphSearchAction(): void {
+  if (labState.graphRunning) return
+  const viewing = getExperimentById(labState.viewingExperimentId)
+  let spec: GraphSpec | null = null
+  let seed: SearchResumeSeed | null = null
+  if (viewing && viewing.kind === 'graph' && !viewing.complete) {
+    spec = viewing.spec as GraphSpec
+    seed = resumeSeedFromGraphExperiment(viewing)
+  } else if (labState.graphResult && !labState.graphResult.complete) {
+    spec = labState.graphResult.spec
+    seed = seedFromResult(labState.graphResult)
+  }
+  if (!spec || !seed) return
+  try {
+    spec = validateGraphSpec(spec)
+  } catch (error) {
+    labState.graphError = error instanceof Error ? error.message : String(error)
+    return
+  }
+  labState.graphSpec = spec
+  labState.graphError = ''
+  labState.graphRunning = true
+  labState.graphProgress = null
+  labState.selectedGraph = null
+  labState.viewingExperimentId = null
+  runInWorker<GraphSearchResult>(
+    { type: 'graph', spec, resume: seed },
+    {
+      onProgress: (message) => {
+        if (message.kind === 'graph') labState.graphProgress = message.progress as SearchProgress
+      },
+      resolve: (result) => {
+        labState.graphResult = result
+        labState.graphRunning = false
+        cancelWorker()
+      },
+      reject: (message) => {
+        labState.graphError = message
+        labState.graphRunning = false
+        cancelWorker()
+      },
+    },
+  )
 }
 
 export function runHyperSearchAction(): void {

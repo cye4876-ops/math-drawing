@@ -2,13 +2,13 @@
  * 实验台搜索 Worker（v2.7）：把同步的精确搜索放到独立线程，
  * 通过 postMessage 流式上报进度；取消由主线程 terminate() 实现。
  */
-import { runGraphSearch, type SearchProgress } from './search'
+import { runGraphSearch, type SearchProgress, type SearchResumeSeed } from './search'
 import { runHyperSearch, type HyperSearchProgress } from './hyper-search'
 import type { GraphSpec } from './spec'
 import type { HyperSpec } from './hyper-spec'
 
 export type SearchWorkerRequest =
-  { type: 'graph'; spec: GraphSpec } | { type: 'hyper'; spec: HyperSpec }
+  { type: 'graph'; spec: GraphSpec; resume?: SearchResumeSeed } | { type: 'hyper'; spec: HyperSpec }
 
 export type SearchWorkerResponse =
   | { type: 'progress'; kind: 'graph' | 'hyper'; progress: SearchProgress | HyperSearchProgress }
@@ -28,6 +28,7 @@ workerScope.onmessage = (event) => {
       const result = runGraphSearch(request.spec, {
         onProgress: (progress) =>
           workerScope.postMessage({ type: 'progress', kind: 'graph', progress }),
+        seed: request.resume,
       })
       workerScope.postMessage({ type: 'result', kind: 'graph', result })
     } else {

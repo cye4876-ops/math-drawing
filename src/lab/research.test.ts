@@ -15,8 +15,13 @@ import {
   petersenGraph,
 } from './graph'
 import { chromaticNumber, diameterOf, girthOf } from './invariants'
-import { matches, runGraphSearch } from './search'
+import { matches, runGraphSearch, type SearchResumeSeed } from './search'
 import { DEFAULT_GRAPH_SPEC, validateGraphSpec } from './spec'
+import {
+  experimentFromGraphSearch,
+  resumeSeedFromGraphExperiment,
+  type LabExperiment,
+} from './archive'
 
 describe('v3.0 结构不变量：围长 / 直径 / 色数', () => {
   it('围长：K₃→3、C₄→4、C₅→5、Petersen→5、K₃,₃→4、树→∞', () => {
@@ -131,6 +136,102 @@ describe('v3.0 新搜索目标：q(Q) 与 λ₂(L)', () => {
     expect(result.spectralPruned).toBe(0)
     expect(result.spectralEvaluations).toBeGreaterThan(0)
     expect(result.spectralComparison).toContain('无上界剪枝')
+  })
+})
+
+describe('v3.1 搜索续算（阶数级 checkpoint）', () => {
+  const base = {
+    ...DEFAULT_GRAPH_SPEC,
+    forbidden: ['K3'],
+    claim: 'bipartite',
+    nMin: 4,
+    nMax: 5,
+    timeLimit: 60,
+  } as const
+
+  it('种子并入已完成阶、跳过重算，结果与直接全跑一致', () => {
+    const first = runGraphSearch(validateGraphSpec(base))
+    const order0 = first.orders[0]!
+    const seed: SearchResumeSeed = {
+      orders: [order0],
+      checked: order0.checked,
+      feasible: order0.feasible,
+      violations: order0.violations,
+      uncertainViolations: order0.uncertainViolations,
+      nodes: order0.nodes,
+      spectralEvaluations: order0.spectralEvaluations,
+      spectralPruned: order0.spectralPruned,
+    }
+    const spec = validateGraphSpec({ ...base, nMax: 6 })
+    const resumed = runGraphSearch(spec, { seed })
+    expect(resumed.orders.map((order) => order.n)).toEqual([4, 5, 6])
+    // 种子阶直接复用原对象（未重算）
+    expect(resumed.orders[0]).toBe(order0)
+    // 与直接全跑的最优值、候选数、总检查量一致
+    const direct = runGraphSearch(spec)
+    expect(resumed.orders.map((order) => order.best)).toEqual(
+      direct.orders.map((order) => order.best),
+    )
+    expect(resumed.orders.map((order) => order.candidateCount)).toEqual(
+      direct.orders.map((order) => order.candidateCount),
+    )
+    expect(resumed.checked).toBe(direct.checked)
+    expect(resumed.nodes).toBe(direct.nodes)
+  })
+
+  it('未完成的阶不会被种子采纳（重新搜索）', () => {
+    // nodeBudget 取最小值 1 万：无三角形 8 阶搜索必然中途触发 graph_limit
+    const spec = validateGraphSpec({ ...base, nMin: 8, nMax: 8, nodeBudget: 10_000 })
+    const first = runGraphSearch(spec)
+    const partial = first.orders[0]!
+    expect(partial.complete).toBe(false)
+    const seed: SearchResumeSeed = {
+      orders: [partial],
+      checked: 0,
+      feasible: 0,
+      violations: 0,
+      uncertainViolations: 0,
+      nodes: 0,
+      spectralEvaluations: 0,
+      spectralPruned: 0,
+    }
+    const resumed = runGraphSearch(spec, { seed })
+    expect(resumed.orders.length).toBe(1)
+    expect(resumed.orders[0]).not.toBe(partial)
+    expect(resumed.complete).toBe(false)
+  })
+
+  it('档案→种子：候选由 graph6 重建，续算最优值与全跑一致', () => {
+    const spec4 = validateGraphSpec({ ...base, nMax: 4 })
+    const result = runGraphSearch(spec4)
+    const experiment: LabExperiment = {
+      id: 't1',
+      createdAt: '2026-10-06T00:00:00.000Z',
+      ...experimentFromGraphSearch(result, ''),
+    }
+    const seed = resumeSeedFromGraphExperiment(experiment)
+    expect(seed).not.toBeNull()
+    expect(seed?.orders.length).toBe(1)
+    expect(seed?.orders[0]?.complete).toBe(true)
+    expect(seed?.orders[0]?.candidates[0]?.graph6).toBe(result.orders[0]?.candidates[0]?.graph6)
+    const spec5 = validateGraphSpec({ ...base, nMax: 5 })
+    const resumed = runGraphSearch(spec5, { seed: seed ?? undefined })
+    const direct = runGraphSearch(spec5)
+    expect(resumed.orders.map((order) => order.best)).toEqual(
+      direct.orders.map((order) => order.best),
+    )
+  })
+
+  it('非图实验（超图档案）不产生续算种子', () => {
+    const spec4 = validateGraphSpec({ ...base, nMax: 4 })
+    const result = runGraphSearch(spec4)
+    const experiment: LabExperiment = {
+      id: 't2',
+      createdAt: '2026-10-06T00:00:00.000Z',
+      ...experimentFromGraphSearch(result, ''),
+      kind: 'hypergraph',
+    }
+    expect(resumeSeedFromGraphExperiment(experiment)).toBeNull()
   })
 })
 

@@ -7,11 +7,14 @@
  * - 导出/导入 JSON（可跨设备迁移）。
  * 存储形态稳定（version 字段），读取时做防御性校验；损坏数据不抛错，返回空档案。
  */
-import type { GraphSearchResult } from './search'
+import type { GraphSearchResult, OrderRecord, SearchResumeSeed } from './search'
 import type { HyperSearchResult } from './hyper-search'
 import type { GraphSpec } from './spec'
 import type { HyperSpec } from './hyper-spec'
 import type { LabHypergraph } from './hypergraph'
+import { parseGraph6 } from './graph6'
+import { fingerprint } from './iso'
+import { orderPlan } from './planner'
 
 export const LAB_ARCHIVE_KEY = 'md.lab.archive.v1'
 export const LAB_ARCHIVE_VERSION = 1 as const
@@ -50,6 +53,8 @@ export interface StoredOrder<T> {
   coverage: string
   complete: boolean
   candidates: T[]
+  /** v3.1：该阶消耗的生成节点数（续算时合并统计用；旧档案缺省为 0） */
+  nodes?: number
 }
 
 export interface LabExperiment {
@@ -296,6 +301,62 @@ export class LabArchiveStore {
   }
 }
 
+/**
+ * v3.1 续算：把档案中已保存（未完成）的图搜索实验恢复为续算种子。
+ * 只恢复 complete 的阶；候选图由 graph6 重建（指纹重算，校验用）。
+ */
+export function resumeSeedFromGraphExperiment(experiment: LabExperiment): SearchResumeSeed | null {
+  if (experiment.kind !== 'graph') return null
+  const spec = experiment.spec as GraphSpec
+  const orders: OrderRecord[] = []
+  for (const stored of experiment.orders as StoredOrder<StoredCandidateGraph>[]) {
+    if (!stored.complete) continue
+    const candidates = stored.candidates.map((candidate) => {
+      const graph = parseGraph6(candidate.graph6)
+      return {
+        n: candidate.n,
+        m: candidate.m,
+        graph,
+        graph6: candidate.graph6,
+        fingerprint: fingerprint(graph),
+        degrees: candidate.degrees,
+        edges: candidate.edges,
+        rho: candidate.rho,
+        checks: candidate.checks,
+        claimHolds: candidate.claimHolds,
+      }
+    })
+    orders.push({
+      n: stored.n,
+      checked: 0,
+      feasible: 0,
+      violations: 0,
+      uncertainViolations: 0,
+      complete: true,
+      best: stored.best,
+      candidateCount: stored.candidateCount,
+      candidates,
+      layers: [],
+      nodes: stored.nodes ?? 0,
+      coverage: stored.coverage as OrderRecord['coverage'],
+      spectralEvaluations: 0,
+      spectralPruned: 0,
+      plan: orderPlan(stored.n, spec),
+    })
+  }
+  if (orders.length === 0) return null
+  return {
+    orders,
+    checked: 0,
+    feasible: 0,
+    violations: 0,
+    uncertainViolations: 0,
+    nodes: 0,
+    spectralEvaluations: 0,
+    spectralPruned: 0,
+  }
+}
+
 /** 由搜索结果生成档案记录（裁剪为可持久化的精简形态） */
 export function experimentFromGraphSearch(
   result: GraphSearchResult,
@@ -321,6 +382,7 @@ export function experimentFromGraphSearch(
       candidateCount: order.candidateCount,
       coverage: order.coverage,
       complete: order.complete,
+      nodes: order.nodes,
       candidates: order.candidates.map((candidate) => ({
         n: candidate.n,
         m: candidate.m,

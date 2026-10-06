@@ -615,7 +615,13 @@
         <div class="row">
           <label class="field small">
             <span>时间预算（秒）</span>
-            <input type="number" min="1" max="1800" bind:value={labState.graphSpec.timeLimit} />
+            <input
+              type="number"
+              min="1"
+              max="1800"
+              data-testid="lab-graph-time-limit"
+              bind:value={labState.graphSpec.timeLimit}
+            />
           </label>
           <label class="field small">
             <span>生成预算（节点）</span>
@@ -624,6 +630,7 @@
               min="10000"
               max="200000000"
               step="1000000"
+              data-testid="lab-graph-node-budget"
               bind:value={labState.graphSpec.nodeBudget}
             />
           </label>

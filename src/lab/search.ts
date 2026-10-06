@@ -69,6 +69,24 @@ export interface SearchHooks {
   /** 外部取消：返回 'cancelled' 时停止 */
   poll?: () => 'cancelled' | null
   now?: () => number
+  /**
+   * v3.1 续算种子：把之前一次运行中**已完成**的阶直接并入结果（不重算、不占预算），
+   * 本轮从其余阶继续；传入未完成的阶会被忽略（重新搜索）。
+   */
+  seed?: SearchResumeSeed
+}
+
+/** 续算种子（可 JSON 序列化：随 Worker 消息传入） */
+export interface SearchResumeSeed {
+  /** 已完成的阶记录（complete === true 的才会被采用） */
+  orders: OrderRecord[]
+  checked: number
+  feasible: number
+  violations: number
+  uncertainViolations: number
+  nodes: number
+  spectralEvaluations: number
+  spectralPruned: number
 }
 
 export interface CheckRecord {
@@ -113,6 +131,8 @@ export interface OrderRecord {
   candidateCount: number
   candidates: CandidateRecord[]
   layers: LayerRecord[]
+  /** v3.1：本阶消耗的生成节点数（续算时只并入已完成阶，避免重复计数） */
+  nodes: number
   coverage:
     | 'enumeration'
     | 'optimal_edge_layer'
@@ -262,6 +282,23 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
   let currentN = spec.nMin
   let currentM: number | null = null
 
+  // v3.1 续算：并入已完成的阶（仅 complete 的），本轮跳过对应顶点数
+  const seededNs = new Set<number>()
+  if (hooks.seed) {
+    for (const order of hooks.seed.orders) {
+      if (!order.complete || seededNs.has(order.n)) continue
+      orders.push(order)
+      seededNs.add(order.n)
+    }
+    checked += hooks.seed.checked
+    feasible += hooks.seed.feasible
+    violations += hooks.seed.violations
+    uncertainViolations += hooks.seed.uncertainViolations
+    nodes += hooks.seed.nodes
+    spectralEvaluations += hooks.seed.spectralEvaluations
+    spectralPruned += hooks.seed.spectralPruned
+  }
+
   function limits(): void {
     if (hooks.poll?.() === 'cancelled') throw new SearchStop('cancelled')
     if (now() - start >= spec.timeLimit) throw new SearchStop('time_limit')
@@ -288,6 +325,10 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
     for (let n = spec.nMin; n <= spec.nMax; n++) {
       currentN = n
       limits()
+      if (seededNs.has(n)) {
+        progress(true)
+        continue
+      }
       const plan = orderPlan(n, spec)
       const order: OrderRecord = {
         n,
@@ -300,12 +341,14 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
         candidateCount: 0,
         candidates: [],
         layers: [],
+        nodes: 0,
         coverage: 'enumeration',
         spectralEvaluations: 0,
         spectralPruned: 0,
         plan,
       }
       orders.push(order)
+      const orderNodeStart = nodes
       if (plan.impossible) {
         order.complete = true
         order.coverage = 'empty_by_bound'
@@ -349,6 +392,7 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
         }
       }
       order.complete = true
+      order.nodes = nodes - orderNodeStart
       currentM = null
       progress(true)
       if (claim && order.candidateCount > 0) {
@@ -589,6 +633,7 @@ export function runGraphSearch(specInput: GraphSpec, hooks: SearchHooks = {}): G
     termination === 'exhausted' ||
     termination === 'minimum_counterexample_complete' ||
     termination === 'first_counterexample_order_exhausted'
+  orders.sort((a, b) => a.n - b.n)
   const candidateCount = orders.reduce((sum, order) => sum + order.candidateCount, 0)
   return {
     spec,
