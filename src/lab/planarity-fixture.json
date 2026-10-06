@@ -1,0 +1,1292 @@
+[
+  {
+    "name": "K5",
+    "graph6": "D~{",
+    "planar": false
+  },
+  {
+    "name": "K33",
+    "graph6": "EFz_",
+    "planar": false
+  },
+  {
+    "name": "K4",
+    "graph6": "C~",
+    "planar": true
+  },
+  {
+    "name": "C5",
+    "graph6": "Dhc",
+    "planar": true
+  },
+  {
+    "name": "Petersen",
+    "graph6": "IheA@GUAo",
+    "planar": false
+  },
+  {
+    "name": "cube",
+    "graph6": "Gr`HOk",
+    "planar": true
+  },
+  {
+    "name": "octahedron",
+    "graph6": "E}lw",
+    "planar": true
+  },
+  {
+    "name": "wheel W6",
+    "graph6": "E|fG",
+    "planar": true
+  },
+  {
+    "name": "K6",
+    "graph6": "E~~w",
+    "planar": false
+  },
+  {
+    "name": "tree n=8",
+    "graph6": "GWS@GG",
+    "planar": true
+  },
+  {
+    "name": "K5 subdiv",
+    "graph6": "E^~?",
+    "planar": false
+  },
+  {
+    "name": "K33 subdiv",
+    "graph6": "GBzc?c",
+    "planar": false
+  },
+  {
+    "name": "disconnected K5+K3",
+    "graph6": "G~{?GK",
+    "planar": false
+  },
+  {
+    "name": "grid 3x3",
+    "graph6": "HkSg_SD",
+    "planar": true
+  },
+  {
+    "name": "C4",
+    "graph6": "Cl",
+    "planar": true
+  },
+  {
+    "name": "star K1,7",
+    "graph6": "GsaCC?",
+    "planar": true
+  },
+  {
+    "name": "empty n=7",
+    "graph6": "F????",
+    "planar": true
+  },
+  {
+    "name": "K4 plus vertex",
+    "graph6": "D~?",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #0",
+    "graph6": "D_O",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #1",
+    "graph6": "DLK",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #2",
+    "graph6": "DI?",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #3",
+    "graph6": "DK?",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #4",
+    "graph6": "DAO",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #5",
+    "graph6": "DT_",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #6",
+    "graph6": "D?s",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #7",
+    "graph6": "DC_",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #8",
+    "graph6": "DDC",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #9",
+    "graph6": "Dd_",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #10",
+    "graph6": "D_?",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.25 #11",
+    "graph6": "DA?",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #0",
+    "graph6": "DpC",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #1",
+    "graph6": "DAg",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #2",
+    "graph6": "DXS",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #3",
+    "graph6": "D?_",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #4",
+    "graph6": "DD?",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #5",
+    "graph6": "DSo",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #6",
+    "graph6": "D?G",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #7",
+    "graph6": "DpC",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #8",
+    "graph6": "Do{",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #9",
+    "graph6": "DS[",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #10",
+    "graph6": "Dck",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.4 #11",
+    "graph6": "Do?",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #0",
+    "graph6": "Dy{",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #1",
+    "graph6": "Deo",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #2",
+    "graph6": "D[s",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #3",
+    "graph6": "Dmk",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #4",
+    "graph6": "DOk",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #5",
+    "graph6": "D}[",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #6",
+    "graph6": "De[",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #7",
+    "graph6": "Dmk",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #8",
+    "graph6": "D\\S",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #9",
+    "graph6": "Dpk",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #10",
+    "graph6": "D@[",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.55 #11",
+    "graph6": "Dfg",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #0",
+    "graph6": "D^[",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #1",
+    "graph6": "Dk{",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #2",
+    "graph6": "D|W",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #3",
+    "graph6": "DTK",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #4",
+    "graph6": "DTs",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #5",
+    "graph6": "D\\{",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #6",
+    "graph6": "Ds{",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #7",
+    "graph6": "Dyw",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #8",
+    "graph6": "Dg{",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #9",
+    "graph6": "D~g",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #10",
+    "graph6": "Dtg",
+    "planar": true
+  },
+  {
+    "name": "rand n=5 p=0.7 #11",
+    "graph6": "D[s",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #0",
+    "graph6": "E@c?",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #1",
+    "graph6": "EMr_",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #2",
+    "graph6": "EBO?",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #3",
+    "graph6": "E`gG",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #4",
+    "graph6": "E`S?",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #5",
+    "graph6": "E?CG",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #6",
+    "graph6": "EG`?",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #7",
+    "graph6": "EhGO",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #8",
+    "graph6": "EMSO",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #9",
+    "graph6": "EOA_",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #10",
+    "graph6": "EAOO",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.25 #11",
+    "graph6": "E?sw",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #0",
+    "graph6": "EcUW",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #1",
+    "graph6": "E_OW",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #2",
+    "graph6": "EoDg",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #3",
+    "graph6": "E?RG",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #4",
+    "graph6": "ET?_",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #5",
+    "graph6": "EBe?",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #6",
+    "graph6": "E~Z_",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #7",
+    "graph6": "ECcw",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #8",
+    "graph6": "Em??",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #9",
+    "graph6": "EQ}G",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #10",
+    "graph6": "Ee^_",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.4 #11",
+    "graph6": "EK@w",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #0",
+    "graph6": "Eiw_",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #1",
+    "graph6": "EiZg",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #2",
+    "graph6": "EsgW",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #3",
+    "graph6": "EIt?",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #4",
+    "graph6": "E_[W",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #5",
+    "graph6": "E?H_",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #6",
+    "graph6": "Ef]g",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #7",
+    "graph6": "EjMw",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #8",
+    "graph6": "EYko",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #9",
+    "graph6": "EieW",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #10",
+    "graph6": "EETw",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.55 #11",
+    "graph6": "E[ug",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.7 #0",
+    "graph6": "EN~w",
+    "planar": false
+  },
+  {
+    "name": "rand n=6 p=0.7 #1",
+    "graph6": "E\\Xo",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.7 #2",
+    "graph6": "EufG",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.7 #3",
+    "graph6": "E?}W",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.7 #4",
+    "graph6": "E]cO",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.7 #5",
+    "graph6": "Er\\w",
+    "planar": false
+  },
+  {
+    "name": "rand n=6 p=0.7 #6",
+    "graph6": "Epto",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.7 #7",
+    "graph6": "E~}w",
+    "planar": false
+  },
+  {
+    "name": "rand n=6 p=0.7 #8",
+    "graph6": "E|Qo",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.7 #9",
+    "graph6": "EtLW",
+    "planar": true
+  },
+  {
+    "name": "rand n=6 p=0.7 #10",
+    "graph6": "EevW",
+    "planar": false
+  },
+  {
+    "name": "rand n=6 p=0.7 #11",
+    "graph6": "Et~W",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #0",
+    "graph6": "Fit??",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #1",
+    "graph6": "F???_",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #2",
+    "graph6": "FAQ_O",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #3",
+    "graph6": "FCpEW",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #4",
+    "graph6": "FC__O",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #5",
+    "graph6": "FWOYG",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #6",
+    "graph6": "F?rS?",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #7",
+    "graph6": "FSHG_",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #8",
+    "graph6": "Fc?S?",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #9",
+    "graph6": "FU@OG",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #10",
+    "graph6": "FDA_?",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.25 #11",
+    "graph6": "F`A?W",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.4 #0",
+    "graph6": "Fe_mo",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.4 #1",
+    "graph6": "Fs`B?",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.4 #2",
+    "graph6": "FuGK?",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.4 #3",
+    "graph6": "FNRBo",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.4 #4",
+    "graph6": "FYv[w",
+    "planar": false
+  },
+  {
+    "name": "rand n=7 p=0.4 #5",
+    "graph6": "FSkfG",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.4 #6",
+    "graph6": "F`fd?",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.4 #7",
+    "graph6": "FzCI_",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.4 #8",
+    "graph6": "Fp_mg",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.4 #9",
+    "graph6": "FXUcO",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.4 #10",
+    "graph6": "F?qTo",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.4 #11",
+    "graph6": "Fbh?O",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.55 #0",
+    "graph6": "FIzz_",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.55 #1",
+    "graph6": "F~moO",
+    "planar": false
+  },
+  {
+    "name": "rand n=7 p=0.55 #2",
+    "graph6": "FtJZW",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.55 #3",
+    "graph6": "FLWUO",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.55 #4",
+    "graph6": "FDz]w",
+    "planar": false
+  },
+  {
+    "name": "rand n=7 p=0.55 #5",
+    "graph6": "FZD}g",
+    "planar": false
+  },
+  {
+    "name": "rand n=7 p=0.55 #6",
+    "graph6": "FunoG",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.55 #7",
+    "graph6": "FDzVg",
+    "planar": false
+  },
+  {
+    "name": "rand n=7 p=0.55 #8",
+    "graph6": "FVX[O",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.55 #9",
+    "graph6": "FCLaO",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.55 #10",
+    "graph6": "FWz{_",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.55 #11",
+    "graph6": "FI\\S_",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.7 #0",
+    "graph6": "FXdg_",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.7 #1",
+    "graph6": "F~}mw",
+    "planar": false
+  },
+  {
+    "name": "rand n=7 p=0.7 #2",
+    "graph6": "F^oYw",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.7 #3",
+    "graph6": "F~Q~w",
+    "planar": false
+  },
+  {
+    "name": "rand n=7 p=0.7 #4",
+    "graph6": "FJ}nw",
+    "planar": false
+  },
+  {
+    "name": "rand n=7 p=0.7 #5",
+    "graph6": "F|sNw",
+    "planar": false
+  },
+  {
+    "name": "rand n=7 p=0.7 #6",
+    "graph6": "FF@Hw",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.7 #7",
+    "graph6": "Fvn}g",
+    "planar": false
+  },
+  {
+    "name": "rand n=7 p=0.7 #8",
+    "graph6": "Fhnbo",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.7 #9",
+    "graph6": "FSHwG",
+    "planar": true
+  },
+  {
+    "name": "rand n=7 p=0.7 #10",
+    "graph6": "F|^}w",
+    "planar": false
+  },
+  {
+    "name": "rand n=7 p=0.7 #11",
+    "graph6": "F~~^g",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.25 #0",
+    "graph6": "GO?xE?",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.25 #1",
+    "graph6": "GAgg?_",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.25 #2",
+    "graph6": "GEgO?C",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.25 #3",
+    "graph6": "G?`aOk",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.25 #4",
+    "graph6": "GIReTg",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.25 #5",
+    "graph6": "GECgb_",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.25 #6",
+    "graph6": "GOBAGC",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.25 #7",
+    "graph6": "G_?C??",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.25 #8",
+    "graph6": "G[gr_?",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.25 #9",
+    "graph6": "GSsC?g",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.25 #10",
+    "graph6": "G?I?@_",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.25 #11",
+    "graph6": "GE_G_C",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.4 #0",
+    "graph6": "GqX?YO",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.4 #1",
+    "graph6": "GoISxC",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.4 #2",
+    "graph6": "GCSN@[",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.4 #3",
+    "graph6": "GBKONG",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.4 #4",
+    "graph6": "GkLT[?",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.4 #5",
+    "graph6": "GIwaK_",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.4 #6",
+    "graph6": "GcBOZ_",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.4 #7",
+    "graph6": "GUqQig",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.4 #8",
+    "graph6": "GCvZj_",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.4 #9",
+    "graph6": "GrYXak",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.4 #10",
+    "graph6": "GaGwUS",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.4 #11",
+    "graph6": "GXp}s_",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.55 #0",
+    "graph6": "GWzXmo",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.55 #1",
+    "graph6": "Guq`pc",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.55 #2",
+    "graph6": "Gz]J\\G",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.55 #3",
+    "graph6": "GpOIUW",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.55 #4",
+    "graph6": "GuqcN?",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.55 #5",
+    "graph6": "GjU|hg",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.55 #6",
+    "graph6": "G|n^I{",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.55 #7",
+    "graph6": "GuJiY_",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.55 #8",
+    "graph6": "GYi]_k",
+    "planar": true
+  },
+  {
+    "name": "rand n=8 p=0.55 #9",
+    "graph6": "GkIHn{",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.55 #10",
+    "graph6": "G[Qm{w",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.55 #11",
+    "graph6": "Gv~n`g",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #0",
+    "graph6": "Ge]v^{",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #1",
+    "graph6": "Gz^l\\W",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #2",
+    "graph6": "GmXY~C",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #3",
+    "graph6": "GQvzms",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #4",
+    "graph6": "G\\Xt|{",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #5",
+    "graph6": "GVw}|W",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #6",
+    "graph6": "Gvl\\RS",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #7",
+    "graph6": "GrjFY{",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #8",
+    "graph6": "GX|{}w",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #9",
+    "graph6": "GYx}nk",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #10",
+    "graph6": "Grvez{",
+    "planar": false
+  },
+  {
+    "name": "rand n=8 p=0.7 #11",
+    "graph6": "G~bc}g",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.25 #0",
+    "graph6": "HSA@GB?",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.25 #1",
+    "graph6": "H@a?U@I",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.25 #2",
+    "graph6": "HAlOP_G",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.25 #3",
+    "graph6": "HOgG@?C",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.25 #4",
+    "graph6": "HASK?gA",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.25 #5",
+    "graph6": "H?EHB?g",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.25 #6",
+    "graph6": "H_QOeVS",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.25 #7",
+    "graph6": "HZGaAEh",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.25 #8",
+    "graph6": "HWI??SW",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.25 #9",
+    "graph6": "HOF@GWp",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.25 #10",
+    "graph6": "HL?PoE`",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.25 #11",
+    "graph6": "HB@Co@G",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.4 #0",
+    "graph6": "HitCl_C",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.4 #1",
+    "graph6": "Hd^K@oE",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.4 #2",
+    "graph6": "Hk^kgOR",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.4 #3",
+    "graph6": "HrEEDI?",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.4 #4",
+    "graph6": "HH~WCBG",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.4 #5",
+    "graph6": "HIUuSvP",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.4 #6",
+    "graph6": "HRN?oRh",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.4 #7",
+    "graph6": "Hq@HHeD",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.4 #8",
+    "graph6": "HAik{Y|",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.4 #9",
+    "graph6": "H^xArGc",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.4 #10",
+    "graph6": "H?eAJWI",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.4 #11",
+    "graph6": "HwKjeEi",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.55 #0",
+    "graph6": "HUVAUvn",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.55 #1",
+    "graph6": "HCipLmY",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.55 #2",
+    "graph6": "Hq|IXNj",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.55 #3",
+    "graph6": "HIBP[In",
+    "planar": true
+  },
+  {
+    "name": "rand n=9 p=0.55 #4",
+    "graph6": "Ha}apbV",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.55 #5",
+    "graph6": "HB~`ihE",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.55 #6",
+    "graph6": "Hr~p|Sa",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.55 #7",
+    "graph6": "HIUlqlR",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.55 #8",
+    "graph6": "Hr~Uh~f",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.55 #9",
+    "graph6": "HOczfee",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.55 #10",
+    "graph6": "Hj^uxGZ",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.55 #11",
+    "graph6": "HzjJBuH",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #0",
+    "graph6": "H|dX^^d",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #1",
+    "graph6": "H~h~wv}",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #2",
+    "graph6": "HjmU|^k",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #3",
+    "graph6": "H~ylhCn",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #4",
+    "graph6": "H\\zvzyv",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #5",
+    "graph6": "HZB~vix",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #6",
+    "graph6": "HpjYuxl",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #7",
+    "graph6": "HAu~nud",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #8",
+    "graph6": "H]dx~{X",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #9",
+    "graph6": "HeSZJyH",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #10",
+    "graph6": "Hr{Z~{[",
+    "planar": false
+  },
+  {
+    "name": "rand n=9 p=0.7 #11",
+    "graph6": "H|r^n{z",
+    "planar": false
+  }
+]

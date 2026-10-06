@@ -107,6 +107,7 @@
       customForbidden: '',
       connected: 'any',
       bipartite: 'any',
+      planar: 'any',
       minDegree: null,
       maxDegree: null,
       minEdges: null,
@@ -531,6 +532,14 @@
               <option value="any">不限</option>
               <option value="yes">要求二部</option>
               <option value="no">要求非二部</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>平面性</span>
+            <select data-testid="lab-graph-planar" bind:value={labState.graphSpec.planar}>
+              <option value="any">不限</option>
+              <option value="yes">要求平面</option>
+              <option value="no">要求非平面</option>
             </select>
           </label>
         </div>

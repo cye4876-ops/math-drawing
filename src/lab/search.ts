@@ -33,6 +33,7 @@ import {
   girthOf,
   spectralCannotTie,
 } from './invariants'
+import { isPlanar } from './planarity'
 import { orderPlan, type OrderPlan } from './planner'
 import {
   GRAPH_BOOLEANS,
@@ -206,6 +207,9 @@ export function matches(
   }
   if (spec.bipartite !== 'any') {
     checks.push({ label: '二部性', passed: isBipartite(g) === (spec.bipartite === 'yes') })
+  }
+  if (spec.planar !== 'any') {
+    checks.push({ label: '平面性', passed: isPlanar(g) === (spec.planar === 'yes') })
   }
   // v3.0 结构条件：围长 / 直径 / 色数（仅在设置上限/下限时计算）
   if (spec.minGirth !== null) {

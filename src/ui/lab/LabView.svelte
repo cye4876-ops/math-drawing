@@ -13,6 +13,7 @@
   } from '../../state/lab-state.svelte'
   import { parseGraph6 } from '../../lab/graph6'
   import { GraphInvariants, girthOf } from '../../lab/invariants'
+  import { isPlanar } from '../../lab/planarity'
 
   let {
     active,
@@ -238,6 +239,7 @@
       const values = new GraphInvariants(graph)
       const parts = [values.get('bipartite') ? '二部' : '非二部']
       parts.push(values.get('connected') ? '连通' : '不连通')
+      parts.push(isPlanar(graph) ? '平面' : '非平面')
       const degrees = candidate.degrees
       if (degrees.length > 0 && degrees.every((value) => value === degrees[0])) {
         parts.push(`${degrees[0]}-正则`)

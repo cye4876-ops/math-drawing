@@ -47,6 +47,8 @@ export interface GraphSpec {
   customForbidden: string
   connected: TriState
   bipartite: TriState
+  /** v3.1 结构条件：平面性（any/yes/no；LR 检验，小图精确） */
+  planar: TriState
   minDegree: number | null
   maxDegree: number | null
   minEdges: number | null
@@ -95,6 +97,7 @@ export const DEFAULT_GRAPH_SPEC: GraphSpec = {
   customForbidden: '',
   connected: 'any',
   bipartite: 'any',
+  planar: 'any',
   minDegree: null,
   maxDegree: null,
   minEdges: null,
@@ -189,7 +192,7 @@ export function validateGraphSpec(input: unknown): GraphSpec {
       throw error
     }
   }
-  for (const key of ['connected', 'bipartite'] as const) {
+  for (const key of ['connected', 'bipartite', 'planar'] as const) {
     if (!['any', 'yes', 'no'].includes(spec[key])) throw new SpecError('图性质必须选择不限、是或否')
   }
   for (const key of ['minDegree', 'maxDegree', 'minEdges', 'maxEdges'] as const) {

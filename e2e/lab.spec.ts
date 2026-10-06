@@ -167,4 +167,15 @@ test.describe('v2.7 图论实验台', () => {
     await page.getByTestId('lab-graph-resume').click()
     await expect(page.getByTestId('lab-graph-resume')).toBeVisible({ timeout: 30_000 })
   })
+
+  test('v3.1 平面性条件：无三角形 n=6 要求平面 → 最优 8 边（K₃,₃ 被排除）', async ({ page }) => {
+    await openLab(page)
+    await page.getByText('禁图与图性质').click()
+    await page.getByTestId('lab-graph-planar').selectOption('yes')
+    await page.getByTestId('lab-graph-run').click()
+    await expect(page.getByText('范围穷举完成', { exact: true })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('lab-candidate').first()).toContainText('m = 8')
+    // 汇总表结构标签注明“平面”
+    await expect(page.getByTestId('lab-summary-table')).toContainText('平面')
+  })
 })

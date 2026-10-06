@@ -81,6 +81,33 @@ describe('v3.0 结构条件复核（matches）', () => {
     expect(matches(cycleGraph(5), spec, []).ok).toBe(false)
   })
 
+  it('平面性：K₅/K₃,₃ 不满足「要求平面」；C₅/K₄ 满足；「要求非平面」反转', () => {
+    const yes = validateGraphSpec({ ...base, planar: 'yes' })
+    expect(matches(cycleGraph(5), yes, []).ok).toBe(true)
+    expect(matches(completeGraph(4), yes, []).ok).toBe(true)
+    expect(matches(completeGraph(5), yes, []).ok).toBe(false)
+    expect(matches(completeBipartiteGraph(3, 3), yes, []).ok).toBe(false)
+    const no = validateGraphSpec({ ...base, planar: 'no' })
+    expect(matches(completeGraph(5), no, []).ok).toBe(true)
+    expect(matches(cycleGraph(5), no, []).ok).toBe(false)
+  })
+
+  it('平面性条件参与搜索：无三角形 n=6 要求平面 → 最优 8（排除 K₃,₃）', () => {
+    const spec = validateGraphSpec({
+      ...DEFAULT_GRAPH_SPEC,
+      title: '无三角形且平面',
+      nMin: 6,
+      nMax: 6,
+      forbidden: ['K3'],
+      planar: 'yes',
+      objective: 'max_edges',
+      timeLimit: 60,
+    })
+    const result = runGraphSearch(spec)
+    expect(result.orders[0]?.best).toBe(8)
+    expect(result.orders[0]?.coverage).toBe('optimal_edge_layer')
+  })
+
   it('校验：围长下限须 ≥ 3、色数上限须 ≥ 1；空输入归一为 null（不限）', () => {
     expect(() => validateGraphSpec({ ...base, minGirth: 2 })).toThrow()
     expect(() => validateGraphSpec({ ...base, maxChromatic: 0 })).toThrow()
