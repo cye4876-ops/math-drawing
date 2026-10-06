@@ -4,6 +4,7 @@
    * 切平面控制与读数（偏导来自符号求导）、导出（PNG / 旋转 GIF）。
    */
   import type { AppStore } from '../state/store'
+  import { tick } from 'svelte'
   import type {
     AppState,
     Curve3D,
@@ -90,9 +91,45 @@
 
   /** v3.1.1：自定义方程输入与实时识别结果 */
   let customInput = $state('')
+  let customInputEl: HTMLInputElement | null = $state(null)
   const customResult = $derived(
     addKind === 'custom' && customInput.trim() !== '' ? parseSpaceEquation(customInput) : null,
   )
+
+  /** v3.1.2：快捷输入（同 2D 曲线面板；inside=true 时光标置于括号内） */
+  const CUSTOM_FN_SNIPPETS: { key: string; label: string; text: string; inside: boolean }[] = [
+    { key: 'sin', label: 'sin()', text: 'sin()', inside: true },
+    { key: 'cos', label: 'cos()', text: 'cos()', inside: true },
+    { key: 'tan', label: 'tan()', text: 'tan()', inside: true },
+    { key: 'ln', label: 'ln()', text: 'ln()', inside: true },
+    { key: 'exp', label: 'exp()', text: 'exp()', inside: true },
+    { key: 'sqrt', label: '√', text: 'sqrt()', inside: true },
+    { key: 'abs', label: '|x|', text: 'abs()', inside: true },
+    { key: 'pow2', label: 'x²', text: '^2', inside: false },
+    { key: 'pi', label: 'π', text: 'pi', inside: false },
+  ]
+
+  const CUSTOM_VAR_SNIPPETS: { key: string; label: string; title: string; text: string }[] = [
+    { key: 'x', label: 'x', title: '变量 x', text: 'x' },
+    { key: 'y', label: 'y', title: '变量 y', text: 'y' },
+    { key: 'z', label: 'z', title: '变量 z（隐式曲面）', text: 'z' },
+    { key: 'u', label: 'u', title: '参数曲面参数 u', text: 'u' },
+    { key: 'v', label: 'v', title: '参数曲面参数 v', text: 'v' },
+    { key: 't', label: 't', title: '空间曲线参数 t', text: 't' },
+    { key: 'semi', label: '；分段', title: '分号分隔 x=f(t); y=g(t); z=h(t)', text: '; ' },
+  ]
+
+  async function insertCustomSnippet(text: string, inside: boolean): Promise<void> {
+    const target = customInputEl
+    if (!target) return
+    const start = target.selectionStart ?? customInput.length
+    const end = target.selectionEnd ?? start
+    customInput = customInput.slice(0, start) + text + customInput.slice(end)
+    await tick()
+    target.focus()
+    const caret = start + (inside ? text.length - 1 : text.length)
+    target.setSelectionRange(caret, caret)
+  }
 
   const presetOptions = $derived.by((): { id: string; label: string }[] => {
     if (addKind === 'surface')
@@ -319,6 +356,7 @@
           type="text"
           placeholder="如 z = x^2 − y^2 、x^2 + y^2 + z^2 = 1 、x = cos(t); y = sin(t); z = t/5"
           bind:value={customInput}
+          bind:this={customInputEl}
           onkeydown={(event) => {
             if (event.key === 'Enter') addSelected()
           }}
@@ -338,6 +376,33 @@
         >添加</button
       >
     </div>
+    {#if addKind === 'custom'}
+      <div class="fn-chips" role="group" aria-label="常用函数快捷插入">
+        {#each CUSTOM_FN_SNIPPETS as snippet (snippet.key)}
+          <button
+            type="button"
+            class="fn-chip"
+            data-testid={`space-fn-chip-${snippet.key}`}
+            title={`插入 ${snippet.text}`}
+            onmousedown={(event) => event.preventDefault()}
+            onclick={() => void insertCustomSnippet(snippet.text, snippet.inside)}
+            >{snippet.label}</button
+          >
+        {/each}
+      </div>
+      <div class="fn-chips" role="group" aria-label="变量与分隔符快捷插入">
+        {#each CUSTOM_VAR_SNIPPETS as snippet (snippet.key)}
+          <button
+            type="button"
+            class="fn-chip"
+            data-testid={`space-var-chip-${snippet.key}`}
+            title={snippet.title}
+            onmousedown={(event) => event.preventDefault()}
+            onclick={() => void insertCustomSnippet(snippet.text, false)}>{snippet.label}</button
+          >
+        {/each}
+      </div>
+    {/if}
     {#if addKind === 'custom' && customResult}
       {#if customResult.ok}
         <div class="custom-note" data-testid="space-custom-note">✓ {customResult.note}</div>
@@ -1075,6 +1140,25 @@
   .custom-input {
     flex: 1 1 100%;
     min-width: 0;
+  }
+
+  .fn-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .fn-chips .fn-chip {
+    padding: 1px 7px;
+    font-size: 12px;
+    border-radius: 10px;
+    color: var(--text-dim);
+  }
+
+  .fn-chips .fn-chip:hover {
+    color: var(--accent);
+    border-color: var(--accent);
   }
 
   .custom-note {

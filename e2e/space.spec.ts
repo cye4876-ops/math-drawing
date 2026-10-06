@@ -174,6 +174,17 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
     await page.getByTestId('space-add-kind').selectOption('custom')
     const input = page.getByTestId('space-custom-input')
 
+    // v3.1.2 快捷输入：函数 chips 与变量 chips（光标在括号内，可连续插入）
+    await page.getByTestId('space-fn-chip-sin').click()
+    await expect(input).toHaveValue('sin()')
+    await page.getByTestId('space-var-chip-y').click()
+    await expect(input).toHaveValue('sin(y)')
+    await expect(page.getByTestId('space-var-chip-semi')).toBeVisible()
+    // 非自定义模式不显示 chips
+    await page.getByTestId('space-add-kind').selectOption('surface')
+    await expect(page.getByTestId('space-fn-chip-sin')).toHaveCount(0)
+    await page.getByTestId('space-add-kind').selectOption('custom')
+
     // 显式曲面 z = f(x, y)
     await input.fill('z = x^2 + y^2')
     await expect(page.getByTestId('space-custom-note')).toContainText('显式曲面')
