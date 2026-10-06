@@ -24,8 +24,9 @@ export interface InteractionOptions {
 
 /**
  * 绑定画布交互：
- * - 滚轮缩放（以光标为锚点，视图操作不入撤销历史）；
+ * - 滚轮缩放（以画布中心为锚点，视图操作不入撤销历史）；
  * - 指针拖拽平移（setPointerCapture，拖出容器不中断）；
+ * - v3.1 移动端：双指收放缩放（以双指中点为锚）+ 双指中点拖动平移 + 双击放大；
  * - 返回解绑函数。
  */
 export function attachInteractions(options: InteractionOptions): () => void {
@@ -34,6 +35,30 @@ export function attachInteractions(options: InteractionOptions): () => void {
   let dragging = false
   let lastX = 0
   let lastY = 0
+
+  // v3.1 双指手势状态
+  const touchPoints = new Map<number, { x: number; y: number }>()
+  let pinch: { distance: number; midX: number; midY: number } | null = null
+  let lastTapTime = 0
+  let lastTapX = 0
+  let lastTapY = 0
+
+  /** 双指缩放灵敏度上限/下限由 transform 内部钳制（此处仅做比率换算） */
+  function beginPinch(): void {
+    const points = [...touchPoints.values()]
+    const first = points[0]
+    const second = points[1]
+    if (!first || !second) return
+    pinch = {
+      distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+      midX: (first.x + second.x) / 2,
+      midY: (first.y + second.y) / 2,
+    }
+    if (dragging) {
+      dragging = false
+      container.classList.remove('dragging')
+    }
+  }
 
   /** 事件目标是否属于画布区域（画布本身或容器空白区），而非叠加的 DOM 面板/控件 */
   const isCanvasTarget = (target: EventTarget | null): boolean =>
@@ -70,9 +95,37 @@ export function attachInteractions(options: InteractionOptions): () => void {
       if (toolHooks?.down?.(buildToolEvent(event))) event.preventDefault()
       return
     }
+    const isTouch = event.pointerType === 'touch'
+    if (isTouch) {
+      touchPoints.set(event.pointerId, { x: event.clientX, y: event.clientY })
+      if (touchPoints.size >= 2) {
+        // 第二指落下：进入双指手势（中止当前工具/拖拽）
+        container.setPointerCapture(event.pointerId)
+        toolHooks?.up?.(buildToolEvent(event))
+        beginPinch()
+        return
+      }
+    }
     if (event.button !== 0) return
     // 工具优先：消费后不再触发平移
     if (toolHooks?.down?.(buildToolEvent(event))) return
+    if (isTouch) {
+      // 双击放大（以双击点为锚）；两击间隔 < 320ms 且位移 < 28px
+      const now = performance.now()
+      const isDoubleTap =
+        now - lastTapTime < 320 &&
+        Math.hypot(event.clientX - lastTapX, event.clientY - lastTapY) < 28
+      lastTapTime = now
+      lastTapX = event.clientX
+      lastTapY = event.clientY
+      if (isDoubleTap) {
+        lastTapTime = 0
+        const rect = container.getBoundingClientRect()
+        const anchor = { x: event.clientX - rect.left, y: event.clientY - rect.top }
+        store.setView(zoomAt(store.getView(), getSize(), anchor, 1.6))
+        return
+      }
+    }
     dragging = true
     lastX = event.clientX
     lastY = event.clientY
@@ -81,6 +134,24 @@ export function attachInteractions(options: InteractionOptions): () => void {
   }
 
   const onPointerMove = (event: PointerEvent): void => {
+    if (event.pointerType === 'touch' && touchPoints.has(event.pointerId)) {
+      touchPoints.set(event.pointerId, { x: event.clientX, y: event.clientY })
+      if (pinch && touchPoints.size >= 2) {
+        const points = [...touchPoints.values()]
+        const first = points[0]!
+        const second = points[1]!
+        const distance = Math.max(1, Math.hypot(second.x - first.x, second.y - first.y))
+        const midX = (first.x + second.x) / 2
+        const midY = (first.y + second.y) / 2
+        const rect = container.getBoundingClientRect()
+        const anchor = { x: midX - rect.left, y: midY - rect.top }
+        const zoomed = zoomAt(store.getView(), getSize(), anchor, distance / pinch.distance)
+        store.setView(panBy(zoomed, midX - pinch.midX, midY - pinch.midY))
+        pinch = { distance, midX, midY }
+        return
+      }
+    }
+
     const toolEvent = buildToolEvent(event)
     onCursorMove?.(toolEvent.math)
 
@@ -99,6 +170,10 @@ export function attachInteractions(options: InteractionOptions): () => void {
   }
 
   const endDrag = (event: PointerEvent): void => {
+    if (event.pointerType === 'touch' && touchPoints.has(event.pointerId)) {
+      touchPoints.delete(event.pointerId)
+      if (touchPoints.size < 2) pinch = null
+    }
     toolHooks?.up?.(buildToolEvent(event))
     if (!dragging) return
     dragging = false
