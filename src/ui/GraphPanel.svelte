@@ -15,6 +15,7 @@
   import AlgorithmPanel from './AlgorithmPanel.svelte'
   import EdgeListPanel from './EdgeListPanel.svelte'
   import PropertyPanel from './PropertyPanel.svelte'
+  import GraphAnalysisPanel from './GraphAnalysisPanel.svelte'
   import { getGraphSelection, setGraphSelection } from '../state/selection.svelte'
   import {
     DEFAULT_PARAMS,
@@ -28,6 +29,7 @@
   import { dslMatchesGraph, graphObjectFromDsl, graphToDsl } from '../graph/dsl-to-doc'
   import { parseGraphDsl, type DslError } from '../graph/dsl-parser'
   import { layoutCircular, layoutGrid, layoutLayered } from '../graph/layouts'
+  import { layoutPlanarGraph } from '../graph/planar-layout'
   import type { LayoutWorkerResponse } from '../graph/layout-worker'
 
   let {
@@ -290,6 +292,24 @@
     if (current) applyLayoutNodes(layoutLayered(current))
   }
 
+  function runPlanarLayout(): void {
+    const current = firstGraph(store.getState())
+    if (!current) return
+    const result = layoutPlanarGraph(current)
+    if (!result.ok) {
+      layoutError = result.error
+      return
+    }
+    layoutError = ''
+    const byId = new Map(result.positions.map((position) => [position.id, position]))
+    store.updateGraph(current.id, {
+      nodes: current.nodes.map((node) => {
+        const position = byId.get(node.id)
+        return position ? { ...node, x: position.x, y: position.y } : node
+      }),
+    })
+  }
+
   function runForceLayout(): void {
     const current = firstGraph(store.getState())
     if (!current || layoutBusy) return
@@ -522,6 +542,9 @@
       >
         {layoutBusy ? '布局中…' : '力导向'}
       </button>
+      <button type="button" data-testid="layout-planar" disabled={!graph} onclick={runPlanarLayout}
+        >平面嵌入</button
+      >
     </div>
     {#if layoutError}
       <div class="error" data-testid="layout-error">{layoutError}</div>
@@ -548,6 +571,10 @@
 
     <div class="section">
       <PropertyPanel {graph} {onHighlight} />
+    </div>
+
+    <div class="section">
+      <GraphAnalysisPanel {graph} {onHighlight} />
     </div>
 
     <div class="section">

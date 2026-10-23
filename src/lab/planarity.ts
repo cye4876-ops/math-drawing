@@ -33,7 +33,7 @@ export function isPlanar(g: LabGraph): boolean {
   return lrRun(g).planar
 }
 
-interface LrTables {
+export interface LrTables {
   planar: boolean
   height: number[]
   parentEdge: number[]
@@ -41,6 +41,12 @@ interface LrTables {
   lowpt2: number[]
   nesting: number[]
   ordered: number[][]
+  /** 冲突对的引用边（networkx ref）；null 表示无 */
+  ref: (number | null)[]
+  /** 边的绝对侧向（±1，默认 1；networkx side） */
+  side: number[]
+  /** 返回边的 lowpt 代表边（networkx lowpt_edge） */
+  lowptEdge: number[]
 }
 
 /** 内部表导出（单测与 Sage/networkx 交叉核验用，不属于公开 API） */
@@ -136,6 +142,7 @@ function lrRun(g: LabGraph): LrTables {
     [...oriented[v]!].sort((a, b) => nesting[idx(v, a)]! - nesting[idx(v, b)]!),
   )
   const ref = new Array<number | null>(n * n).fill(null)
+  const side = new Array<number>(n * n).fill(1)
   const S: ConflictPair[] = []
   const bottomOf = new Map<number, ConflictPair | null>()
   const lowptEdge = new Array<number>(n * n).fill(-1)
@@ -204,7 +211,8 @@ function lrRun(g: LabGraph): LrTables {
   function removeBackEdges(e: number): void {
     const u = Math.floor(e / n) // networkx: u = e[0]（父边起点；回边终点为 u 的需裁剪）
     while (S.length > 0 && lowest(top()!) === height[u]!) {
-      S.pop()
+      const dropped = S.pop()!
+      if (dropped.left.low !== null) side[dropped.left.low] = -1
     }
     if (S.length > 0) {
       const P = S.pop()!
@@ -213,6 +221,7 @@ function lrRun(g: LabGraph): LrTables {
       }
       if (P.left.high === null && P.left.low !== null) {
         ref[P.left.low] = P.right.low
+        side[P.left.low] = -1
         P.left.low = null
       }
       while (P.right.high !== null && P.right.high % n === u) {
@@ -220,6 +229,7 @@ function lrRun(g: LabGraph): LrTables {
       }
       if (P.right.high === null && P.right.low !== null) {
         ref[P.right.low] = P.left.low
+        side[P.right.low] = -1
         P.right.low = null
       }
       S.push(P)
@@ -273,10 +283,24 @@ function lrRun(g: LabGraph): LrTables {
         lowpt2,
         nesting,
         ordered: orderedAdj,
+        ref,
+        side,
+        lowptEdge,
       }
     }
   }
-  return { planar: true, height, parentEdge, lowpt, lowpt2, nesting, ordered: orderedAdj }
+  return {
+    planar: true,
+    height,
+    parentEdge,
+    lowpt,
+    lowpt2,
+    nesting,
+    ordered: orderedAdj,
+    ref,
+    side,
+    lowptEdge,
+  }
 }
 
 function emptyTables(n: number, planar: boolean): LrTables {
@@ -288,5 +312,8 @@ function emptyTables(n: number, planar: boolean): LrTables {
     lowpt2: new Array<number>(n * n).fill(0),
     nesting: new Array<number>(n * n).fill(0),
     ordered: Array.from({ length: n }, () => [] as number[]),
+    ref: new Array<number | null>(n * n).fill(null),
+    side: new Array<number>(n * n).fill(1),
+    lowptEdge: new Array<number>(n * n).fill(-1),
   }
 }
