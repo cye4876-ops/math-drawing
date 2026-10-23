@@ -1,0 +1,71 @@
+{
+  "S4_subgroups": {
+    "count": 30,
+    "order_histogram": {
+      "1": 1,
+      "2": 9,
+      "3": 4,
+      "4": 7,
+      "6": 4,
+      "8": 3,
+      "12": 1,
+      "24": 1
+    }
+  },
+  "A5_subgroups": {
+    "count": 59,
+    "order_histogram": {
+      "1": 1,
+      "2": 15,
+      "3": 10,
+      "4": 5,
+      "5": 6,
+      "6": 10,
+      "10": 6,
+      "12": 5,
+      "60": 1
+    }
+  },
+  "A4_subgroups": {
+    "count": 10,
+    "order_histogram": {
+      "1": 1,
+      "2": 3,
+      "3": 4,
+      "4": 1,
+      "12": 1
+    }
+  },
+  "Aut_C4": 2,
+  "Aut_V4": 6,
+  "Aut_C6": 2,
+  "Aut_S3": 6,
+  "Aut_D4": 8,
+  "Aut_Q8": 24,
+  "Aut_A4": 24,
+  "Aut_S4": 24,
+  "Aut_A5": 120,
+  "Hom_C4_C4": 4,
+  "Hom_C4_V4": 4,
+  "Hom_S3_S3": 10,
+  "cube_rotation_group_order": 24,
+  "cube_burnside": {
+    "faces": {
+      "k2": 10,
+      "k3": 57
+    },
+    "vertices": {
+      "k2": 23,
+      "k3": 333
+    },
+    "edges": {
+      "k2": 218,
+      "k3": 22815
+    }
+  },
+  "Petersen_aut_order": 120,
+  "C4_aut_order_graph": 8,
+  "P4_aut_order_graph": 2,
+  "K3x2_aut_order_graph": 72,
+  "modularity_two_triangles": 0.35714285714285715
+}
