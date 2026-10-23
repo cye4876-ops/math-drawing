@@ -26,6 +26,7 @@
   import CaseDiagram from './CaseDiagram.svelte'
   import GroupActionView from './GroupActionView.svelte'
   import GroupExplorer from './GroupExplorer.svelte'
+  import HomomorphismView from './HomomorphismView.svelte'
   import RingExplorer from './RingExplorer.svelte'
   import SubgroupReport from './SubgroupReport.svelte'
   import SylowView from './SylowView.svelte'
@@ -162,6 +163,8 @@
     <GroupActionView />
   {:else if section === 'sylow'}
     <SylowView />
+  {:else if section === 'morph'}
+    <HomomorphismView />
   {:else}
     <RingExplorer />
   {/if}

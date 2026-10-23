@@ -4,6 +4,7 @@
  */
 
 import { allSubgroups, isNormalSubgroup, type FiniteGroup } from './groups'
+import { enumerateSubgroupsSmart } from './subgroups'
 
 export interface LatticeNode {
   index: number
@@ -21,7 +22,11 @@ export interface SubgroupLattice {
 }
 
 export function computeSubgroupLattice(group: FiniteGroup): SubgroupLattice {
-  const subgroups = allSubgroups(group)
+  return latticeFromSubgroups(group, allSubgroups(group))
+}
+
+/** 由给定子群集合构造 Hasse 图（位掩码包含判定；支持 S₄/A₅ 等较大子群集合） */
+export function latticeFromSubgroups(group: FiniteGroup, subgroups: number[][]): SubgroupLattice {
   const sizes = [...new Set(subgroups.map((sub) => sub.length))].sort((a, b) => a - b)
   const levelOf = new Map(sizes.map((size, level) => [size, level]))
   const nodes: LatticeNode[] = subgroups.map((sub, index) => ({
@@ -32,33 +37,25 @@ export function computeSubgroupLattice(group: FiniteGroup): SubgroupLattice {
     level: levelOf.get(sub.length) ?? 0,
   }))
 
-  const sets = subgroups.map((sub) => new Set(sub))
-  const isSubsetOf = (small: Set<number>, big: Set<number>): boolean => {
-    for (const value of small) {
-      if (!big.has(value)) return false
-    }
-    return true
-  }
+  const masks = subgroups.map((sub) =>
+    sub.reduce((mask, value) => mask | (1n << BigInt(value)), 0n),
+  )
+  const isSubsetOf = (small: bigint, big: bigint): boolean => (small & big) === small
 
   const edges: [number, number][] = []
   for (let i = 0; i < subgroups.length; i++) {
     for (let j = 0; j < subgroups.length; j++) {
-      const small = sets[i]
-      const big = sets[j]
-      if (!small || !big || i === j || small.size >= big.size) continue
+      const small = masks[i]!
+      const big = masks[j]!
+      if (i === j || subgroups[i]!.length >= subgroups[j]!.length) continue
       if (!isSubsetOf(small, big)) continue
-      // 覆盖关系：不存在严格居中且介于两者的子群
       let covered = true
       for (let k = 0; k < subgroups.length; k++) {
         if (k === i || k === j) continue
-        const middle = sets[k]
-        if (
-          middle &&
-          middle.size > small.size &&
-          middle.size < big.size &&
-          isSubsetOf(small, middle) &&
-          isSubsetOf(middle, big)
-        ) {
+        const middleSize = subgroups[k]!.length
+        if (middleSize <= subgroups[i]!.length || middleSize >= subgroups[j]!.length) continue
+        const middle = masks[k]!
+        if (isSubsetOf(small, middle) && isSubsetOf(middle, big)) {
           covered = false
           break
         }
@@ -68,4 +65,9 @@ export function computeSubgroupLattice(group: FiniteGroup): SubgroupLattice {
   }
 
   return { nodes, edges }
+}
+
+/** 智能子群枚举 + Hasse 图（v3.2：覆盖 S₄/A₅） */
+export function computeSmartLattice(group: FiniteGroup): SubgroupLattice {
+  return latticeFromSubgroups(group, enumerateSubgroupsSmart(group))
 }

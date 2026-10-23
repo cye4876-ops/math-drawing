@@ -374,14 +374,18 @@ test.describe('v0.9 进阶（第五模式）', () => {
     await expect(count).toContainText('= 10')
   })
 
-  test('代数·群结构：S₄/A₅ 不出现在子群扫描列表（防 2²⁴ 冻结）', async ({ page }) => {
+  test('代数·群结构：S₄/A₅ 可用（v3.2 智能子群枚举，不再受幂集扫描限制）', async ({ page }) => {
     await page.goto('/?mode=advanced')
     await page.getByTestId('adv-tab-algebra').click()
     await page.getByTestId('adv-algebra-section-groups').click()
     await expect(page.getByTestId('adv-algebra-group-s3')).toBeVisible()
-    await expect(page.getByTestId('adv-algebra-group-s4')).toHaveCount(0)
-    await expect(page.getByTestId('adv-algebra-group-a5')).toHaveCount(0)
-    // 群作用视图则提供 S₄/A₅
+    await expect(page.getByTestId('adv-algebra-group-s4')).toBeVisible()
+    await expect(page.getByTestId('adv-algebra-group-a5')).toBeVisible()
+    // 选择 A₅：子群数与 |Aut| 正常显示（不冻结）
+    await page.getByTestId('adv-algebra-group-a5').click()
+    await expect(page.getByTestId('alg-group-a5')).toBeVisible()
+    await expect(page.getByTestId('alg-group-facts')).toContainText('59 个')
+    // 群作用视图同样提供 S₄/A₅
     await page.getByTestId('adv-algebra-section-actions').click()
     await expect(page.getByTestId('adv-action-group-s4')).toBeVisible()
     await expect(page.getByTestId('adv-action-group-a5')).toBeVisible()

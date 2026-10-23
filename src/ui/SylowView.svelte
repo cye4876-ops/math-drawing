@@ -6,6 +6,7 @@
    */
   import { getSylowGroup, getSylowPrime } from '../state/advanced-state.svelte'
   import { sylowReport } from '../algebra/actions'
+  import { pSubgroups } from '../algebra/subgroups'
   import { getGroup, labelOf } from '../algebra/groups'
   import { notation } from './notation'
 
@@ -13,6 +14,7 @@
   const prime = $derived(getSylowPrime())
   const report = $derived(sylowReport(group, prime))
   const dividesOrder = $derived(group.order % prime === 0)
+  const allP = $derived(dividesOrder ? pSubgroups(group, prime) : [])
 
   function labelsOf(indices: number[]): string {
     return indices.map((index) => labelOf(group, index)).join(', ')
@@ -108,6 +110,21 @@
         {@render subs(
           'Sylow 定理第二部分的体现：n_p = [G : N_G(P)]，且全部 Sylow p-子群互相共轭（每张卡片的见证元 x 给出 P_i = x·P_1·x⁻¹）。',
         )}
+      </div>
+    </section>
+
+    <section class="sv-panel">
+      <div class="sv-panel-title">全部 {prime}-子群（阶为 {prime} 的幂，共 {allP.length} 个）</div>
+      <div class="sv-checks" data-testid="alg-sylow-all-p">
+        {#each allP as subgroup, index (subgroup.join(','))}
+          <div class="sv-check" data-testid={`alg-sylow-p-${index}`}>
+            <span class="mono">|H| = {subgroup.length}</span>
+            <span class="detail mono">{'{'}{labelsOf(subgroup)}}</span>
+          </div>
+        {/each}
+      </div>
+      <div class="sv-note">
+        Sylow 子群是其中阶数最大者（上节）；其余为更小的 p-子群（含平凡子群）。
       </div>
     </section>
   {/if}

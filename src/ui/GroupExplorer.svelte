@@ -8,7 +8,6 @@
   import { onMount } from 'svelte'
   import { getAlgebraGroup } from '../state/advanced-state.svelte'
   import {
-    allSubgroups,
     centerElements,
     cyclicSubgroup,
     elementOrder,
@@ -21,7 +20,9 @@
     labelOf,
     labelsOf,
   } from '../algebra/groups'
-  import { computeSubgroupLattice } from '../algebra/lattice'
+  import { computeSmartLattice } from '../algebra/lattice'
+  import { enumerateSubgroupsSmart } from '../algebra/subgroups'
+  import { groupAutomorphismSummary } from '../algebra/group-automorphism'
   import { drawSubgroupLattice } from '../algebra/diagrams'
   import CayleyTable from './CayleyTable.svelte'
 
@@ -31,16 +32,20 @@
   const facts = $derived.by(() => {
     const g = group
     const stats = [...elementOrderStats(g).entries()].sort((x, y) => x[0] - y[0])
+    const aut = groupAutomorphismSummary(g)
     return {
       abelian: isAbelian(g),
       cyclic: isCyclic(g),
       center: labelsOf(g, centerElements(g)),
-      subgroupCount: allSubgroups(g).length,
+      subgroupCount: enumerateSubgroupsSmart(g).length,
+      automorphisms: aut.automorphisms,
+      outer: aut.outer,
+      inner: aut.inner,
       stats: stats.map(([order, count]) => `阶 ${order} × ${count}`).join('、'),
     }
   })
 
-  const lattice = $derived(computeSubgroupLattice(group))
+  const lattice = $derived(computeSmartLattice(group))
 
   const selection = $derived.by(() => {
     const g = group
@@ -96,6 +101,11 @@
     <div class="fact"><span>循环</span><strong>{facts.cyclic ? '是' : '否'}</strong></div>
     <div class="fact"><span>中心 Z(G)</span><strong>{facts.center}</strong></div>
     <div class="fact"><span>子群</span><strong>{facts.subgroupCount} 个</strong></div>
+    <div class="fact">
+      <span>自同构</span><strong
+        >|Aut| = {facts.automorphisms}（内 {facts.inner} / 外 {facts.outer}）</strong
+      >
+    </div>
     <div class="fact wide"><span>元素阶分布</span><strong>{facts.stats}</strong></div>
     <div class="fact wide dim-only">{group.description}</div>
   </div>

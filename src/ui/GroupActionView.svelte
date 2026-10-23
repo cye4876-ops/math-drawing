@@ -17,6 +17,7 @@
     quotientGroup,
   } from '../algebra/actions'
   import { cyclicSubgroup, getGroup, labelOf } from '../algebra/groups'
+  import { CUBE_TARGET_LABELS, cubeBurnside, type CubeTarget } from '../algebra/polyhedral'
   import CayleyTable from './CayleyTable.svelte'
   import { notation } from './notation'
 
@@ -35,6 +36,11 @@
 
   let colors = $state(2)
   const burnside = $derived(burnsideColoring(group, colors))
+  // v3.2：立方体旋转群（24 阶 ≅ S₄）Burnside
+  const cubeTargets: CubeTarget[] = ['faces', 'vertices', 'edges']
+  let cubeTarget = $state<CubeTarget>('faces')
+  let cubeColors = $state(2)
+  const cubeResult = $derived(cubeBurnside(cubeTarget, cubeColors))
 
   function labelsOf(indices: number[]): string {
     return indices.map((index) => labelOf(group, index)).join(', ')
@@ -182,6 +188,43 @@
         该群由乘法表构造（无置换数据），Burnside 计数适用于 S₃、D₄、A₄、S₄、A₅ 等置换群。
       </div>
     {/if}
+  </section>
+
+  <section class="av-panel">
+    <div class="av-panel-title">⑤ 正多面体 Burnside（立方体旋转群 24 阶 ≅ S₄）</div>
+    <div class="av-row">
+      <span class="av-key">作用对象</span>
+      <div class="av-colors">
+        {#each cubeTargets as target (target)}
+          <button
+            type="button"
+            class:active={cubeTarget === target}
+            data-testid={`alg-poly-target-${target}`}
+            onclick={() => (cubeTarget = target)}>{CUBE_TARGET_LABELS[target]}</button
+          >
+        {/each}
+      </div>
+    </div>
+    <div class="av-row">
+      <span class="av-key">颜色数 k</span>
+      <div class="av-colors">
+        {#each [2, 3, 4] as value (value)}
+          <button
+            type="button"
+            class:active={cubeColors === value}
+            data-testid={`alg-poly-colors-${value}`}
+            onclick={() => (cubeColors = value)}>{value} 色</button
+          >
+        {/each}
+      </div>
+    </div>
+    <div class="av-check" data-testid="alg-poly-burnside">
+      ✓ 不同着色数 = (1/24)·Σ k^c(g) = <strong>{cubeResult}</strong>
+    </div>
+    <div class="av-note">
+      经典结果（经 Sage 环境显式枚举核验）：面 2 色 = 10、3 色 = 57；顶点 2 色 = 23、3 色 = 333；棱
+      2 色 = 218、3 色 = 22815。
+    </div>
   </section>
 </div>
 

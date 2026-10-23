@@ -80,6 +80,10 @@
     setSylowGroup,
     getSylowPrime,
     setSylowPrime,
+    getMorphSource,
+    setMorphSource,
+    getMorphTarget,
+    setMorphTarget,
     type AdvancedModule,
     type AlgebraSection,
     type ComplexViewMode,
@@ -113,14 +117,13 @@
     { id: 'rings', label: '环与域' },
     { id: 'actions', label: '群作用' },
     { id: 'sylow', label: 'Sylow' },
+    { id: 'morph', label: '同态' },
   ]
-  /** 群结构视图（子群幂集扫描）：|G| ≤ 12 的群 */
-  const GROUP_LIST = Object.values(GROUPS)
-    .filter((group) => group.subgroupScanSafe !== false)
-    .map((group) => ({
-      id: group.id,
-      short: group.name.split('（')[0] ?? group.name,
-    }))
+  /** 群结构视图（v3.2：智能子群枚举，覆盖 S₄/A₅） */
+  const GROUP_LIST = Object.values(GROUPS).map((group) => ({
+    id: group.id,
+    short: group.name.split('（')[0] ?? group.name,
+  }))
   /** 群作用 / Sylow 视图：全部群（含 S₄、A₅，不依赖子群扫描） */
   const ACTION_GROUPS = Object.values(GROUPS).map((group) => ({
     id: group.id,
@@ -700,7 +703,7 @@
           {/each}
         </div>
       {:else if getAlgebraSection() === 'groups'}
-        <div class="section-title">选择群（{GROUP_LIST.length} 个）</div>
+        <div class="section-title">选择群（{GROUP_LIST.length} 个，含 S₄/A₅）</div>
         <div class="group-grid">
           {#each GROUP_LIST as group (group.id)}
             <button
@@ -712,7 +715,8 @@
           {/each}
         </div>
         <div class="hint">
-          点击乘法表任意格：查看元素阶、逆元与生成子群；子群格在右侧（绿 = 正规）。
+          点击乘法表任意格：查看元素阶、逆元与生成子群；子群格在右侧（绿 =
+          正规）。子群用生成闭包智能枚举（v3.2），S₄/A₅ 也可展开。
         </div>
       {:else if getAlgebraSection() === 'actions'}
         <div class="section-title">选择群（{ACTION_GROUPS.length} 个，含 S₄/A₅）</div>
@@ -771,7 +775,38 @@
           并排显示「算术允许的数量」与实际 n<sub>p</sub>，逐条核验 n<sub>p</sub> | |G|/pᵃ、n<sub
             >p</sub
           >
-          ≡ 1 (mod p)、n<sub>p</sub> = [G : N<sub>G</sub>(P)]，并给出共轭见证元。
+          ≡ 1 (mod p)、n<sub>p</sub> = [G : N<sub>G</sub>(P)]，并给出共轭见证元；v3.2 另列出全部
+          p-子群。
+        </div>
+      {:else if getAlgebraSection() === 'morph'}
+        <div class="section-title">群同态 G → H</div>
+        <div class="row">
+          <span class="dim">源群 G</span>
+          <select
+            data-testid="adv-morph-source"
+            value={getMorphSource()}
+            onchange={(event) => setMorphSource((event.currentTarget as HTMLSelectElement).value)}
+          >
+            {#each ACTION_GROUPS as group (group.id)}
+              <option value={group.id}>{group.short}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="row">
+          <span class="dim">目标群 H</span>
+          <select
+            data-testid="adv-morph-target"
+            value={getMorphTarget()}
+            onchange={(event) => setMorphTarget((event.currentTarget as HTMLSelectElement).value)}
+          >
+            {#each ACTION_GROUPS as group (group.id)}
+              <option value={group.id}>{group.short}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="hint">
+          枚举全部同态（在生成元上枚举像并扩展到全群），显示核与像，并逐条核对第一同构定理 |G| =
+          |ker| · |Im|。
         </div>
       {:else}
         <div class="row">

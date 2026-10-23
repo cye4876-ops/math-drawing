@@ -49,7 +49,7 @@ function bump(): void {
 }
 
 // ---------- 近世代数（v2.2） ----------
-export type AlgebraSection = 'counterexamples' | 'groups' | 'rings' | 'actions' | 'sylow'
+export type AlgebraSection = 'counterexamples' | 'groups' | 'rings' | 'actions' | 'sylow' | 'morph'
 let algebraSection = $state<AlgebraSection>('counterexamples')
 let algebraCaseId = $state(DEFAULT_CASE_ID)
 let algebraGroupId = $state('s3')
@@ -59,6 +59,9 @@ let actionGroupId = $state('a4')
 let actionElementIndex = $state(1)
 let sylowGroupId = $state('a4')
 let sylowPrime = $state(2)
+// v3.2：同态视图（源群 → 目标群）
+let morphSourceId = $state('s3')
+let morphTargetId = $state('s3')
 
 export function getAlgebraSection(): AlgebraSection {
   return algebraSection
@@ -116,6 +119,20 @@ export function getSylowPrime(): number {
 }
 export function setSylowPrime(value: number): void {
   sylowPrime = Math.max(2, Math.round(value))
+  bump()
+}
+export function getMorphSource(): string {
+  return morphSourceId
+}
+export function setMorphSource(value: string): void {
+  morphSourceId = value
+  bump()
+}
+export function getMorphTarget(): string {
+  return morphTargetId
+}
+export function setMorphTarget(value: string): void {
+  morphTargetId = value
   bump()
 }
 

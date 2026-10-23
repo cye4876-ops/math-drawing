@@ -167,6 +167,16 @@ function buildSymmetricGroup(n: number, evenOnly: boolean): FiniteGroup {
 
 const SUB_DIGITS: Record<number, string> = { 1: '₁', 2: '₂', 3: '₃', 4: '₄', 5: '₅', 6: '₆' }
 
+/** 由置换列表构造有限群（轮换记号标签；供多面体旋转群等外部构造使用） */
+export function createPermutationGroup(
+  id: string,
+  name: string,
+  description: string,
+  perms: number[][],
+): FiniteGroup {
+  return buildPermutationGroup(id, name, description, perms.map(permLabel), perms, false)
+}
+
 // ---------- 构造：显式表 ----------
 
 const SUP = ['', '', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹']
