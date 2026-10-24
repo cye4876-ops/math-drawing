@@ -100,19 +100,23 @@
     <span class="divider"></span>
     <button
       type="button"
-      class="ibtn"
+      class="ibtn labeled"
       data-testid="toggle-sidebar"
       class:active={sidebarCollapsed}
+      aria-expanded={!sidebarCollapsed}
       title={sidebarCollapsed ? '展开编辑面板' : '收起编辑面板'}
-      onclick={onToggleSidebar}><PanelRight size={17} /></button
+      onclick={onToggleSidebar}
+      ><PanelRight size={17} /><span class="toggle-label">编辑栏</span></button
     >
     <button
       type="button"
-      class="ibtn"
+      class="ibtn labeled"
       data-testid="toggle-inspector"
       class:active={inspectorCollapsed}
+      aria-expanded={!inspectorCollapsed}
       title={inspectorCollapsed ? '展开检查器' : '收起检查器'}
-      onclick={onToggleInspector}><InspectionPanel size={17} /></button
+      onclick={onToggleInspector}
+      ><InspectionPanel size={17} /><span class="toggle-label">检查器</span></button
     >
   </div>
 </header>
@@ -196,6 +200,19 @@
     cursor: pointer;
   }
 
+  .ibtn.labeled {
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 8px;
+  }
+
+  .toggle-label {
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
   .ibtn:hover:not(:disabled) {
     background: var(--bg);
     color: var(--text);
@@ -217,6 +234,17 @@
     background: var(--border);
     margin: 0 6px;
     flex: none;
+  }
+
+  @media (max-width: 1100px) {
+    .toggle-label {
+      display: none;
+    }
+
+    .ibtn.labeled {
+      width: 32px;
+      padding: 0;
+    }
   }
 
   @media (max-width: 680px) {

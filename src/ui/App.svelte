@@ -304,40 +304,15 @@
     matrix: initialMode === 'matrix' ? { ...store.getView() } : null,
   }
 
-  /** 侧栏收起（v2.4 工作台改版）：状态持久化（存储不可用时静默降级） */
-  function initialSidebarCollapsed(): boolean {
-    try {
-      return localStorage.getItem('md.sidebar-collapsed') === '1'
-    } catch {
-      return false
-    }
-  }
-  let sidebarCollapsed = $state(initialSidebarCollapsed())
+  /** 左右栏默认展开；用户可分别点击顶栏按钮收起或恢复（不持久化，避免下次打开意外隐藏） */
+  let sidebarCollapsed = $state(false)
   function toggleSidebar(): void {
     sidebarCollapsed = !sidebarCollapsed
-    try {
-      localStorage.setItem('md.sidebar-collapsed', sidebarCollapsed ? '1' : '0')
-    } catch {
-      // 忽略存储失败
-    }
   }
 
-  /** 检查器收起（v3.10）：状态持久化，默认展开 */
-  function initialInspectorCollapsed(): boolean {
-    try {
-      return localStorage.getItem('md.inspector-collapsed') === '1'
-    } catch {
-      return false
-    }
-  }
-  let inspectorCollapsed = $state(initialInspectorCollapsed())
+  let inspectorCollapsed = $state(false)
   function toggleInspector(): void {
     inspectorCollapsed = !inspectorCollapsed
-    try {
-      localStorage.setItem('md.inspector-collapsed', inspectorCollapsed ? '1' : '0')
-    } catch {
-      // 忽略存储失败
-    }
   }
 
   /** 首屏引导（v2.4）：函数绘图模式无曲线时显示三个入口 */
@@ -685,7 +660,7 @@
         {:else if mode === 'hyper'}
           {#await hyperPanelLazy() then hyperPanelModule}
             {@const HyperPanel = hyperPanelModule.default}
-            <HyperPanel {store} onOpenGraph={openLabGraph} />
+            <HyperPanel {store} />
           {:catch}
             <div class="lazy-error">
               模块加载失败（页面版本可能已更新）。<button
@@ -712,6 +687,7 @@
         {store}
         {registry}
         {mode}
+        onOpenGraph={openLabGraph}
         getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
       />
     </div>

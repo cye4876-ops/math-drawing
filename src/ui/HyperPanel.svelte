@@ -3,12 +3,11 @@
    * 超图、彩虹与极值实验室面板（v3.4 – v3.7）：
    * 超图族生成 / 四视图 / 精确不变量 / Property B / JSON 编辑 / 对偶；
    * 彩虹子图搜索 / Gallai 检测 / 反拉姆齐小 n / 超图彩虹匹配；
-   * 极值计算台：ex 总表、全量极图画廊、历史对比、证书卡、分享链接。
+   * 极值计算台：搜索控件、总表、历史对比、分享链接；结果详情由右侧检查器承载。
    */
   import { onMount } from 'svelte'
   import {
     hyperLab,
-    EXTREMAL_GALLERY_PAGE_SIZE,
     applyExtremalDeepLink,
     buildExtremalTable,
     clearExtraPatterns,
@@ -38,14 +37,11 @@
     setExtremalMode,
     setExtremalN,
     setExtremalPattern,
-    setGalleryPage,
     setHyperTab,
     setHyperView,
     setRainbowGraph,
     setRainbowN,
     setTuranParts,
-    showExtremalGraph,
-    showSaturationGraph,
     toggleExtraPattern,
   } from '../state/hyper-state.svelte'
   import { analyzeHypergraphDoc } from '../hypergraph/analysis'
@@ -63,8 +59,6 @@
     formatHyperWitness,
   } from '../extremal/hyper-turan'
   import { PATTERN_PRESETS } from '../extremal/patterns'
-  import { atlasEdgeList } from '../extremal/atlas'
-  import { graphInvariants } from '../extremal/analysis'
   import {
     RAINBOW_PATTERNS,
     antiRamsey,
@@ -79,13 +73,7 @@
   import type { AppStore } from '../state/store'
   import { downloadText } from '../export/download'
 
-  let {
-    store,
-    onOpenGraph,
-  }: {
-    store: AppStore
-    onOpenGraph?: (payload: { name: string; n: number; edges: Array<[number, number]> }) => void
-  } = $props()
+  let { store }: { store: AppStore } = $props()
 
   const doc = $derived(hyperLab.doc)
   const analysis = $derived(analyzeHypergraphDoc(doc))
@@ -94,41 +82,9 @@
   const extraPresets = $derived(
     PATTERN_PRESETS.filter((preset) => preset.id !== extremal.patternId),
   )
-  const selectedCandidate = $derived(extremal.result?.extremal[extremal.selectedExtremal] ?? null)
-  const selectedInvariants = $derived(selectedCandidate ? graphInvariants(selectedCandidate) : null)
-  const galleryPageCount = $derived(
-    Math.max(1, Math.ceil((extremal.result?.extremal.length ?? 0) / EXTREMAL_GALLERY_PAGE_SIZE)),
-  )
-  const galleryPageStart = $derived(extremal.galleryPage * EXTREMAL_GALLERY_PAGE_SIZE)
-  const galleryCandidates = $derived(
-    extremal.result?.extremal.slice(
-      galleryPageStart,
-      galleryPageStart + EXTREMAL_GALLERY_PAGE_SIZE,
-    ) ?? [],
-  )
   const compareEntry = $derived(
     extremal.history.find((entry) => entry.id === extremal.compareId) ?? null,
   )
-  const previewSelectionInfo = $derived.by(() => {
-    const preview = extremal.preview
-    const selection = extremal.previewSelection
-    if (!preview || !selection) return null
-    if (selection.kind === 'vertex') {
-      const incident = preview.edges
-        .map(([u, v], index) => ({ u, v, index }))
-        .filter((edge) => edge.u === selection.index || edge.v === selection.index)
-      return {
-        title: `顶点 ${selection.index}`,
-        lines: [
-          `度 = ${incident.length}`,
-          `关联边：${incident.map((edge) => `${edge.u}–${edge.v}`).join('、') || '无'}`,
-        ],
-      }
-    }
-    const edge = preview.edges[selection.index]
-    if (!edge) return null
-    return { title: `边 ${edge[0]}–${edge[1]}`, lines: [`在预览中的边下标 = ${selection.index}`] }
-  })
   const shareUrl = $derived(extremalShareUrl())
   let shareNotice = $state('')
   const pattern = $derived(rainbowPatternById(rainbow.patternId))
@@ -345,15 +301,6 @@
     } catch {
       shareNotice = '无法写入剪贴板；请手动复制下方链接。'
     }
-  }
-
-  function loadSelectedToGraph(): void {
-    if (!selectedCandidate || !onOpenGraph) return
-    onOpenGraph({
-      name: `极值图 · ${extremal.result?.patternLabel ?? 'ex(n,F)'}`,
-      n: selectedCandidate.n,
-      edges: atlasEdgeList(selectedCandidate),
-    })
   }
 
   function heatStyle(value: number, n: number): string {
@@ -885,153 +832,6 @@
             渐近：χ_min = {extremal.result.asymptotic.familyChromatic}，π(F) =
             {extremal.result.asymptotic.familyDensity.toFixed(3)}；{extremal.result.asymptotic.note}
           </div>
-        {/if}
-        <div class="selection" data-testid="extremal-certificate">
-          <strong>证书卡片</strong>
-          {#if extremal.result.known}
-            <div>定理：{extremal.result.known.formula}</div>
-            <div>
-              {extremal.result.known.kind === 'mantel'
-                ? 'Mantel 证明思路：取一条边 uv，其余顶点不能同时邻接 u、v；按 d(u)+d(v) ≤ n 计数即可得上界，T₂(n) 达到。'
-                : 'Turán 证明思路：对 K_{k}-free 图按边数归纳，取最大团/非邻接关系，构造完全 (k−1) 部图达到上界。'}
-            </div>
-            <div>
-              精确搜索 {extremal.result.maxEdges} vs 公式 {extremal.result.known.value}：
-              {extremal.result.maxEdges === extremal.result.known.value
-                ? '一致'
-                : '不一致（请检查语义/结构约束）'}。
-            </div>
-          {:else if extremal.result.lowerBound}
-            <div>
-              Turán 构造下界：T{extremal.result.lowerBound.parts}(n) 有
-              {extremal.result.lowerBound.edges} 条边，且同时不含所有选中禁图。
-            </div>
-          {:else if extremal.result.patternCount > 1}
-            <div>多禁图没有单一 Turán 闭式；下面的下界只来自实际检查过的 Turán 构造。</div>
-          {:else}
-            <div>当前禁图没有内置闭式；精确值以图集穷举为准。</div>
-          {/if}
-          {#if selectedCandidate}
-            <div>
-              极图 #{extremal.selectedExtremal + 1}：
-              {selectedCandidate.maximality.maximal
-                ? `结构约束内极大，${selectedCandidate.maximality.addableEdges} 条可加入边全部产生禁图`
-                : `非极大，反例边 (${selectedCandidate.maximality.witnessEdge?.join(',') ?? '?'})`}。
-            </div>
-            {#if selectedCandidate.stability}
-              <div>与 Turán 构造：{selectedCandidate.stability.note}</div>
-            {/if}
-          {/if}
-        </div>
-        {#if selectedCandidate}
-          <div class="line" data-testid="extremal-maximality">
-            {#if selectedCandidate.maximality.maximal}
-              极大性证书：<b>通过</b>（结构约束内 {selectedCandidate.maximality.addableEdges}
-              条可加入边都会产生禁图
-              {#if selectedCandidate.maximality.blockedByFilters > 0}
-                ；另有 {selectedCandidate.maximality.blockedByFilters} 条被约束阻止
-              {/if}）
-            {:else}
-              非极大：缺失边 ({selectedCandidate.maximality.witnessEdge?.join(',') ?? '?'})
-              加入后仍不含禁图
-            {/if}
-          </div>
-          {#if selectedCandidate.stability}
-            <div class="hint" data-testid="extremal-stability">
-              稳定性：χ = {selectedCandidate.stability.chromatic}，{selectedCandidate.stability
-                .note}
-            </div>
-          {/if}
-        {/if}
-        <div class="hint">{extremal.previewNote}</div>
-        <div class="hint" data-testid="extremal-preview-title">
-          当前预览：{extremal.preview?.title ?? '无'}
-        </div>
-        {#if previewSelectionInfo}
-          <div class="selection" data-testid="extremal-canvas-selection">
-            <strong>{previewSelectionInfo.title}</strong>
-            {#each previewSelectionInfo.lines as line (line)}
-              <div>{line}</div>
-            {/each}
-          </div>
-        {:else}
-          <div class="hint">悬停 / 点击画布上的顶点或边可查看局部信息。</div>
-        {/if}
-        {#if extremal.result.extremal.length > 0}
-          <div class="row wrap">
-            <button
-              type="button"
-              data-testid="extremal-gallery-prev"
-              disabled={extremal.galleryPage <= 0}
-              onclick={() => setGalleryPage(extremal.galleryPage - 1)}>上一页</button
-            >
-            <span class="dim">
-              第 {extremal.galleryPage + 1} / {galleryPageCount} 页 · 共
-              {extremal.result.extremal.length} 个极图
-            </span>
-            <button
-              type="button"
-              data-testid="extremal-gallery-next"
-              disabled={extremal.galleryPage >= galleryPageCount - 1}
-              onclick={() => setGalleryPage(extremal.galleryPage + 1)}>下一页</button
-            >
-          </div>
-          <div class="row wrap">
-            {#each galleryCandidates as graph, offset (graph.graph6)}
-              {@const index = galleryPageStart + offset}
-              <button
-                type="button"
-                class:active={extremal.selectedExtremal === index}
-                data-testid={`extremal-graph-${index}`}
-                onclick={() => showExtremalGraph(index)}>极图 #{index + 1}</button
-              >
-            {/each}
-          </div>
-          {#if selectedCandidate}
-            <div class="selection" data-testid="extremal-graph-info">
-              <strong>极图 #{extremal.selectedExtremal + 1}</strong>
-              <div>
-                n = {selectedCandidate.n} · m = {selectedCandidate.m} · graph6
-                <code>{selectedCandidate.graph6}</code>
-              </div>
-              <div>
-                度序列 [{selectedCandidate.degrees.join(', ')}] · χ =
-                {selectedInvariants?.chromatic ?? '—'} · ω =
-                {selectedInvariants?.clique ?? '—'} · α =
-                {selectedInvariants?.independence ?? '—'}
-              </div>
-            </div>
-            <button
-              type="button"
-              data-testid="extremal-load-graph"
-              disabled={!onOpenGraph}
-              onclick={loadSelectedToGraph}>载入图论画布</button
-            >
-          {/if}
-        {/if}
-        {#if extremal.result.saturation}
-          <div class="line" data-testid="extremal-saturation">
-            sat({extremal.result.n}, {extremal.result.patternLabel}) =
-            {#if extremal.result.saturation.value === null}
-              <b>未找到</b>
-            {:else}
-              <b>{extremal.result.saturation.value}</b>
-            {/if}
-            · {extremal.result.saturation.count} 个最小饱和图
-          </div>
-          <div class="hint">{extremal.result.saturation.note}</div>
-          {#if extremal.result.saturation.examples.length > 0}
-            <div class="row wrap">
-              {#each extremal.result.saturation.examples as graph, index (graph.graph6)}
-                <button
-                  type="button"
-                  data-testid={`extremal-sat-${index}`}
-                  onclick={() => showSaturationGraph(index)}
-                  >饱和图 #{index + 1}（{graph.m} 边）</button
-                >
-              {/each}
-            </div>
-          {/if}
         {/if}
       {/if}
     </div>

@@ -12,6 +12,8 @@
   import { DocFormatError, deserializeDocument, serializeDocument } from '../state/serialize'
   import ExportPanel from './ExportPanel.svelte'
   import ToolsPanel from './ToolsPanel.svelte'
+  import ExtremalResultPanel from './ExtremalResultPanel.svelte'
+  import { hyperLab } from '../state/hyper-state.svelte'
   import { markSaved } from './save-state.svelte'
   import ChartColumn from '@lucide/svelte/icons/chart-column'
   import CircleDot from '@lucide/svelte/icons/circle-dot'
@@ -63,12 +65,16 @@
     registry,
     mode,
     getStageSize,
+    onOpenGraph,
   }: {
     store: AppStore
     registry: ToolRegistry
     mode: AppMode
     getStageSize: () => Size
+    onOpenGraph?: (payload: { name: string; n: number; edges: Array<[number, number]> }) => void
   } = $props()
+
+  const extremalInspector = $derived(mode === 'hyper' && hyperLab.tab === 'extremal')
 
   let currentView = $state<ViewTransform | null>(null)
   $effect(() => {
@@ -174,7 +180,12 @@
   }
 </script>
 
-<aside class="inspector" data-testid="inspector-panel" aria-label="检查器">
+<aside
+  class="inspector"
+  class:wide={extremalInspector}
+  data-testid="inspector-panel"
+  aria-label="检查器"
+>
   <div class="inspector-head">
     <div>
       <strong>检查器</strong>
@@ -182,10 +193,14 @@
     </div>
   </div>
 
-  <div class="hint-card">
-    <strong>{MODE_LABELS[mode]}</strong>
-    <p>{MODE_HINTS[mode]}</p>
-  </div>
+  {#if extremalInspector}
+    <ExtremalResultPanel {onOpenGraph} />
+  {:else}
+    <div class="hint-card">
+      <strong>{MODE_LABELS[mode]}</strong>
+      <p>{MODE_HINTS[mode]}</p>
+    </div>
+  {/if}
 
   <ToolsPanel {registry} />
 
@@ -372,6 +387,11 @@
     flex-direction: column;
     gap: 10px;
     padding: 10px;
+  }
+
+  .inspector.wide {
+    width: 360px;
+    flex-basis: 360px;
   }
 
   .inspector-head {
@@ -589,6 +609,10 @@
       width: 264px;
       flex-basis: 264px;
     }
+    .inspector.wide {
+      width: 320px;
+      flex-basis: 320px;
+    }
   }
 
   @media (max-width: 1100px) {
@@ -596,10 +620,15 @@
       width: 236px;
       flex-basis: 236px;
     }
+    .inspector.wide {
+      width: 300px;
+      flex-basis: 300px;
+    }
   }
 
   @media (max-width: 920px) {
-    .inspector {
+    .inspector,
+    .inspector.wide {
       width: 100%;
       flex-basis: auto;
       max-height: 46vh;
