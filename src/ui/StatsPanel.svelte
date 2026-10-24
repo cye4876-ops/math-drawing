@@ -139,7 +139,12 @@
       }
       const ds = tableToDataset(table, name)
       store.addDataset(ds)
-      describeColumn = 0
+      describeColumn =
+        ds.chart.kind === 'scatter'
+          ? ds.chart.xColumn
+          : ds.chart.kind === 'histogram'
+            ? ds.chart.column
+            : 0
       importStatus = `已导入 ${table.rowCount} 行 × ${table.columns.length} 列${table.warnings.length > 0 ? `；${table.warnings.join('；')}` : ''}`
     } catch (error) {
       importStatus = `导入失败：${error instanceof Error ? error.message : String(error)}`

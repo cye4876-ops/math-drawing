@@ -124,26 +124,93 @@ function plain<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
-/** 防御性解析：损坏时返回空档案（不抛错） */
+function isCandidate(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value['n'] === 'number' &&
+    Number.isFinite(value['n']) &&
+    typeof value['m'] === 'number' &&
+    Number.isFinite(value['m']) &&
+    Array.isArray(value['degrees']) &&
+    Array.isArray(value['edges']) &&
+    Array.isArray(value['checks'])
+  )
+}
+
+function isStoredOrder(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value['n'] === 'number' &&
+    Number.isFinite(value['n']) &&
+    typeof value['complete'] === 'boolean' &&
+    Array.isArray(value['candidates']) &&
+    value['candidates'].every(isCandidate)
+  )
+}
+
+function isLabHypergraph(value: unknown): value is LabHypergraph {
+  return (
+    isRecord(value) &&
+    typeof value['n'] === 'number' &&
+    Number.isInteger(value['n']) &&
+    value['n'] > 0 &&
+    Array.isArray(value['edges']) &&
+    value['edges'].every((edge) => Array.isArray(edge))
+  )
+}
+
+function isLabExperiment(value: unknown): value is LabExperiment {
+  return (
+    isRecord(value) &&
+    typeof value['id'] === 'string' &&
+    value['id'] !== '' &&
+    (value['kind'] === 'graph' || value['kind'] === 'hypergraph') &&
+    typeof value['title'] === 'string' &&
+    typeof value['createdAt'] === 'string' &&
+    Number.isFinite(Date.parse(value['createdAt'])) &&
+    isRecord(value['spec']) &&
+    Array.isArray(value['orders']) &&
+    value['orders'].every(isStoredOrder)
+  )
+}
+
+function isLabConstruction(value: unknown): value is LabConstruction {
+  return (
+    isRecord(value) &&
+    typeof value['id'] === 'string' &&
+    value['id'] !== '' &&
+    typeof value['title'] === 'string' &&
+    isLabHypergraph(value['hypergraph'])
+  )
+}
+
+function isLabComparison(value: unknown): value is LabComparisonRecord {
+  return (
+    isRecord(value) &&
+    typeof value['id'] === 'string' &&
+    value['id'] !== '' &&
+    typeof value['title'] === 'string' &&
+    isLabHypergraph(value['left']) &&
+    isLabHypergraph(value['right']) &&
+    typeof value['identical'] === 'boolean' &&
+    typeof value['cospectral'] === 'boolean'
+  )
+}
+
+/** 防御性解析：损坏的记录逐条丢弃，整体不可解析时返回空档案（不抛错） */
 export function parseArchive(text: string | null): LabArchive {
   if (!text) return emptyArchive()
   try {
     const data = JSON.parse(text) as unknown
     if (!isRecord(data)) return emptyArchive()
-    const experiments = Array.isArray(data.experiments) ? (data.experiments as LabExperiment[]) : []
-    const constructions = Array.isArray(data.constructions)
-      ? (data.constructions as LabConstruction[])
-      : []
-    const comparisons = Array.isArray(data.comparisons)
-      ? (data.comparisons as LabComparisonRecord[])
-      : []
+    const experiments = Array.isArray(data.experiments) ? data.experiments : []
+    const constructions = Array.isArray(data.constructions) ? data.constructions : []
+    const comparisons = Array.isArray(data.comparisons) ? data.comparisons : []
     return {
       version: LAB_ARCHIVE_VERSION,
-      experiments: experiments.filter((entry) => isRecord(entry) && typeof entry.id === 'string'),
-      constructions: constructions.filter(
-        (entry) => isRecord(entry) && typeof entry.id === 'string',
-      ),
-      comparisons: comparisons.filter((entry) => isRecord(entry) && typeof entry.id === 'string'),
+      experiments: experiments.filter(isLabExperiment),
+      constructions: constructions.filter(isLabConstruction),
+      comparisons: comparisons.filter(isLabComparison),
     }
   } catch {
     return emptyArchive()

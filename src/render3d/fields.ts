@@ -31,7 +31,10 @@ export function arrowField2D(
       const y = options.yMin + j * dy
       const [u, v] = f(x, y)
       if (!Number.isFinite(u) || !Number.isFinite(v)) continue
-      arrows.push({ x, y, u, v, magnitude: Math.hypot(u, v) })
+      const magnitude = Math.hypot(u, v)
+      // 幅值溢出（如 1e308 分量）时 hypot 为 Infinity，不能进入箭头几何
+      if (!Number.isFinite(magnitude)) continue
+      arrows.push({ x, y, u, v, magnitude })
     }
   }
   return arrows
@@ -67,7 +70,9 @@ export function arrowField3D(
         const z = options.min[2] + k * step[2]
         const [u, v, w] = f(x, y, z)
         if (!Number.isFinite(u) || !Number.isFinite(v) || !Number.isFinite(w)) continue
-        arrows.push({ position: [x, y, z], direction: [u, v, w], magnitude: Math.hypot(u, v, w) })
+        const magnitude = Math.hypot(u, v, w)
+        if (!Number.isFinite(magnitude)) continue
+        arrows.push({ position: [x, y, z], direction: [u, v, w], magnitude })
       }
     }
   }

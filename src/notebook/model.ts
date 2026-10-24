@@ -21,6 +21,7 @@ import {
 } from '../symbolic/run'
 import { toLatex } from '../symbolic/latex'
 import { parseDelimited } from '../stats/parse'
+import { deserializeDocument, DOC_FORMAT_VERSION } from '../state/serialize'
 import type { DocState, ViewTransform } from '../state/types'
 
 // ---------- 单元格模型 ----------
@@ -144,6 +145,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const CELL_TYPES: readonly NotebookCellType[] = ['markdown', 'figure', 'compute', 'data', 'plugin']
 
+function parseFigureDoc(raw: Record<string, unknown>): DocState {
+  const { doc } = deserializeDocument(
+    JSON.stringify({ version: DOC_FORMAT_VERSION, objects: raw['objects'] }),
+  )
+  return doc
+}
+
+function parseFigureView(raw: Record<string, unknown>): ViewTransform {
+  const { view } = deserializeDocument(
+    JSON.stringify({ version: DOC_FORMAT_VERSION, objects: [], view: raw }),
+  )
+  return view
+}
+
 function parseCell(raw: unknown, index: number): NotebookCell {
   if (!isRecord(raw)) throw new NotebookFormatError(`第 ${index + 1} 个单元格不是对象`)
   const type = raw['type']
@@ -184,14 +199,34 @@ function parseCell(raw: unknown, index: number): NotebookCell {
       }
     }
     case 'figure': {
-      const doc = raw['doc']
-      const view = raw['view']
+      const rawDoc = raw['doc']
+      const rawView = raw['view']
+      let doc: DocState | null = null
+      let view: ViewTransform | null = null
+      if (isRecord(rawDoc)) {
+        try {
+          doc = parseFigureDoc(rawDoc)
+        } catch (error) {
+          throw new NotebookFormatError(
+            `第 ${index + 1} 个图形单元格的快照无效：${error instanceof Error ? error.message : String(error)}`,
+          )
+        }
+      }
+      if (isRecord(rawView)) {
+        try {
+          view = parseFigureView(rawView)
+        } catch (error) {
+          throw new NotebookFormatError(
+            `第 ${index + 1} 个图形单元格的视图无效：${error instanceof Error ? error.message : String(error)}`,
+          )
+        }
+      }
       return {
         id,
         type: 'figure',
         collapsed,
-        doc: isRecord(doc) ? (doc as unknown as DocState) : null,
-        view: isRecord(view) ? (view as unknown as ViewTransform) : null,
+        doc,
+        view,
         caption: typeof raw['caption'] === 'string' ? raw['caption'] : '',
       }
     }
@@ -218,9 +253,15 @@ export function parseNotebook(json: string): Notebook {
   if (!isRecord(data)) throw new NotebookFormatError('Notebook 根节点必须是对象')
   const cellsRaw = data['cells']
   if (!Array.isArray(cellsRaw)) throw new NotebookFormatError('Notebook 缺少 cells 数组')
+  const cells = cellsRaw.map((cell, index) => parseCell(cell, index))
+  const ids = new Set<string>()
+  for (const [index, cell] of cells.entries()) {
+    if (ids.has(cell.id)) throw new NotebookFormatError(`第 ${index + 1} 个单元格 id 重复`)
+    ids.add(cell.id)
+  }
   return {
     title: typeof data['title'] === 'string' ? data['title'] : '未命名 Notebook',
-    cells: cellsRaw.map((cell, index) => parseCell(cell, index)),
+    cells,
   }
 }
 

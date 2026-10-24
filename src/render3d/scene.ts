@@ -574,6 +574,7 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
           scalar = divergence2D((x, y) => [fx(x, y), fy(x, y)], arrow.x, arrow.y)
         if (object.colorMode === 'curl')
           scalar = curl2D((x, y) => [fx(x, y), fy(x, y)], arrow.x, arrow.y)
+        if (!Number.isFinite(scalar)) continue
         arrows.push({ from: [arrow.x, arrow.y, 0], dir, scalar })
         scalars.push(scalar)
       }
@@ -604,6 +605,7 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
           const c = curl3D((x, y, z) => [fx(x, y, z), fy(x, y, z), fz(x, y, z)], ...arrow.position)
           scalar = Math.hypot(...c)
         }
+        if (!Number.isFinite(scalar)) continue
         arrows.push({ from: arrow.position, dir, scalar })
         scalars.push(scalar)
       }

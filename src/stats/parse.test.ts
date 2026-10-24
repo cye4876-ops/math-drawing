@@ -94,8 +94,21 @@ describe('stats/parse: CSV/TSV 解析', () => {
     const progress: number[] = []
     const table = await parseDelimitedAsync(lines.join('\n'), 1000, (f) => progress.push(f))
     expect(table.columns).toEqual(['x', 'y'])
-    expect(table.rows.length).toBeGreaterThan(0)
+    expect(table.rowCount).toBe(5000)
+    expect(table.rows).toHaveLength(5000)
     expect(progress[progress.length - 1]).toBeCloseTo(1, 6)
+  })
+
+  it('异步分片保留每片首行数据，并合并文本列标记', async () => {
+    const lines: string[] = ['name,x,y']
+    for (let i = 0; i < 2500; i++) lines.push(`item${i},${i},${i * 2}`)
+    const table = await parseDelimitedAsync(lines.join('\n'), 500)
+    expect(table.columns).toEqual(['name', 'x', 'y'])
+    expect(table.textColumns).toEqual([0])
+    expect(table.rowCount).toBe(2500)
+    expect(table.rows[0]).toEqual([null, 0, 0])
+    expect(table.rows[499]).toEqual([null, 499, 998])
+    expect(table.rows[2499]).toEqual([null, 2499, 4998])
   })
 
   it('tableToDataset：转数据集对象', () => {

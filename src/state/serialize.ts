@@ -15,7 +15,7 @@ import type {
   Surface3DKind,
   ViewTransform,
 } from './types'
-import { createView } from '../core/transform'
+import { clampScale, createView } from '../core/transform'
 import { normalizeGraphDoc } from '../graph/model'
 import { normalizeDataset } from '../stats/model'
 
@@ -203,6 +203,9 @@ function parseSurface3D(raw: Record<string, unknown>, position: number): Surface
   }
   if (typeof raw['expr2'] === 'string') surface.expr2 = raw['expr2']
   if (typeof raw['expr3'] === 'string') surface.expr3 = raw['expr3']
+  // v3.12 隐式曲面等值面水平：缺失时保持 undefined（渲染默认 0），有效值必须有限
+  const isoValue = raw['isoValue']
+  if (typeof isoValue === 'number' && Number.isFinite(isoValue)) surface.isoValue = isoValue
   const surfaceTemplate = parsePresetBinding(raw['template'])
   if (surfaceTemplate) surface.template = surfaceTemplate
   return surface
@@ -261,7 +264,10 @@ function parseField3D(raw: Record<string, unknown>, position: number): Field3D {
     zMax: numField(raw, 'zMax', 3),
     divisions: Math.round(numField(raw, 'divisions', 6, 2, 24)),
     scale: numField(raw, 'scale', 1.6, 0.1, 5),
-    colorMode: colorMode === 'divergence' || colorMode === 'curl' ? colorMode : ('none' as const),
+    colorMode:
+      colorMode === 'magnitude' || colorMode === 'divergence' || colorMode === 'curl'
+        ? colorMode
+        : ('none' as const),
     streamSeeds: Math.round(numField(raw, 'streamSeeds', 0, 0, 64)),
     color: typeof raw['color'] === 'string' && raw['color'] !== '' ? raw['color'] : '#0891b2',
     visible: typeof raw['visible'] === 'boolean' ? raw['visible'] : true,
@@ -325,8 +331,9 @@ function parseView(raw: unknown): ViewTransform {
   }
   view.centerX = num('centerX', base.centerX)
   view.centerY = num('centerY', base.centerY)
-  view.scaleX = num('scaleX', base.scaleX)
-  view.scaleY = num('scaleY', base.scaleY)
+  // 缩放必须为正且有限：0/负数/NaN 会让投影矩阵与命中测试失效
+  view.scaleX = clampScale(num('scaleX', base.scaleX))
+  view.scaleY = clampScale(num('scaleY', base.scaleY))
   view.axisX = num('axisX', base.axisX)
   view.axisY = num('axisY', base.axisY)
   view.equalAspect = typeof r['equalAspect'] === 'boolean' ? r['equalAspect'] : base.equalAspect
@@ -361,21 +368,28 @@ export function deserializeDocument(json: string): { doc: DocState; view: ViewTr
   if (!Array.isArray(rawObjects)) throw new DocFormatError('缺少 objects 数组')
 
   const objects: SceneObject[] = []
+  const ids = new Set<string>()
   rawObjects.forEach((item, index) => {
     if (item === null || typeof item !== 'object') {
       throw new DocFormatError(`第 ${index} 个对象不是有效对象`)
     }
     const raw = item as Record<string, unknown>
-    if (raw['type'] === 'curve') objects.push(parseCurve(raw, index))
-    else if (raw['type'] === 'marker') objects.push(parseMarker(raw, index))
-    else if (raw['type'] === 'graph') objects.push(parseGraph(raw, index))
-    else if (raw['type'] === 'dataset') objects.push(parseDataset(raw, index))
-    else if (raw['type'] === 'surface3d') objects.push(parseSurface3D(raw, index))
-    else if (raw['type'] === 'curve3d') objects.push(parseCurve3D(raw, index))
-    else if (raw['type'] === 'field3d') objects.push(parseField3D(raw, index))
-    else if (raw['type'] === 'ode2d') objects.push(parseOde2D(raw, index))
-    else if (raw['type'] === 'plugin') objects.push(parsePluginObject(raw, index))
+    let object: SceneObject
+    if (raw['type'] === 'curve') object = parseCurve(raw, index)
+    else if (raw['type'] === 'marker') object = parseMarker(raw, index)
+    else if (raw['type'] === 'graph') object = parseGraph(raw, index)
+    else if (raw['type'] === 'dataset') object = parseDataset(raw, index)
+    else if (raw['type'] === 'surface3d') object = parseSurface3D(raw, index)
+    else if (raw['type'] === 'curve3d') object = parseCurve3D(raw, index)
+    else if (raw['type'] === 'field3d') object = parseField3D(raw, index)
+    else if (raw['type'] === 'ode2d') object = parseOde2D(raw, index)
+    else if (raw['type'] === 'plugin') object = parsePluginObject(raw, index)
     else throw new DocFormatError(`第 ${index} 个对象类型未知：${String(raw['type'])}`)
+    if (ids.has(object.id)) {
+      throw new DocFormatError(`第 ${index} 个对象 id 重复：${object.id}`)
+    }
+    ids.add(object.id)
+    objects.push(object)
   })
 
   return { doc: { objects }, view: parseView(root['view']) }

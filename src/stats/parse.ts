@@ -228,19 +228,42 @@ export async function parseDelimitedAsync(
     onProgress?.(Math.min(1, (i + chunkRows) / lines.length) * 0.3)
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
-  // 各分片做「行级」粗解析后合并（引号跨片边界属极端情况，README 注明）
+  // 各分片做「行级」粗解析后合并（引号跨片边界属极端情况，README 注明）。
+  // 关键：后续分片补一行合成表头，避免首行文本数据被误判为表头而丢失；
+  // textColumns 取各分片并集，保证大文件导入后默认图表仍避开文本列。
+  const delimiter = detectDelimiter(text)
   const merged: ParsedTable = { columns: [], rows: [], textColumns: [], warnings: [], rowCount: 0 }
+  const textColumns = new Set<number>()
+  const warnings = new Set<string>()
   let first = true
   for (let i = 0; i < parts.length; i++) {
-    const part = parseDelimited(parts[i]!)
+    const header =
+      merged.columns.length > 0
+        ? `${merged.columns.map((_, index) => `x${index + 1}`).join(delimiter)}\n`
+        : ''
+    const part = parseDelimited(`${header}${parts[i]!}`)
     if (first && part.columns.length > 0) {
       merged.columns = part.columns
       first = false
     }
-    merged.rows.push(...part.rows)
-    merged.warnings.push(...part.warnings)
+    if (merged.columns.length > 0) {
+      for (const column of part.textColumns) {
+        if (column < merged.columns.length) textColumns.add(column)
+      }
+      for (const warning of part.warnings) warnings.add(warning)
+      for (const row of part.rows) {
+        const normalized = row.slice(0, merged.columns.length)
+        while (normalized.length < merged.columns.length) normalized.push(null)
+        merged.rows.push(normalized)
+      }
+    }
     onProgress?.(0.3 + (0.7 * (i + 1)) / parts.length)
     await new Promise((resolve) => setTimeout(resolve, 0))
+  }
+  merged.textColumns = [...textColumns].sort((a, b) => a - b)
+  merged.warnings = [...warnings]
+  for (const row of merged.rows) {
+    for (const column of merged.textColumns) row[column] = null
   }
   merged.rowCount = merged.rows.length
   return merged
@@ -248,22 +271,32 @@ export async function parseDelimitedAsync(
 
 /** 解析结果 → Dataset（列选择与默认图表由调用方覆盖） */
 export function tableToDataset(table: ParsedTable, name = '数据集'): Dataset {
-  const numericColumns = table.columns.filter((_, i) => !table.textColumns.includes(i))
+  const numericIndices = table.columns
+    .map((_, index) => index)
+    .filter((index) => !table.textColumns.includes(index))
+  // 默认图表必须指向数值列，不能假设第 0/1 列一定是数值（首列可能是分类文本）
   const chart =
-    numericColumns.length >= 2
-      ? undefined
+    numericIndices.length >= 2
+      ? {
+          kind: 'scatter' as const,
+          xColumn: numericIndices[0]!,
+          yColumn: numericIndices[1]!,
+          regression: 'linear' as const,
+          degree: 2,
+          modelExpr: '',
+          showResiduals: false,
+        }
       : {
           kind: 'histogram' as const,
-          column: 0,
+          column: numericIndices[0] ?? 0,
           bins: 'auto' as const,
           kde: true,
           kernel: 'gaussian' as const,
         }
-  const base = normalizeDataset({
+  return normalizeDataset({
     name,
     columns: table.columns,
     rows: table.rows,
     chart,
   })
-  return base
 }

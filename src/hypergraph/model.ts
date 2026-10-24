@@ -167,6 +167,7 @@ export function parseHypergraphJson(text: string): HypergraphDoc {
     }
     const ids = new Set(vertices.map((vertex) => vertex.id))
     const seen = new Set<string>()
+    const edgeIds = new Set<string>()
     const edges: HyperEdge[] = []
     for (const [index, item] of edgesRaw.entries()) {
       if (!isRecord(item)) throw new HypergraphFormatError(`第 ${index + 1} 条超边须为对象`)
@@ -184,8 +185,11 @@ export function parseHypergraphJson(text: string): HypergraphDoc {
       const key = [...members].sort().join(',')
       if (seen.has(key)) continue
       seen.add(key)
+      const edgeId = typeof item['id'] === 'string' && item['id'] ? item['id'] : `e${index}`
+      if (edgeIds.has(edgeId)) throw new HypergraphFormatError(`超边 id 不能重复：${edgeId}`)
+      edgeIds.add(edgeId)
       edges.push({
-        id: typeof item['id'] === 'string' && item['id'] ? item['id'] : `e${index}`,
+        id: edgeId,
         label: typeof item['label'] === 'string' && item['label'] ? item['label'] : `e${index + 1}`,
         members,
         color:

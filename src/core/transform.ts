@@ -206,18 +206,26 @@ export function unitRangeSamples(
 }
 
 /**
- * 视图归一化：对数坐标要求 center 与轴位置为正（log10 无定义；
- * 否则 centerUnit 会被钳到 -300，视图瞬间跑到 1e-300 量级）。
- * 非正/非有限值替换为 1；其余字段原样（无改动时返回原对象，便于引用相等判断）。
+ * 视图归一化：
+ * - 缩放必须为有限正数（0/负数/NaN 会让投影与命中测试失效），否则夹取到安全范围；
+ * - 对数坐标要求 center 与轴位置为正（log10 无定义；否则 centerUnit 会被钳到
+ *   -300，视图瞬间跑到 1e-300 量级），非正/非有限值替换为 1；
+ * - 线性坐标的非有限 center/轴位置替换为 0（有限大坐标保持原值）。
+ * 无改动时返回原对象，便于引用相等判断。
  */
 export function sanitizeView(view: ViewTransform): ViewTransform {
-  if (view.coordType !== 'log') return view
-  const fix = (v: number): number => (Number.isFinite(v) && v > 0 ? v : 1)
+  const log = view.coordType === 'log'
+  const scaleX = clampScale(view.scaleX)
+  const scaleY = clampScale(view.scaleY)
+  const fallback = log ? 1 : 0
+  const fix = (v: number): number => (Number.isFinite(v) && (!log || v > 0) ? v : fallback)
   const centerX = fix(view.centerX)
   const centerY = fix(view.centerY)
   const axisX = fix(view.axisX)
   const axisY = fix(view.axisY)
   if (
+    scaleX === view.scaleX &&
+    scaleY === view.scaleY &&
     centerX === view.centerX &&
     centerY === view.centerY &&
     axisX === view.axisX &&
@@ -225,5 +233,5 @@ export function sanitizeView(view: ViewTransform): ViewTransform {
   ) {
     return view
   }
-  return { ...view, centerX, centerY, axisX, axisY }
+  return { ...view, scaleX, scaleY, centerX, centerY, axisX, axisY }
 }

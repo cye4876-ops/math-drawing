@@ -185,59 +185,89 @@ export function normalizeGraphDoc(raw: unknown): GraphDoc {
   }
   const nodes = record['nodes'] as unknown[]
   const edges = record['edges'] as unknown[]
+  const nodeIds = new Set<string>()
   for (const [index, node] of nodes.entries()) {
     if (typeof node !== 'object' || node === null) throw new Error(`第 ${index} 个顶点不是对象`)
     const n = node as Record<string, unknown>
+    const id = n['id']
     if (
-      typeof n['id'] !== 'string' ||
+      typeof id !== 'string' ||
+      id === '' ||
       typeof n['label'] !== 'string' ||
       typeof n['x'] !== 'number' ||
-      typeof n['y'] !== 'number'
+      !Number.isFinite(n['x']) ||
+      typeof n['y'] !== 'number' ||
+      !Number.isFinite(n['y'])
     ) {
-      throw new Error(`第 ${index} 个顶点缺少 id/label/x/y`)
+      throw new Error(`第 ${index} 个顶点缺少 id/label/x/y 或坐标非有限数`)
     }
+    if (nodeIds.has(id)) throw new Error(`第 ${index} 个顶点 id 重复：${id}`)
+    nodeIds.add(id)
   }
+  const edgeIds = new Set<string>()
   for (const [index, edge] of edges.entries()) {
     if (typeof edge !== 'object' || edge === null) throw new Error(`第 ${index} 条边不是对象`)
     const e = edge as Record<string, unknown>
+    const id = e['id']
+    const source = e['source']
+    const target = e['target']
     if (
-      typeof e['id'] !== 'string' ||
-      typeof e['source'] !== 'string' ||
-      typeof e['target'] !== 'string'
+      typeof id !== 'string' ||
+      id === '' ||
+      typeof source !== 'string' ||
+      typeof target !== 'string'
     ) {
       throw new Error(`第 ${index} 条边缺少 id/source/target`)
     }
+    if (edgeIds.has(id)) throw new Error(`第 ${index} 条边 id 重复：${id}`)
+    edgeIds.add(id)
+    if (!nodeIds.has(source) || !nodeIds.has(target)) {
+      throw new Error(`第 ${index} 条边引用了不存在的顶点`)
+    }
   }
-  // 规范化：补齐可选字段默认值
+  // 规范化：补齐可选字段默认值；非有限坐标/尺寸/权重不进入文档
   return {
     nodes: nodes.map((node) => {
       const n = node as Record<string, unknown>
+      const size = n['size']
+      const attrsRaw = n['attrs']
+      const attrs: Record<string, string | number> = {}
+      if (typeof attrsRaw === 'object' && attrsRaw !== null && !Array.isArray(attrsRaw)) {
+        for (const [key, value] of Object.entries(attrsRaw as Record<string, unknown>)) {
+          if (typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value))) {
+            attrs[key] = value
+          }
+        }
+      }
       return {
         id: n['id'] as string,
         label: n['label'] as string,
         x: n['x'] as number,
         y: n['y'] as number,
-        color: typeof n['color'] === 'string' ? n['color'] : (NODE_PALETTE[0] as string),
-        size: typeof n['size'] === 'number' ? n['size'] : DEFAULT_NODE_SIZE,
+        color:
+          typeof n['color'] === 'string' && n['color'] !== ''
+            ? n['color']
+            : (NODE_PALETTE[0] as string),
+        size:
+          typeof size === 'number' && Number.isFinite(size) && size > 0 ? size : DEFAULT_NODE_SIZE,
         shape:
           n['shape'] === 'square' || n['shape'] === 'diamond'
             ? (n['shape'] as NodeShape)
             : 'circle',
-        attrs:
-          typeof n['attrs'] === 'object' && n['attrs'] !== null
-            ? (n['attrs'] as Record<string, string | number>)
-            : {},
+        attrs,
       }
     }),
     edges: edges.map((edge) => {
       const e = edge as Record<string, unknown>
+      const weight = e['weight']
       return {
         id: e['id'] as string,
         source: e['source'] as string,
         target: e['target'] as string,
         directed: e['directed'] === true,
-        weight: typeof e['weight'] === 'number' ? e['weight'] : null,
-        color: typeof e['color'] === 'string' ? e['color'] : DEFAULT_EDGE_COLOR,
+        weight: typeof weight === 'number' && Number.isFinite(weight) ? weight : null,
+        color:
+          typeof e['color'] === 'string' && e['color'] !== '' ? e['color'] : DEFAULT_EDGE_COLOR,
         style: e['style'] === 'dashed' ? 'dashed' : 'solid',
       }
     }),

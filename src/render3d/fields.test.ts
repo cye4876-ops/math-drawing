@@ -40,6 +40,16 @@ describe('v0.8 向量场：箭头采样', () => {
       rows: 1,
     })
     expect(skipped).toHaveLength(2)
+
+    const overflow = arrowField2D(() => [Number.MAX_VALUE, Number.MAX_VALUE], {
+      xMin: 0,
+      xMax: 1,
+      yMin: 0,
+      yMax: 1,
+      cols: 2,
+      rows: 2,
+    })
+    expect(overflow).toHaveLength(0)
   })
 
   it('3D：divisions³ 采样、模长与方向正确', () => {
@@ -53,6 +63,13 @@ describe('v0.8 向量场：箭头采样', () => {
       (a) => a.position[0] === 1 && a.position[1] === 1 && a.position[2] === 1,
     )
     expect(corner?.magnitude).toBeCloseTo(Math.sqrt(3), 12)
+
+    const overflow = arrowField3D(() => [Number.MAX_VALUE, Number.MAX_VALUE, 0], {
+      min: [0, 0, 0],
+      max: [1, 1, 1],
+      divisions: 2,
+    })
+    expect(overflow).toHaveLength(0)
   })
 })
 

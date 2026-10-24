@@ -260,13 +260,25 @@ export function normalizeDataset(raw: unknown): Dataset {
       return typeof value === 'number' && Number.isFinite(value) ? value : null
     })
   })
+  // 图表列索引必须落在实际列范围内；单列且未指定图表时默认直方图
+  const chart =
+    (r['chart'] === undefined || r['chart'] === null) && columns.length < 2
+      ? defaultChart('histogram')
+      : normalizeChart(r['chart'])
+  const lastColumn = columns.length - 1
+  if (chart.kind === 'scatter') {
+    chart.xColumn = Math.min(chart.xColumn, lastColumn)
+    chart.yColumn = Math.min(chart.yColumn, lastColumn)
+  } else if (chart.kind === 'histogram') {
+    chart.column = Math.min(chart.column, lastColumn)
+  }
   return {
     id: typeof r['id'] === 'string' && r['id'] !== '' ? r['id'] : crypto.randomUUID(),
     type: 'dataset',
     name: typeof r['name'] === 'string' && r['name'] !== '' ? r['name'] : '数据集',
     columns,
     rows,
-    chart: normalizeChart(r['chart']),
+    chart,
     visible: typeof r['visible'] === 'boolean' ? r['visible'] : true,
   }
 }
