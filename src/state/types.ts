@@ -128,6 +128,8 @@ export interface Surface3D {
   opacity: number
   /** 网格分辨率（每轴分段数） */
   resolution: number
+  /** 隐式曲面的等值面水平：F(x,y,z) = isoValue（默认 0） */
+  isoValue?: number
   visible: boolean
   /** 参数化预设绑定（存在时面板显示参数滑块） */
   template?: PresetBinding
@@ -175,8 +177,8 @@ export interface Field3D {
   divisions: number
   /** 箭头长度比例（相对格距） */
   scale: number
-  /** 场性质着色：无 / 散度 / 旋度（按值映射色图） */
-  colorMode: 'none' | 'divergence' | 'curl'
+  /** 场性质着色：无 / 模长 / 散度 / 旋度（按值映射色图） */
+  colorMode: 'none' | 'magnitude' | 'divergence' | 'curl'
   /** 流线种子数（0 = 关闭） */
   streamSeeds: number
   color: string

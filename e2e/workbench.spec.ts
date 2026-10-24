@@ -134,9 +134,9 @@ test.describe('v2.4 工作台改版（布局 / 首屏引导 / 命名）', () => 
 
   test('3D 面板分区：视图/分析/导出标题齐全', async ({ page }) => {
     await page.goto('/?mode=space')
-    const side = page.getByTestId('side-column')
-    await expect(side.getByText('分析', { exact: true }).first()).toBeVisible()
-    await expect(side.getByText('导出', { exact: true }).first()).toBeVisible()
+    const inspector = page.getByTestId('inspector-panel')
+    await expect(inspector.getByText('分析', { exact: true }).first()).toBeVisible()
+    await expect(inspector.getByText('导出', { exact: true }).first()).toBeVisible()
     await expect(page.getByTestId('space-reset-camera')).toBeVisible()
     await expect(page.getByTestId('space-tangent')).toBeVisible()
   })

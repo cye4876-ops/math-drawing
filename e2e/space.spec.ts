@@ -333,6 +333,47 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
     await expect(page.getByTestId('space-empty')).toBeVisible()
   })
 
+  test('隐式曲面等值面滑杆：调整 F = c 后仍渲染', async ({ page }) => {
+    await page.goto('/?mode=space')
+    test.skip(!(await webglAvailable(page)), 'WebGL 不可用')
+    await page.getByTestId('space-add-kind').selectOption('custom')
+    await page.getByTestId('space-custom-input').fill('x^2 + y^2 + z^2 = 4')
+    await page.getByTestId('space-add').click()
+    await expect(page.getByTestId('space-iso-value')).toBeVisible()
+    await page.getByTestId('space-iso-value').evaluate((element) => {
+      const input = element as HTMLInputElement
+      input.value = '1'
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await expect.poll(() => countScenePixels(page), { timeout: 15000 }).toBeGreaterThan(1000)
+  })
+
+  test('3D 检查器：视角预设、质量档、色标与探针', async ({ page }) => {
+    await page.goto('/?mode=space')
+    test.skip(!(await webglAvailable(page)), 'WebGL 不可用')
+    await page.getByTestId('space-add').click()
+    await expect.poll(() => countScenePixels(page), { timeout: 15000 }).toBeGreaterThan(1000)
+    await expect(page.getByTestId('space-colorbar')).toBeVisible()
+    await expect(page.getByTestId('space-view-top')).toBeVisible()
+
+    await page.getByTestId('space-probe-toggle').check()
+    await expect(page.getByTestId('space-probe-readout')).toBeVisible()
+    await expect(page.getByTestId('space-probe-readout')).toContainText('探针：')
+
+    await page.getByTestId('space-quality-draft').click()
+    await expect(page.getByTestId('space-quality-draft')).toHaveClass(/active/)
+    await page.getByTestId('space-view-top').click()
+    await page.getByTestId('space-reset-camera').click()
+
+    await page.getByTestId('space-clip-axis').selectOption('x')
+    await page.getByTestId('space-clip-value').evaluate((element) => {
+      const input = element as HTMLInputElement
+      input.value = '0'
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await expect.poll(() => countScenePixels(page), { timeout: 15000 }).toBeGreaterThan(500)
+  })
+
   test('二重积分：∬(x²+y²) 在 [-1,1]² 上计算（≈8/3）并显示区域与采样数', async ({ page }) => {
     await page.goto('/?mode=space')
     await page.getByTestId('integral-f').fill('x^2 + y^2')

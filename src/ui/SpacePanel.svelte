@@ -15,7 +15,6 @@
     SpaceObject,
     Surface3D,
   } from '../state/types'
-  import { COLORMAP_NAMES, type ColormapName } from '../render3d/colormaps'
   import {
     CURVE3D_PRESETS,
     FIELD3D_PRESETS,
@@ -30,32 +29,9 @@
     presetDefaults,
     type PresetDefinition,
   } from '../render3d/objects'
-  import { compileDerivative, compileExpr } from '../render3d/compile'
   import { probeImplicitSurface } from '../render3d/implicit-probe'
   import { parseSpaceEquation } from '../core/space-equation'
-  import { tangentPlaneAt } from '../render3d/tangent'
-  import { doubleIntegral } from '../math/numeric/double-integral'
-  import {
-    getCamera,
-    getColormapName,
-    getContourCount,
-    getGifFps,
-    getGifFrames,
-    getShading,
-    getSpaceRevision,
-    getTangentPoint,
-    isSpaceExporting,
-    isTangentEnabled,
-    requestSpaceExport,
-    setCamera,
-    setColormapName,
-    setContourCount,
-    setGifFps,
-    setGifFrames,
-    setIntegralRegion,
-    setShading,
-    setTangentEnabled,
-  } from '../state/space-state.svelte'
+  import { setSelectedSpaceId } from '../state/space-state.svelte'
 
   let { store }: { store: AppStore } = $props()
 
@@ -85,6 +61,9 @@
   const selected = $derived(
     objects.find((object) => object.id === selectedId) ?? objects[0] ?? null,
   )
+  $effect(() => {
+    setSelectedSpaceId(selected?.id ?? null)
+  })
 
   /** v3.1.3：选中隐式曲面时探测 F = 0 在范围内是否有解（空曲面警告） */
   const implicitProbe = $derived.by(() => {
@@ -273,75 +252,9 @@
     return Number.isInteger(value) ? String(value) : value.toPrecision(4)
   }
 
-  // ---------- 切平面读数（偏导 = 符号求导） ----------
-  const tangentInfo = $derived.by(() => {
-    void getSpaceRevision()
-    if (!isTangentEnabled()) return null
-    const surface = objects.find(
-      (object): object is Surface3D =>
-        object.type === 'surface3d' && object.kind === 'explicit' && object.visible,
-    )
-    if (!surface) return null
-    const f = compileExpr(surface.expr, ['x', 'y'])
-    const dfx = compileDerivative(surface.expr, 'x', ['x', 'y'])
-    const dfy = compileDerivative(surface.expr, 'y', ['x', 'y'])
-    if (!f || !dfx || !dfy) return null
-    const [x0, y0] = getTangentPoint()
-    try {
-      const plane = tangentPlaneAt(
-        (x, y) => f(x, y),
-        (x, y) => dfx(x, y),
-        (x, y) => dfy(x, y),
-        x0,
-        y0,
-      )
-      return { surface: surface.name, x0, y0, z0: plane.z0, fx: plane.fx, fy: plane.fy }
-    } catch {
-      return null
-    }
-  })
-
   function format(value: number): string {
     if (!Number.isFinite(value)) return '—'
     return Math.abs(value) < 1e5 ? value.toPrecision(5) : value.toExponential(3)
-  }
-
-  // ---------- 二重积分（v2.1） ----------
-  let integralExpr = $state('x^2 + y^2')
-  let integralX0 = $state(-1)
-  let integralX1 = $state(1)
-  let integralY0 = $state(-1)
-  let integralY1 = $state(1)
-  let integralMessage = $state('')
-  let integralError = $state('')
-
-  function runIntegral(): void {
-    integralError = ''
-    integralMessage = ''
-    const f = compileExpr(integralExpr, ['x', 'y'])
-    if (!f) {
-      integralError = '表达式无法解析（变量为 x、y）'
-      return
-    }
-    const x0 = Number(integralX0)
-    const x1 = Number(integralX1)
-    const y0 = Number(integralY0)
-    const y1 = Number(integralY1)
-    if (![x0, x1, y0, y1].every(Number.isFinite) || x1 <= x0 || y1 <= y0) {
-      integralError = '积分范围需满足 x₁ > x₀ 且 y₁ > y₀'
-      return
-    }
-    const result = doubleIntegral((x, y) => f(x, y), x0, x1, y0, y1)
-    setIntegralRegion({ x0, x1, y0, y1 })
-    const reliability =
-      result.invalidSamples > 0 ? `；${result.invalidSamples} 个采样非有限，结果不可靠` : ''
-    integralMessage = `∬f dA ≈ ${format(result.value)}（区域 x∈[${formatParam(x0)}, ${formatParam(x1)}]，y∈[${formatParam(y0)}, ${formatParam(y1)}]；${result.samples} 采样${reliability}）`
-  }
-
-  function clearIntegral(): void {
-    setIntegralRegion(null)
-    integralMessage = ''
-    integralError = ''
   }
 </script>
 
@@ -706,6 +619,7 @@
               patch(field.id, { colorMode: (event.currentTarget as HTMLSelectElement).value })}
           >
             <option value="none">无（单色）</option>
+            <option value="magnitude">模长 |F|</option>
             <option value="divergence">散度 ∇·F</option>
             <option value="curl">旋度 |∇×F|</option>
           </select>
@@ -867,175 +781,6 @@
       {/if}
     </div>
   {/if}
-
-  <div class="section">
-    <div class="section-title">视图</div>
-    <div class="row">
-      <span class="dim">相机</span>
-      <select
-        data-testid="space-camera"
-        value={getCamera()}
-        onchange={(event) =>
-          setCamera((event.currentTarget as HTMLSelectElement).value as 'persp' | 'ortho')}
-      >
-        <option value="persp">透视</option>
-        <option value="ortho">正交</option>
-      </select>
-      <span class="dim">着色</span>
-      <select
-        data-testid="space-shading"
-        value={getShading()}
-        onchange={(event) =>
-          setShading(
-            (event.currentTarget as HTMLSelectElement).value as 'solid' | 'height' | 'normal',
-          )}
-      >
-        <option value="solid">单色</option>
-        <option value="height">高度（z 值 × 色图）</option>
-        <option value="normal">法向</option>
-      </select>
-      <select
-        data-testid="space-colormap"
-        value={getColormapName()}
-        onchange={(event) =>
-          setColormapName((event.currentTarget as HTMLSelectElement).value as ColormapName)}
-      >
-        {#each COLORMAP_NAMES as name (name)}
-          <option value={name}>{name}</option>
-        {/each}
-      </select>
-    </div>
-    <div class="row">
-      <span class="dim">等高线</span>
-      <input
-        type="range"
-        min="0"
-        max="12"
-        step="1"
-        data-testid="space-contours"
-        value={getContourCount()}
-        onchange={(event) =>
-          setContourCount(Number((event.currentTarget as HTMLInputElement).value))}
-      />
-      <span class="value">{getContourCount() === 0 ? '关' : getContourCount()}</span>
-    </div>
-    <div class="row">
-      <button
-        type="button"
-        data-testid="space-reset-camera"
-        onclick={() => requestSpaceExport('reset')}
-      >
-        重置视角
-      </button>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">分析</div>
-    <div class="row">
-      <label class="check">
-        <input
-          type="checkbox"
-          data-testid="space-tangent"
-          checked={isTangentEnabled()}
-          onchange={(event) => setTangentEnabled((event.currentTarget as HTMLInputElement).checked)}
-        />
-        切平面
-      </label>
-      <span class="dim">曲面上拖动移动切点</span>
-    </div>
-    {#if tangentInfo}
-      <div class="tangent-readout" data-testid="tangent-readout">
-        <div class="dim">切点（{tangentInfo.surface}）</div>
-        <div>f({format(tangentInfo.x0)}, {format(tangentInfo.y0)}) = {format(tangentInfo.z0)}</div>
-        <div data-testid="tangent-dx">∂f/∂x = {format(tangentInfo.fx)}</div>
-        <div data-testid="tangent-dy">∂f/∂y = {format(tangentInfo.fy)}</div>
-      </div>
-    {/if}
-  </div>
-
-  <div class="section">
-    <div class="section-title">二重积分 ∬f dA（矩形区域）</div>
-    <div class="row">
-      <span class="dim">f(x, y) =</span>
-      <input
-        type="text"
-        class="expr"
-        data-testid="integral-f"
-        placeholder="如 x^2 + y^2"
-        bind:value={integralExpr}
-      />
-    </div>
-    <div class="row">
-      <span class="dim">x ∈</span>
-      <input type="number" step="any" data-testid="integral-x0" bind:value={integralX0} />
-      <span class="dim">～</span>
-      <input type="number" step="any" data-testid="integral-x1" bind:value={integralX1} />
-      <span class="dim">，y ∈</span>
-      <input type="number" step="any" data-testid="integral-y0" bind:value={integralY0} />
-      <span class="dim">～</span>
-      <input type="number" step="any" data-testid="integral-y1" bind:value={integralY1} />
-    </div>
-    <div class="row">
-      <button type="button" data-testid="integral-run" onclick={runIntegral}>计算 ∬f dA</button>
-      <button type="button" data-testid="integral-clear" onclick={clearIntegral}>清除区域</button>
-    </div>
-    {#if integralError}
-      <div class="integral-error" data-testid="integral-error">{integralError}</div>
-    {/if}
-    {#if integralMessage}
-      <div class="integral-readout" data-testid="integral-result">{integralMessage}</div>
-    {/if}
-  </div>
-
-  <div class="section">
-    <div class="section-title">导出</div>
-    <div class="row">
-      <span class="dim">GIF 帧数</span>
-      <input
-        type="range"
-        min="12"
-        max="72"
-        step="4"
-        data-testid="space-gif-frames"
-        value={getGifFrames()}
-        oninput={(event) => setGifFrames(Number((event.currentTarget as HTMLInputElement).value))}
-      />
-      <span class="value">{getGifFrames()}</span>
-      <span class="dim">播放速度</span>
-      <input
-        type="range"
-        min="2"
-        max="30"
-        step="1"
-        data-testid="space-gif-fps"
-        value={getGifFps()}
-        oninput={(event) => setGifFps(Number((event.currentTarget as HTMLInputElement).value))}
-      />
-      <span class="value">{getGifFps()} fps</span>
-    </div>
-    <div class="row">
-      <button
-        type="button"
-        data-testid="space-export-png"
-        disabled={isSpaceExporting()}
-        onclick={() => requestSpaceExport('png')}
-      >
-        截图 PNG
-      </button>
-      <button
-        type="button"
-        data-testid="space-export-gif"
-        disabled={isSpaceExporting()}
-        onclick={() => requestSpaceExport('gif')}
-      >
-        {isSpaceExporting() ? '导出中…' : '旋转 GIF'}
-      </button>
-      {#if isSpaceExporting()}
-        <span class="dim">正在取帧，完成后自动恢复视角</span>
-      {/if}
-    </div>
-  </div>
 </aside>
 
 <style>
@@ -1160,35 +905,6 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-  }
-
-  .tangent-readout {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 8px;
-    background: rgba(245, 158, 11, 0.12);
-  }
-
-  .integral-readout {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 8px;
-    background: rgba(59, 130, 246, 0.12);
-  }
-
-  .integral-error {
-    font-size: 12px;
-    color: #fca5a5;
   }
 
   .custom-input {

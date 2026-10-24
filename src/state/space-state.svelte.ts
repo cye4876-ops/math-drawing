@@ -18,8 +18,63 @@ let cameraTarget = $state<Vec3 | null>(null)
 /** 变化计数器：读取它即可对任意视图选项建立响应依赖 */
 let revision = $state(0)
 
+/** 当前选中对象（SpacePanel 列表写入，SpaceInspector 读取） */
+let selectedSpaceId = $state<string | null>(null)
+export function getSelectedSpaceId(): string | null {
+  return selectedSpaceId
+}
+export function setSelectedSpaceId(id: string | null): void {
+  if (selectedSpaceId !== id) selectedSpaceId = id
+}
+
+/** 相机预设命令（面板 → 视图） */
+export type CameraPreset = 'iso' | 'top' | 'front' | 'side'
+let cameraPresetRequest = $state<{ preset: CameraPreset; token: number } | null>(null)
+export function requestCameraPreset(preset: CameraPreset): void {
+  cameraPresetRequest = { preset, token: (cameraPresetRequest?.token ?? 0) + 1 }
+}
+export function getCameraPresetRequest(): { preset: CameraPreset; token: number } | null {
+  return cameraPresetRequest
+}
+
+/** 鼠标探针：开启后悬停曲面显示三维坐标 */
+let probeEnabled = $state(false)
+let probePoint = $state<Vec3 | null>(null)
+export function isProbeEnabled(): boolean {
+  return probeEnabled
+}
+export function setProbeEnabled(value: boolean): void {
+  probeEnabled = value
+  if (!value) probePoint = null
+}
+export function getProbePoint(): Vec3 | null {
+  return probePoint
+}
+export function setProbePoint(point: Vec3 | null): void {
+  probePoint = point
+}
+
 let contextAvailable = $state(true)
 let exportRequest = $state<{ kind: 'png' | 'gif' | 'reset'; token: number } | null>(null)
+
+/** 裁剪平面（场分析）：off 关闭，x/y/z 保留平面一侧 */
+export type ClipAxis = 'off' | 'x' | 'y' | 'z'
+let clipAxis = $state<ClipAxis>('off')
+let clipValue = $state(0)
+export function getClipAxis(): ClipAxis {
+  return clipAxis
+}
+export function setClipAxis(value: ClipAxis): void {
+  clipAxis = value
+  revision++
+}
+export function getClipValue(): number {
+  return clipValue
+}
+export function setClipValue(value: number): void {
+  clipValue = Math.max(-12, Math.min(12, Number(value) || 0))
+  revision++
+}
 
 export function getCamera(): CameraKind {
   return camera
@@ -98,6 +153,7 @@ export function getSpaceOptions(): SpaceOptions {
     tangentPlane: tangentEnabled,
     tangentX,
     tangentY,
+    clip: clipAxis === 'off' ? null : { axis: clipAxis, value: clipValue },
   }
 }
 

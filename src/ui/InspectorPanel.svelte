@@ -13,6 +13,7 @@
   import ExportPanel from './ExportPanel.svelte'
   import ToolsPanel from './ToolsPanel.svelte'
   import ExtremalResultPanel from './ExtremalResultPanel.svelte'
+  import SpaceInspector from './SpaceInspector.svelte'
   import { hyperLab } from '../state/hyper-state.svelte'
   import { markSaved } from './save-state.svelte'
   import ChartColumn from '@lucide/svelte/icons/chart-column'
@@ -182,7 +183,7 @@
 
 <aside
   class="inspector"
-  class:wide={extremalInspector}
+  class:wide={extremalInspector || mode === 'space'}
   data-testid="inspector-panel"
   aria-label="检查器"
 >
@@ -193,7 +194,9 @@
     </div>
   </div>
 
-  {#if extremalInspector}
+  {#if mode === 'space'}
+    <SpaceInspector {store} />
+  {:else if extremalInspector}
     <ExtremalResultPanel {onOpenGraph} />
   {:else}
     <div class="hint-card">

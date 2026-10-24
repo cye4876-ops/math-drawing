@@ -1,6 +1,7 @@
 # 3D 与场 · 升级方案（提案）
 
-> 状态：**方案待选**，本文只做对标与设计，不改代码。
+> 状态：**已实施 B 的第一阶段核心（v3.12）**：对象检查器、视角预设、质量档、色标、探针、裁剪平面、等值面与场着色已落地；
+> 传递函数编辑器与 GPU 体积渲染仍为后续阶段。
 > 日期：2026-10-24
 > 现有实现：`src/ui/SpacePanel.svelte` / `src/ui/SpaceView.svelte` / `src/render3d/*` / `docs/3d.md`
 
@@ -46,9 +47,9 @@
 
 ### 参考截图
 
-| 当前 3D 工作区 | MathBox · 场线 |
+| 当前 3D 工作区（v3.12 后） | MathBox · 场线 |
 |---|---|
-| ![当前 3D](3d-references/current-3d.png) | ![MathBox 场线](3d-references/mathbox-fieldlines.png) |
+| ![3D 工作台](3d-references/live-3d-workbench.png) | ![MathBox 场线](3d-references/mathbox-fieldlines.png) |
 
 | MathBox · 曲面/网格 | ParaView Glance · 科学数据 |
 |---|---|

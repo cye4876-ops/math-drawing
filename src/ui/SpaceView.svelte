@@ -14,17 +14,21 @@
   import { createSpaceScene, isWebGLAvailable, type SpaceScene } from '../render3d/scene'
   import { downloadBlob, timestampName } from '../export/download'
   import {
+    getCameraPresetRequest,
     getExportRequest,
     getGifFps,
     getGifFrames,
     getIntegralRegion,
+    getProbePoint,
     getSpaceOptions,
     getSpaceRevision,
+    isProbeEnabled,
     isSpaceExporting,
     isTangentEnabled,
     loadCameraState,
     saveCameraState,
     setContextAvailable,
+    setProbePoint,
     setSpaceExporting,
     setTangentPoint,
   } from '../state/space-state.svelte'
@@ -143,10 +147,17 @@
 
   // ---------- 切平面拖动 ----------
   let dragging = false
+  const probeOn = $derived(isProbeEnabled())
+  const probePoint = $derived(getProbePoint())
 
   function pointerRelative(event: PointerEvent): [number, number] {
     const rect = canvasElement!.getBoundingClientRect()
     return [event.clientX - rect.left, event.clientY - rect.top]
+  }
+
+  function formatProbe(value: number): string {
+    if (!Number.isFinite(value)) return '—'
+    return Math.abs(value) < 1e5 ? value.toPrecision(5) : value.toExponential(3)
   }
 
   function onPointerDown(event: PointerEvent): void {
@@ -161,8 +172,13 @@
   }
 
   function onPointerMove(event: PointerEvent): void {
-    if (!dragging || !sceneRef) return
+    if (!active || !sceneRef) return
     const [px, py] = pointerRelative(event)
+    if (!dragging && probeOn) {
+      setProbePoint(sceneRef.pickPoint(px, py))
+      return
+    }
+    if (!dragging) return
     const hit = sceneRef.pick(px, py)
     if (hit) setTangentPoint(hit[0], hit[1])
   }
@@ -224,6 +240,15 @@
   // 导出命令通道：按 token 消账（同一请求只执行一次）；导出期间新请求排队
   // （exporting 变化会重触发本 effect，但 token 已消账 → 直接返回，不会重复执行）
   let handledExportToken = -1
+  let handledPresetToken = -1
+
+  $effect(() => {
+    const request = getCameraPresetRequest()
+    if (!request || !sceneReady) return
+    if (request.token === handledPresetToken) return
+    handledPresetToken = request.token
+    sceneRef?.setCameraPreset(request.preset)
+  })
 
   $effect(() => {
     const request = getExportRequest()
@@ -253,6 +278,7 @@
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
     onpointercancel={onPointerUp}
+    onpointerleave={() => setProbePoint(null)}
   ></canvas>
 
   {#if !webglAvailable}
@@ -273,6 +299,17 @@
   {#if webglAvailable && !contextLost && isTangentEnabled()}
     <div class="hint-bar" data-testid="space-tangent-hint">
       切平面：在曲面上左键拖动移动切点；空白处拖动仍为旋转视图
+    </div>
+  {/if}
+
+  {#if webglAvailable && !contextLost && probeOn}
+    <div class="probe-readout" data-testid="space-probe-readout">
+      {#if probePoint}
+        探针：({formatProbe(probePoint[0])}, {formatProbe(probePoint[1])},
+        {formatProbe(probePoint[2])})
+      {:else}
+        探针：移动到曲面查看三维坐标
+      {/if}
     </div>
   {/if}
 </div>
@@ -319,6 +356,20 @@
     color: var(--text-dim);
     background: rgba(11, 18, 32, 0.92);
     border: 1px solid var(--border);
+    border-radius: 6px;
+    pointer-events: none;
+  }
+
+  .probe-readout {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    padding: 5px 10px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 11px;
+    color: #dbeafe;
+    background: rgba(11, 18, 32, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.5);
     border-radius: 6px;
     pointer-events: none;
   }

@@ -49,6 +49,8 @@ export interface SpaceOptions {
   tangentPlane: boolean
   tangentX: number
   tangentY: number
+  /** 裁剪平面：null = 关闭；保留平面正侧 */
+  clip?: { axis: 'x' | 'y' | 'z'; value: number } | null
 }
 
 export interface SpaceScene {
@@ -57,6 +59,10 @@ export interface SpaceScene {
   render(): void
   /** 像素坐标（相对画布，左上原点）→ 命中曲面的数学 (x, y)；未命中返回 null */
   pick(px: number, py: number): [number, number] | null
+  /** 像素坐标 → 命中曲面的三维坐标（探针用） */
+  pickPoint(px: number, py: number): Vec3 | null
+  /** 相机预设：iso / top / front / side */
+  setCameraPreset(preset: 'iso' | 'top' | 'front' | 'side'): void
   /** 相机绕 z 轴旋转（GIF 旋转动画用） */
   spinCamera(deltaDegrees: number): void
   getCameraState(): { position: Vec3; target: Vec3 } | null
@@ -99,6 +105,7 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
   })
   renderer.setPixelRatio(1)
   renderer.setSize(10, 10, false)
+  renderer.localClippingEnabled = true
 
   const scene = new THREE.Scene()
   scene.background = new THREE.Color(BACKGROUND)
@@ -202,6 +209,38 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
   const items = new Map<string, SceneItem>()
   const pickTargets: THREE.Mesh[] = []
   let contextCallback: ((lost: boolean) => void) | null = null
+  const clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)
+
+  function applyClipping(options: SpaceOptions): void {
+    const clip = options.clip
+    if (clip) {
+      const normal =
+        clip.axis === 'x'
+          ? new THREE.Vector3(-1, 0, 0)
+          : clip.axis === 'y'
+            ? new THREE.Vector3(0, -1, 0)
+            : new THREE.Vector3(0, 0, -1)
+      const point =
+        clip.axis === 'x'
+          ? new THREE.Vector3(clip.value, 0, 0)
+          : clip.axis === 'y'
+            ? new THREE.Vector3(0, clip.value, 0)
+            : new THREE.Vector3(0, 0, clip.value)
+      clipPlane.setFromNormalAndCoplanarPoint(normal, point)
+    }
+    for (const item of items.values()) {
+      item.object.traverse((child) => {
+        const mesh = child as THREE.Mesh
+        const material = mesh.material
+        if (!material) return
+        const list = Array.isArray(material) ? material : [material]
+        for (const entry of list) {
+          entry.clippingPlanes = clip ? [clipPlane] : []
+          entry.needsUpdate = true
+        }
+      })
+    }
+  }
 
   function disposeItem(item: SceneItem): void {
     scene.remove(item.object)
@@ -248,7 +287,8 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
     if (object.kind === 'implicit') {
       const f = compileExpr(object.expr, ['x', 'y', 'z'])
       if (!f) return null
-      const surface = marchingCubes((x, y, z) => f(x, y, z), {
+      const isoValue = object.isoValue ?? 0
+      const surface = marchingCubes((x, y, z) => f(x, y, z) - isoValue, {
         min: [object.xMin, object.yMin, object.zMin],
         max: [object.xMax, object.yMax, object.zMax],
         resolution: Math.min(96, object.resolution),
@@ -834,6 +874,8 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
       }
     }
 
+    applyClipping(options)
+
     // 切平面（独立于对象缓存，随 tangentX/Y 频繁变化）
     const tangentExisting = items.get('__tangent__')
     if (tangentExisting) {
@@ -911,6 +953,8 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
         }
       }
     }
+
+    applyClipping(options)
   }
 
   function resize(width: number, height: number, dpr: number): void {
@@ -937,6 +981,11 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
   const ndc = new THREE.Vector2()
 
   function pick(px: number, py: number): [number, number] | null {
+    const point = pickPoint(px, py)
+    return point ? [point[0], point[1]] : null
+  }
+
+  function pickPoint(px: number, py: number): Vec3 | null {
     const rect = canvas.getBoundingClientRect()
     if (rect.width <= 0 || rect.height <= 0) return null
     ndc.set((px / rect.width) * 2 - 1, -(py / rect.height) * 2 + 1)
@@ -944,7 +993,32 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
     const hits = raycaster.intersectObjects(pickTargets, false)
     const first = hits[0]
     if (!first) return null
-    return [first.point.x, first.point.y]
+    return [first.point.x, first.point.y, first.point.z]
+  }
+
+  function setCameraPreset(preset: 'iso' | 'top' | 'front' | 'side'): void {
+    const positions: Record<typeof preset, [number, number, number]> = {
+      iso: [13.5, -16.5, 10.5],
+      top: [0.001, -0.001, 20],
+      front: [0, -20, 0.001],
+      side: [20, 0, 0.001],
+    }
+    const position = positions[preset]
+    persp.position.set(...position)
+    ortho.position.set(...position)
+    const target = new THREE.Vector3(0, 0, 0)
+    // 俯视时 z-up 与视线平行，临时使用 y-up 避免 OrbitControls 退化
+    if (preset === 'top') {
+      persp.up.set(0, 1, 0)
+      ortho.up.set(0, 1, 0)
+    } else {
+      persp.up.set(0, 0, 1)
+      ortho.up.set(0, 0, 1)
+    }
+    persp.lookAt(target)
+    ortho.lookAt(target)
+    controls.target.copy(target)
+    controls.update()
   }
 
   function spinCamera(deltaDegrees: number): void {
@@ -982,6 +1056,8 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
   }
 
   function resetCamera(): void {
+    persp.up.set(0, 0, 1)
+    ortho.up.set(0, 0, 1)
     persp.position.set(9, -11, 7)
     ortho.position.set(9, -11, 7)
     controls.target.set(0, 0, 0)
@@ -1128,10 +1204,12 @@ export function createSpaceScene(canvas: HTMLCanvasElement): SpaceScene {
     resize,
     render,
     pick,
+    pickPoint,
     spinCamera,
     getCameraState,
     setCameraState,
     resetCamera,
+    setCameraPreset,
     setControlsEnabled,
     captureFrame,
     snapshot,
