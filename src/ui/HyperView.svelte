@@ -590,6 +590,7 @@
     void hyperLab.rainbow.selectedCopy
     void hyperLab.rainbow.anti
     void hyperLab.extremal.preview
+    void hyperLab.extremal.previewNote
     if (active) draw()
   })
 </script>

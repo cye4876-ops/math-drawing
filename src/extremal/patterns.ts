@@ -1,7 +1,14 @@
 /**
  * 禁图预设、图着色数、Turán 图与已知极值公式（v3.6）。
  */
-import { edgeCountOf, graphDegrees, simpleGraphFromEdges, type SimpleGraph } from './containment'
+import { parseGraph6 } from '../lab/graph6'
+import {
+  containsPattern,
+  edgeCountOf,
+  graphDegrees,
+  simpleGraphFromEdges,
+  type SimpleGraph,
+} from './containment'
 
 export interface PatternPreset {
   id: string
@@ -111,6 +118,91 @@ export const PATTERN_PRESETS: PatternPreset[] = [
       [5, 0],
     ],
   },
+  {
+    id: 'K23',
+    label: 'K₂,₃（完全二部图）',
+    n: 5,
+    edges: [
+      [0, 2],
+      [0, 3],
+      [0, 4],
+      [1, 2],
+      [1, 3],
+      [1, 4],
+    ],
+  },
+  {
+    id: 'P5',
+    label: 'P₅（5 点路径）',
+    n: 5,
+    edges: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+    ],
+  },
+  {
+    id: '3K2',
+    label: '3K₂（三条独立边）',
+    n: 6,
+    edges: [
+      [0, 1],
+      [2, 3],
+      [4, 5],
+    ],
+  },
+  {
+    id: 'K3K1',
+    label: 'K₃ + K₁（非连通）',
+    n: 4,
+    edges: [
+      [0, 1],
+      [1, 2],
+      [0, 2],
+    ],
+  },
+  {
+    id: 'K14',
+    label: 'K₁,₄（星形）',
+    n: 5,
+    edges: [
+      [0, 1],
+      [0, 2],
+      [0, 3],
+      [0, 4],
+    ],
+  },
+  {
+    id: 'K33',
+    label: 'K₃,₃（完全二部图）',
+    n: 6,
+    edges: [
+      [0, 3],
+      [0, 4],
+      [0, 5],
+      [1, 3],
+      [1, 4],
+      [1, 5],
+      [2, 3],
+      [2, 4],
+      [2, 5],
+    ],
+  },
+  {
+    id: 'C7',
+    label: 'C₇（7 圈）',
+    n: 7,
+    edges: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [4, 5],
+      [5, 6],
+      [6, 0],
+    ],
+  },
 ]
 
 export function patternPreset(id: string): PatternPreset {
@@ -119,6 +211,72 @@ export function patternPreset(id: string): PatternPreset {
 
 export function patternGraph(preset: PatternPreset): SimpleGraph {
   return simpleGraphFromEdges(preset.n, preset.edges)
+}
+
+export interface ParsedPattern {
+  graph: SimpleGraph
+  label: string
+}
+
+export type PatternInputFormat = 'edges' | 'graph6'
+
+/** 图的补图（同顶点集；用于“取补图”开关） */
+export function complementSimpleGraph(graph: SimpleGraph): SimpleGraph {
+  const edges: Array<[number, number]> = []
+  for (let u = 0; u < graph.n; u++) {
+    for (let v = u + 1; v < graph.n; v++) {
+      if (((graph.adj[u]! >> v) & 1) === 0) edges.push([u, v])
+    }
+  }
+  return simpleGraphFromEdges(graph.n, edges)
+}
+
+/** graph6 → 禁图（n ≤ 7；带 `>>graph6<<` 前缀也可） */
+export function parseGraph6Pattern(source: string): ParsedPattern {
+  const lab = parseGraph6(source, 7)
+  const graph: SimpleGraph = { n: lab.n, adj: [...lab.adj] }
+  return { graph, label: `graph6（${lab.n} 点 / ${edgeCountOf(graph)} 边）` }
+}
+
+/**
+ * 解析自定义禁图列表：
+ * - edges 格式：`0-1, 1-2`；多张图用分号或换行分隔；
+ * - graph6 格式：用空白/分号分隔多个 graph6 字符串。
+ */
+export function parsePatternInput(text: string, format: PatternInputFormat): ParsedPattern[] {
+  if (format === 'graph6') {
+    const tokens = text
+      .trim()
+      .split(/[\s;]+/)
+      .filter(Boolean)
+    if (tokens.length === 0) throw new Error('请输入至少一个 graph6 字符串')
+    return tokens.map((token) => parseGraph6Pattern(token))
+  }
+  const groups = text
+    .split(/[;\n]+/)
+    .map((group) => group.trim())
+    .filter(Boolean)
+  if (groups.length === 0) throw new Error('请输入至少一张边表禁图')
+  return groups.map((group, index) => {
+    const parsed = parseCustomPattern(group)
+    return {
+      graph: parsed.graph,
+      label:
+        groups.length === 1
+          ? `自定义禁图（${parsed.edges.length} 条边）`
+          : `自定义禁图 #${index + 1}（${parsed.edges.length} 条边）`,
+    }
+  })
+}
+
+/** 禁图的同构无关键，用于多选去重 */
+export function patternKey(graph: SimpleGraph): string {
+  return `${graph.n}:${graph.adj.join(',')}`
+}
+
+/** 集合记法：单图直接显示，多图显示为 {H₁, H₂, …} */
+export function formatPatternLabel(labels: string[]): string {
+  return labels.length <= 1 ? (labels[0] ?? '禁图') : `{${labels.join(', ')}}`
 }
 
 /** 自定义禁图：格式 `0-1, 1-2, 2-3`（也接受分号与空格分隔） */
@@ -254,6 +412,19 @@ export function turanLowerBound(
   const parts = chromatic - 1
   if (chromatic < 3) return null
   return { parts, edges: turanEdges(n, parts), chromatic }
+}
+
+/** 多禁图集合的有效 Turán 构造下界：取最大的、同时不含所有禁图的 T_r(n) */
+export function turanLowerBoundForPatterns(
+  patterns: SimpleGraph[],
+  n: number,
+): { parts: number; edges: number; chromatic: number } | null {
+  for (let parts = n; parts >= 2; parts--) {
+    const turan = turanGraph(n, parts)
+    if (patterns.some((pattern) => containsPattern(turan.graph, pattern))) continue
+    return { parts, edges: turan.edges.length, chromatic: parts + 1 }
+  }
+  return null
 }
 
 export function subscript(value: number): string {

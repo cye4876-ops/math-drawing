@@ -6,6 +6,7 @@
    */
   import {
     hyperLab,
+    clearExtraPatterns,
     clearHyperWitness,
     generateHyperDoc,
     loadHyperTuranWitness,
@@ -13,17 +14,26 @@
     regenerateRainbow,
     regenerateHyperSeed,
     replaceHyperDoc,
+    resetExtremalFilters,
     runExtremalSearch,
     runHyperTuran,
     runTriangleRamsey,
     runTuranConstruction,
+    setCustomFormat,
+    setExtremalComplement,
+    setExtremalFilterBoolean,
+    setExtremalMaxDegree,
+    setExtremalMode,
     setExtremalN,
+    setExtremalPattern,
     setHyperTab,
     setHyperView,
     setRainbowGraph,
     setRainbowN,
     setTuranParts,
     showExtremalGraph,
+    showSaturationGraph,
+    toggleExtraPattern,
   } from '../state/hyper-state.svelte'
   import { analyzeHypergraphDoc } from '../hypergraph/analysis'
   import {
@@ -60,6 +70,10 @@
   const analysis = $derived(analyzeHypergraphDoc(doc))
   const rainbow = $derived(hyperLab.rainbow)
   const extremal = $derived(hyperLab.extremal)
+  const extraPresets = $derived(
+    PATTERN_PRESETS.filter((preset) => preset.id !== extremal.patternId),
+  )
+  const selectedCandidate = $derived(extremal.result?.extremal[extremal.selectedExtremal] ?? null)
   const pattern = $derived(rainbowPatternById(rainbow.patternId))
   const rainbowColorCount = $derived(new Set(rainbow.graph.edges.map((edge) => edge.color)).size)
   const canonicalJson = $derived(docToJson(hyperLab.doc))
@@ -246,7 +260,7 @@
 </script>
 
 <aside class="hyper-panel" data-testid="hyper-panel">
-  <div class="panel-header">超图、彩虹与极值（v3.4 – v3.6）</div>
+  <div class="panel-header">超图、彩虹与极值（v3.4 – v3.7）</div>
   <div class="tabs" role="tablist" aria-label="实验室子视图">
     <button
       type="button"
@@ -576,7 +590,7 @@
     </div>
   {:else}
     <div class="section">
-      <div class="section-title">ex(n,H) 精确搜索（n ≤ 7 图集）</div>
+      <div class="section-title">ex(n,F) 精确搜索（n ≤ 7 图集）</div>
       <div class="row wrap">
         <span class="dim">n</span>
         <input
@@ -591,11 +605,7 @@
         <select
           data-testid="extremal-pattern"
           value={extremal.patternId}
-          onchange={(event) => {
-            extremal.patternId = (event.currentTarget as HTMLSelectElement).value
-            extremal.result = null
-            extremal.customError = ''
-          }}
+          onchange={(event) => setExtremalPattern((event.currentTarget as HTMLSelectElement).value)}
         >
           {#each PATTERN_PRESETS as preset (preset.id)}
             <option value={preset.id}>{preset.label}</option>
@@ -606,8 +616,9 @@
           data-testid="extremal-mode"
           value={extremal.mode}
           onchange={(event) =>
-            (extremal.mode = (event.currentTarget as HTMLSelectElement)
-              .value as typeof extremal.mode)}
+            setExtremalMode(
+              (event.currentTarget as HTMLSelectElement).value as typeof extremal.mode,
+            )}
         >
           <option value="subgraph">普通子图</option>
           <option value="induced">诱导子图</option>
@@ -615,33 +626,181 @@
         <button type="button" data-testid="extremal-run" onclick={runExtremalSearch}>计算 ex</button
         >
       </div>
-      {#if extremal.patternId === 'custom'}
+
+      <div class="row wrap">
+        <span class="dim">附加禁图</span>
+        {#each extraPresets as preset (preset.id)}
+          <button
+            type="button"
+            class="chip"
+            class:active={extremal.extraPatternIds.includes(preset.id)}
+            data-testid={`extremal-extra-${preset.id}`}
+            onclick={() => toggleExtraPattern(preset.id)}>{preset.label}</button
+          >
+        {/each}
+        {#if extremal.extraPatternIds.length > 0}
+          <button type="button" data-testid="extremal-extra-clear" onclick={clearExtraPatterns}
+            >清空附加</button
+          >
+        {/if}
+      </div>
+
+      <div class="row wrap">
+        <label class="check">
+          <input
+            type="checkbox"
+            data-testid="extremal-complement"
+            checked={extremal.complement}
+            onchange={(event) =>
+              setExtremalComplement((event.currentTarget as HTMLInputElement).checked)}
+          />取补图
+        </label>
+        <span class="dim">结构约束</span>
+        <label class="check">
+          <input
+            type="checkbox"
+            data-testid="extremal-filter-connected"
+            checked={extremal.filters.connected}
+            onchange={(event) =>
+              setExtremalFilterBoolean(
+                'connected',
+                (event.currentTarget as HTMLInputElement).checked,
+              )}
+          />连通
+        </label>
+        <label class="check">
+          <input
+            type="checkbox"
+            data-testid="extremal-filter-bipartite"
+            checked={extremal.filters.bipartite}
+            onchange={(event) =>
+              setExtremalFilterBoolean(
+                'bipartite',
+                (event.currentTarget as HTMLInputElement).checked,
+              )}
+          />二部
+        </label>
+        <label class="check">
+          <input
+            type="checkbox"
+            data-testid="extremal-filter-planar"
+            checked={extremal.filters.planar}
+            onchange={(event) =>
+              setExtremalFilterBoolean('planar', (event.currentTarget as HTMLInputElement).checked)}
+          />平面
+        </label>
+        <label class="check">
+          <input
+            type="checkbox"
+            data-testid="extremal-filter-triangle-free"
+            checked={extremal.filters.triangleFree}
+            onchange={(event) =>
+              setExtremalFilterBoolean(
+                'triangleFree',
+                (event.currentTarget as HTMLInputElement).checked,
+              )}
+          />无三角形
+        </label>
+        <span class="dim">Δ ≤</span>
         <input
-          data-testid="extremal-custom"
-          placeholder="0-1, 1-2, 2-0"
-          value={extremal.customEdges}
+          class="num"
+          type="number"
+          min="0"
+          max="7"
+          data-testid="extremal-filter-max-degree"
+          value={extremal.filters.maxDegree}
           oninput={(event) =>
-            (extremal.customEdges = (event.currentTarget as HTMLInputElement).value)}
+            setExtremalMaxDegree(Number((event.currentTarget as HTMLInputElement).value))}
         />
+        <button type="button" data-testid="extremal-filter-reset" onclick={resetExtremalFilters}
+          >重置约束</button
+        >
+      </div>
+
+      {#if extremal.patternId === 'custom'}
+        <div class="row wrap">
+          <select
+            data-testid="extremal-custom-format"
+            value={extremal.customFormat}
+            onchange={(event) =>
+              setCustomFormat(
+                (event.currentTarget as HTMLSelectElement).value as typeof extremal.customFormat,
+              )}
+          >
+            <option value="edges">边表</option>
+            <option value="graph6">graph6</option>
+          </select>
+          <input
+            class="grow"
+            data-testid="extremal-custom"
+            placeholder={extremal.customFormat === 'edges'
+              ? '0-1, 1-2；多张图用分号分隔'
+              : 'Bw; C~（多个 graph6 用空白/分号分隔）'}
+            value={extremal.customEdges}
+            oninput={(event) =>
+              (extremal.customEdges = (event.currentTarget as HTMLInputElement).value)}
+          />
+        </div>
+        <div class="hint">
+          边表格式：`0-1, 1-2`；多张禁图用分号或换行分隔。graph6 支持 n ≤ 7，可粘贴 nauty
+          格式字符串。
+        </div>
       {/if}
       {#if extremal.customError}
         <div class="error" data-testid="extremal-error">{extremal.customError}</div>
       {/if}
       {#if extremal.result}
-        <div class="line" data-testid="extremal-result">
-          ex({extremal.result.n}, {extremal.result.patternLabel}) =
-          <b>{extremal.result.maxEdges}</b>
-          · {extremal.result.mode === 'subgraph' ? '普通子图' : '诱导子图'} · 扫描
-          {extremal.result.scanned} 个非同构图（{extremal.result.freeCount} 个不含禁图）
-        </div>
+        {#if extremal.result.maxEdges >= 0}
+          <div class="line" data-testid="extremal-result">
+            ex({extremal.result.n}, {extremal.result.patternLabel}) =
+            <b>{extremal.result.maxEdges}</b>
+            · {extremal.result.mode === 'subgraph' ? '普通子图' : '诱导子图'} ·
+            {extremal.result.patternCount} 张禁图 · 扫描
+            {extremal.result.scanned} 个非同构图（{extremal.result.freeCount} 个不含禁图）
+          </div>
+        {:else}
+          <div class="line" data-testid="extremal-result">
+            没有满足结构约束的 H-free 图；ex 无定义。
+          </div>
+        {/if}
         <div class="hint">{extremal.result.note}</div>
+        <div class="hint" data-testid="extremal-filter-result">
+          结构约束：{extremal.result.filterLabel} · 筛去 {extremal.result.filteredOut} 个 · 满足约束
+          {extremal.result.eligible} 个
+        </div>
         {#if extremal.result.known}
           <div class="hint" data-testid="extremal-formula">{extremal.result.known.formula}</div>
         {:else if extremal.result.lowerBound}
           <div class="hint" data-testid="extremal-formula">
-            Turán 下界：χ = {extremal.result.lowerBound.chromatic}，t{extremal.result.lowerBound
-              .parts}(n) = {extremal.result.lowerBound.edges}
+            Turán 构造下界：T{extremal.result.lowerBound.parts}(n) =
+            {extremal.result.lowerBound.edges}（该构造同时不含所有选中禁图）
           </div>
+        {/if}
+        {#if extremal.result.filterLabel === '无'}
+          <div class="hint" data-testid="extremal-asymptotic">
+            渐近：χ_min = {extremal.result.asymptotic.familyChromatic}，π(F) =
+            {extremal.result.asymptotic.familyDensity.toFixed(3)}；{extremal.result.asymptotic.note}
+          </div>
+        {/if}
+        {#if selectedCandidate}
+          <div class="line" data-testid="extremal-maximality">
+            {#if selectedCandidate.maximality.maximal}
+              极大性证书：<b>通过</b>（结构约束内 {selectedCandidate.maximality.addableEdges}
+              条可加入边都会产生禁图
+              {#if selectedCandidate.maximality.blockedByFilters > 0}
+                ；另有 {selectedCandidate.maximality.blockedByFilters} 条被约束阻止
+              {/if}）
+            {:else}
+              非极大：缺失边 ({selectedCandidate.maximality.witnessEdge?.join(',') ?? '?'})
+              加入后仍不含禁图
+            {/if}
+          </div>
+          {#if selectedCandidate.stability}
+            <div class="hint" data-testid="extremal-stability">
+              稳定性：χ = {selectedCandidate.stability.chromatic}，{selectedCandidate.stability
+                .note}
+            </div>
+          {/if}
         {/if}
         <div class="hint">{extremal.previewNote}</div>
         {#if extremal.result.extremal.length > 0}
@@ -659,6 +818,30 @@
             共 {extremal.result.extremalCount} 个极图；按钮最多展示前
             {extremal.result.extremal.length} 个。
           </div>
+        {/if}
+        {#if extremal.result.saturation}
+          <div class="line" data-testid="extremal-saturation">
+            sat({extremal.result.n}, {extremal.result.patternLabel}) =
+            {#if extremal.result.saturation.value === null}
+              <b>未找到</b>
+            {:else}
+              <b>{extremal.result.saturation.value}</b>
+            {/if}
+            · {extremal.result.saturation.count} 个最小饱和图
+          </div>
+          <div class="hint">{extremal.result.saturation.note}</div>
+          {#if extremal.result.saturation.examples.length > 0}
+            <div class="row wrap">
+              {#each extremal.result.saturation.examples as graph, index (graph.graph6)}
+                <button
+                  type="button"
+                  data-testid={`extremal-sat-${index}`}
+                  onclick={() => showSaturationGraph(index)}
+                  >饱和图 #{index + 1}（{graph.m} 边）</button
+                >
+              {/each}
+            </div>
+          {/if}
         {/if}
       {/if}
     </div>
@@ -844,6 +1027,33 @@
   .row button.active {
     border-color: #4c7dff;
     background: rgba(76, 125, 255, 0.16);
+  }
+  .chip {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+  }
+  .chip.active {
+    border-color: #4c7dff;
+    background: rgba(76, 125, 255, 0.16);
+    color: var(--text);
+  }
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .check input {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+  }
+  .grow {
+    flex: 1;
+    min-width: 180px;
   }
   .dim {
     font-size: 11px;

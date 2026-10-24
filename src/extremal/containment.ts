@@ -85,3 +85,10 @@ export function containsPattern(host: SimpleGraph, pattern: SimpleGraph, induced
   }
   return search(0)
 }
+
+/** 同构判定（n ≤ 8 的暴力回溯；用于稳定性对照） */
+export function areIsomorphic(a: SimpleGraph, b: SimpleGraph): boolean {
+  if (a.n !== b.n || edgeCountOf(a) !== edgeCountOf(b)) return false
+  if (a.n === 0) return true
+  return containsPattern(a, b) && containsPattern(b, a)
+}

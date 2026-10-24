@@ -1,0 +1,19 @@
+{
+  "version": "v3.7",
+  "ex6": {
+    "K3_C4": 6,
+    "K3_K4": 9,
+    "C4_K23": 7
+  },
+  "ex6WithFilters": {
+    "connected": 9,
+    "bipartite": 9,
+    "triangleFree": 9,
+    "maxDegree2": 6,
+    "c4_bipartite": 6
+  },
+  "saturation6": {
+    "K3": 5,
+    "K3_C4": 5
+  }
+}

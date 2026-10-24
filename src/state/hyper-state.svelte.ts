@@ -13,18 +13,27 @@ import type { HyperPresetKind } from '../hypergraph/presets'
 import { buildHypergraphPreset } from '../hypergraph/presets'
 import type { HyperRainbowResult } from '../hypergraph/rainbow'
 import { atlasEdgeList } from '../extremal/atlas'
+import { DEFAULT_HOST_FILTERS, type HostFilters } from '../extremal/filters'
 import type { HyperTuranPattern, HyperTuranResult } from '../extremal/hyper-turan'
 import { HYPER_TURAN_LABELS, ex3Uniform } from '../extremal/hyper-turan'
 import {
-  parseCustomPattern,
+  complementSimpleGraph,
+  parsePatternInput,
   patternGraph,
+  patternKey,
   patternPreset,
   subscript,
   turanEdges,
   turanGraph,
+  type PatternInputFormat,
+  type ParsedPattern,
 } from '../extremal/patterns'
 import { triangleRamsey, type RamseyResult } from '../extremal/ramsey'
-import { extremalSearch, type ExtremalSearchResult, type PatternMode } from '../extremal/search'
+import {
+  extremalSearchMulti,
+  type ExtremalSearchResult,
+  type PatternMode,
+} from '../extremal/search'
 
 export type HyperTab = 'hypergraph' | 'rainbow' | 'extremal'
 export type HyperViewMode = 'set' | 'bipartite' | 'section' | 'line'
@@ -70,9 +79,13 @@ export interface ExtremalPreview {
 export interface ExtremalState {
   n: number
   patternId: string
+  extraPatternIds: string[]
   mode: PatternMode
+  customFormat: PatternInputFormat
   customEdges: string
   customError: string
+  complement: boolean
+  filters: HostFilters
   result: ExtremalSearchResult | null
   selectedExtremal: number
   preview: ExtremalPreview | null
@@ -130,9 +143,13 @@ export const hyperLab = $state({
   extremal: {
     n: 6,
     patternId: 'K3',
+    extraPatternIds: [],
     mode: 'subgraph' as PatternMode,
+    customFormat: 'edges' as PatternInputFormat,
     customEdges: '0-1, 1-2, 2-0',
     customError: '',
+    complement: false,
+    filters: { ...DEFAULT_HOST_FILTERS },
     result: null,
     selectedExtremal: 0,
     preview: initialExtremalPreview(),
@@ -236,35 +253,122 @@ const RAMSEY_COLORS = ['#ef4444', '#3b82f6'] as const
 
 export function setExtremalN(n: number): void {
   hyperLab.extremal.n = Math.max(1, Math.min(7, Math.round(n) || 1))
+  hyperLab.extremal.result = null
+}
+
+export function setExtremalMode(mode: PatternMode): void {
+  hyperLab.extremal.mode = mode
+  hyperLab.extremal.result = null
+}
+
+export function setExtremalPattern(id: string): void {
+  const state = hyperLab.extremal
+  state.patternId = id
+  state.extraPatternIds = state.extraPatternIds.filter((item) => item !== id)
+  state.result = null
+  state.customError = ''
+}
+
+export function toggleExtraPattern(id: string): void {
+  const state = hyperLab.extremal
+  if (id === state.patternId) return
+  state.extraPatternIds = state.extraPatternIds.includes(id)
+    ? state.extraPatternIds.filter((item) => item !== id)
+    : [...state.extraPatternIds, id]
+  state.result = null
+}
+
+export function clearExtraPatterns(): void {
+  hyperLab.extremal.extraPatternIds = []
+  hyperLab.extremal.result = null
+}
+
+export function setCustomFormat(format: PatternInputFormat): void {
+  hyperLab.extremal.customFormat = format
+  hyperLab.extremal.customError = ''
+  hyperLab.extremal.result = null
+}
+
+export function setExtremalComplement(value: boolean): void {
+  hyperLab.extremal.complement = value
+  hyperLab.extremal.result = null
+}
+
+export function setExtremalFilterBoolean(
+  key: 'connected' | 'bipartite' | 'planar' | 'triangleFree',
+  value: boolean,
+): void {
+  hyperLab.extremal.filters = { ...hyperLab.extremal.filters, [key]: value }
+  hyperLab.extremal.result = null
+}
+
+export function setExtremalMaxDegree(value: number): void {
+  hyperLab.extremal.filters = {
+    ...hyperLab.extremal.filters,
+    maxDegree: Math.max(0, Math.min(7, Math.round(value) || 0)),
+  }
+  hyperLab.extremal.result = null
+}
+
+export function resetExtremalFilters(): void {
+  hyperLab.extremal.filters = { ...DEFAULT_HOST_FILTERS }
+  hyperLab.extremal.result = null
 }
 
 export function setTuranParts(parts: number): void {
   hyperLab.extremal.turanParts = Math.max(1, Math.min(7, Math.round(parts) || 1))
 }
 
+function selectedPatterns(state: ExtremalState): ParsedPattern[] {
+  const parsed: ParsedPattern[] = []
+  if (state.patternId === 'custom') {
+    parsed.push(...parsePatternInput(state.customEdges, state.customFormat))
+  } else {
+    const preset = patternPreset(state.patternId)
+    parsed.push({ graph: patternGraph(preset), label: preset.label })
+  }
+  for (const id of state.extraPatternIds) {
+    if (id === state.patternId) continue
+    const preset = patternPreset(id)
+    parsed.push({ graph: patternGraph(preset), label: preset.label })
+  }
+  const seen: string[] = []
+  const result: ParsedPattern[] = []
+  for (const item of parsed) {
+    const graph = state.complement ? complementSimpleGraph(item.graph) : item.graph
+    const key = patternKey(graph)
+    if (seen.includes(key)) continue
+    seen.push(key)
+    result.push({
+      graph,
+      label: state.complement ? `${item.label} 的补图` : item.label,
+    })
+  }
+  return result
+}
+
 export function runExtremalSearch(): void {
   const state = hyperLab.extremal
   state.customError = ''
-  let pattern: ReturnType<typeof patternGraph>
-  let label: string
   try {
-    if (state.patternId === 'custom') {
-      const parsed = parseCustomPattern(state.customEdges)
-      pattern = parsed.graph
-      label = `自定义禁图（${parsed.edges.length} 条边）`
-    } else {
-      const preset = patternPreset(state.patternId)
-      pattern = patternGraph(preset)
-      label = preset.label
-    }
-    const result = extremalSearch(state.n, pattern, state.mode, label)
+    const patterns = selectedPatterns(state)
+    const result = extremalSearchMulti({
+      n: state.n,
+      patterns,
+      mode: state.mode,
+      filters: state.filters,
+      analyses: true,
+      allowKnownFormula: patterns.length === 1,
+    })
     state.result = result
     state.selectedExtremal = 0
     if (result.extremal[0]) {
       showExtremalGraph(0)
+    } else if (result.saturation?.examples[0]) {
+      showSaturationGraph(0)
     } else {
       state.preview = null
-      state.previewNote = '没有不含禁图的图：请检查 n 与禁图规模。'
+      state.previewNote = result.note
     }
   } catch (error) {
     state.result = null
@@ -285,9 +389,31 @@ export function showExtremalGraph(index: number): void {
     title: `极图 #${index + 1}：${state.result?.patternLabel ?? '极图'}`,
     subtitle: `${graph.n} 个顶点 · ${graph.m} 条边 · graph6 ${graph.graph6}`,
   }
+  const maximality = graph.maximality
   state.previewNote = `第 ${index + 1} 个极图（共展示 ${state.result?.extremal.length ?? 0} 个，实际 ${
     state.result?.extremalCount ?? 0
-  } 个）。`
+  } 个）；${
+    maximality.maximal
+      ? `结构约束内极大：${maximality.addableEdges} 条可加入边都会产生禁图${
+          maximality.blockedByFilters > 0
+            ? `，另有 ${maximality.blockedByFilters} 条被约束阻止`
+            : ''
+        }。`
+      : `非极大：缺失边 (${maximality.witnessEdge?.join(',') ?? '?'}) 加入后仍无禁图。`
+  }`
+}
+
+export function showSaturationGraph(index: number): void {
+  const state = hyperLab.extremal
+  const graph = state.result?.saturation?.examples[index]
+  if (!graph) return
+  state.preview = {
+    n: graph.n,
+    edges: atlasEdgeList(graph),
+    title: `饱和图 #${index + 1}：sat = ${graph.m}`,
+    subtitle: `${graph.n} 个顶点 · ${graph.m} 条边 · graph6 ${graph.graph6}`,
+  }
+  state.previewNote = `H-饱和图：不含禁图，但加入任意缺失边都会产生禁图（${graph.m} 条边）。`
 }
 
 export function runTuranConstruction(): void {

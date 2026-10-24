@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_HOST_FILTERS, type HostFilters } from './filters'
 import { patternGraph, patternPreset, parseCustomPattern } from './patterns'
-import { extremalSearch } from './search'
+import { extremalSearch, extremalSearchMulti } from './search'
 
 const SUBGRAPH_TABLE: Record<string, number[]> = {
   K3: [2, 4, 6, 9, 12],
@@ -66,6 +67,106 @@ describe('v3.6 自定义禁图', () => {
     const p3 = parseCustomPattern('0-1, 1-2').graph
     const result = extremalSearch(6, p3, 'subgraph', '自定义 P₃')
     expect(result.maxEdges).toBe(3)
+    expect(result.lowerBound).toBeNull()
+  })
+})
+
+function spec(id: string) {
+  const preset = patternPreset(id)
+  return { graph: patternGraph(preset), label: preset.label }
+}
+
+function filters(patch: Partial<HostFilters>): HostFilters {
+  return { ...DEFAULT_HOST_FILTERS, ...patch }
+}
+
+describe('v3.7 多禁图与结构约束', () => {
+  it('ex(6,{K₃,C₄})=6，饱和数 sat=5', () => {
+    const result = extremalSearchMulti({
+      n: 6,
+      patterns: [spec('K3'), spec('C4')],
+      mode: 'subgraph',
+      analyses: true,
+    })
+    expect(result.maxEdges).toBe(6)
+    expect(result.patternCount).toBe(2)
+    expect(result.patternLabel).toContain('{')
+    expect(result.known).toBeNull()
+    expect(result.saturation?.value).toBe(5)
+    expect(result.extremalCount).toBe(2)
+  })
+
+  it('ex(6,{K₃,K₄})=9：三角-free 极值仍由 T₂(6) 达到', () => {
+    const result = extremalSearchMulti({
+      n: 6,
+      patterns: [spec('K3'), spec('K4')],
+      mode: 'subgraph',
+      analyses: false,
+    })
+    expect(result.maxEdges).toBe(9)
+    expect(result.lowerBound).toMatchObject({ parts: 2, edges: 9 })
+    expect(result.extremalCount).toBe(1)
+  })
+
+  it('连通 / 二部 / 平面 / 三角形-free / Δ≤2 约束', () => {
+    const k3 = spec('K3')
+    const connected = extremalSearchMulti({
+      n: 6,
+      patterns: [k3],
+      mode: 'subgraph',
+      filters: filters({ connected: true }),
+    })
+    expect(connected.maxEdges).toBe(9)
+    expect(connected.eligible).toBe(112)
+    expect(connected.filteredOut).toBe(44)
+
+    const bipartite = extremalSearchMulti({
+      n: 6,
+      patterns: [k3],
+      mode: 'subgraph',
+      filters: filters({ bipartite: true }),
+    })
+    expect(bipartite.maxEdges).toBe(9)
+    expect(bipartite.eligible).toBe(35)
+
+    const planar = extremalSearchMulti({
+      n: 6,
+      patterns: [k3],
+      mode: 'subgraph',
+      filters: filters({ planar: true }),
+    })
+    expect(planar.maxEdges).toBe(8)
+    expect(planar.eligible).toBe(142)
+
+    const triangleFree = extremalSearchMulti({
+      n: 6,
+      patterns: [k3],
+      mode: 'subgraph',
+      filters: filters({ triangleFree: true }),
+    })
+    expect(triangleFree.maxEdges).toBe(9)
+    expect(triangleFree.eligible).toBe(38)
+
+    const degree = extremalSearchMulti({
+      n: 6,
+      patterns: [k3],
+      mode: 'subgraph',
+      filters: filters({ maxDegree: 2 }),
+      analyses: true,
+    })
+    expect(degree.maxEdges).toBe(6)
+    expect(degree.saturation?.value).toBe(5)
+  })
+
+  it('C₄ 在二部宿主上 ex_bip(6,C₄)=6', () => {
+    const result = extremalSearchMulti({
+      n: 6,
+      patterns: [spec('C4')],
+      mode: 'subgraph',
+      filters: filters({ bipartite: true }),
+    })
+    expect(result.maxEdges).toBe(6)
+    expect(result.eligible).toBe(35)
     expect(result.lowerBound).toBeNull()
   })
 })
