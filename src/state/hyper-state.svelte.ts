@@ -14,6 +14,7 @@ import { buildHypergraphPreset } from '../hypergraph/presets'
 import type { HyperRainbowResult } from '../hypergraph/rainbow'
 import { atlasEdgeList } from '../extremal/atlas'
 import { DEFAULT_HOST_FILTERS, type HostFilters } from '../extremal/filters'
+import { decodeExtremalLink, encodeExtremalLink } from '../extremal/link'
 import type { HyperTuranPattern, HyperTuranResult } from '../extremal/hyper-turan'
 import { HYPER_TURAN_LABELS, ex3Uniform } from '../extremal/hyper-turan'
 import {
@@ -25,6 +26,7 @@ import {
   subscript,
   turanEdges,
   turanGraph,
+  PATTERN_PRESETS,
   type PatternInputFormat,
   type ParsedPattern,
 } from '../extremal/patterns'
@@ -87,7 +89,12 @@ export interface ExtremalState {
   complement: boolean
   filters: HostFilters
   result: ExtremalSearchResult | null
+  table: ExtremalTable | null
+  history: ExtremalHistoryEntry[]
+  compareId: number | null
   selectedExtremal: number
+  galleryPage: number
+  previewSelection: { kind: 'vertex' | 'edge'; index: number } | null
   preview: ExtremalPreview | null
   previewNote: string
   turanParts: number
@@ -98,6 +105,21 @@ export interface ExtremalState {
   hyperPattern: HyperTuranPattern
   hyperResult: HyperTuranResult | null
 }
+
+export const EXTREMAL_GALLERY_PAGE_SIZE = 6
+
+export interface ExtremalTable {
+  presetIds: string[]
+  labels: string[]
+  rows: Array<{ n: number; values: number[] }>
+}
+
+export interface ExtremalHistoryEntry {
+  id: number
+  result: ExtremalSearchResult
+}
+
+let extremalHistorySeq = 1
 
 function initialExtremalPreview(): ExtremalPreview {
   const turan = turanGraph(6, 2)
@@ -151,7 +173,12 @@ export const hyperLab = $state({
     complement: false,
     filters: { ...DEFAULT_HOST_FILTERS },
     result: null,
+    table: null,
+    history: [],
+    compareId: null,
     selectedExtremal: 0,
+    galleryPage: 0,
+    previewSelection: null,
     preview: initialExtremalPreview(),
     previewNote: '默认展示 T₂(6)：9 条边，Mantel 定理的极图。',
     turanParts: 2,
@@ -261,6 +288,141 @@ export function setExtremalMode(mode: PatternMode): void {
   hyperLab.extremal.result = null
 }
 
+export function buildExtremalTable(): void {
+  const presetIds = PATTERN_PRESETS.map((preset) => preset.id)
+  const labels = PATTERN_PRESETS.map((preset) => preset.label)
+  const rows: ExtremalTable['rows'] = []
+  for (let n = 1; n <= 7; n++) {
+    const values: number[] = []
+    for (const preset of PATTERN_PRESETS) {
+      const result = extremalSearchMulti({
+        n,
+        patterns: [{ graph: patternGraph(preset), label: preset.label }],
+        mode: 'subgraph',
+        filters: DEFAULT_HOST_FILTERS,
+        allowKnownFormula: false,
+      })
+      values.push(result.maxEdges)
+    }
+    rows.push({ n, values })
+  }
+  hyperLab.extremal.table = { presetIds, labels, rows }
+}
+
+export function runExtremalTableCell(n: number, presetId: string): void {
+  const state = hyperLab.extremal
+  state.n = n
+  state.patternId = presetId
+  state.extraPatternIds = []
+  state.complement = false
+  state.filters = { ...DEFAULT_HOST_FILTERS }
+  state.mode = 'subgraph'
+  state.result = null
+  runExtremalSearch()
+}
+
+export function setGalleryPage(page: number): void {
+  const state = hyperLab.extremal
+  const total = state.result?.extremal.length ?? 0
+  const count = Math.max(1, Math.ceil(total / EXTREMAL_GALLERY_PAGE_SIZE))
+  state.galleryPage = Math.max(0, Math.min(count - 1, Math.trunc(page)))
+}
+
+export function selectExtremalPreview(kind: 'vertex' | 'edge' | null, index = 0): void {
+  hyperLab.extremal.previewSelection = kind ? { kind, index } : null
+}
+
+export function setExtremalCompare(id: number | null): void {
+  hyperLab.extremal.compareId = id
+}
+
+export function loadExtremalHistory(id: number): void {
+  const state = hyperLab.extremal
+  const entry = state.history.find((item) => item.id === id)
+  if (!entry) return
+  state.result = entry.result
+  state.selectedExtremal = 0
+  state.galleryPage = 0
+  state.previewSelection = null
+  state.n = entry.result.n
+  if (entry.result.extremal[0]) showExtremalGraph(0)
+}
+
+/** 当前极值查询的可分享 URL（mode=hyper + extremal 参数） */
+export function extremalShareUrl(): string {
+  const state = hyperLab.extremal
+  const href = typeof location === 'undefined' ? 'http://localhost/' : location.href
+  return encodeExtremalLink(
+    {
+      n: state.n,
+      patternId: state.patternId,
+      extraPatternIds: state.extraPatternIds,
+      mode: state.mode,
+      customFormat: state.customFormat,
+      customEdges: state.customEdges,
+      complement: state.complement,
+      filters: state.filters,
+    },
+    href,
+  )
+}
+
+/** 从 URL 恢复极值查询并立即计算；无 extremal 参数时返回 false */
+export function applyExtremalDeepLink(search: string): boolean {
+  const config = decodeExtremalLink(search)
+  if (!config) return false
+  const state = hyperLab.extremal
+  state.n = Math.max(1, Math.min(7, Math.round(config.n) || 1))
+  state.patternId =
+    config.patternId === 'custom' ||
+    PATTERN_PRESETS.some((preset) => preset.id === config.patternId)
+      ? config.patternId
+      : 'K3'
+  state.customFormat = config.customFormat
+  if (config.customEdges !== '') state.customEdges = config.customEdges
+  state.extraPatternIds = config.extraPatternIds.filter((id) =>
+    PATTERN_PRESETS.some((preset) => preset.id === id),
+  )
+  state.complement = config.complement
+  state.mode = config.mode
+  state.filters = {
+    ...config.filters,
+    maxDegree: Math.max(0, Math.min(7, Math.round(config.filters.maxDegree) || 0)),
+  }
+  setHyperTab('extremal')
+  runExtremalSearch()
+  return true
+}
+
+/** 把当前 3-一致超图 Turán 见证的 2-截面画到极值画布 */
+export function previewHyperTuranTwoSection(): void {
+  const state = hyperLab.extremal
+  const result = state.hyperResult
+  if (!result || result.witness.length === 0) return
+  const seen: string[] = []
+  const edges: Array<[number, number]> = []
+  for (const triple of result.witness) {
+    for (let i = 0; i < triple.length; i++) {
+      for (let j = i + 1; j < triple.length; j++) {
+        const u = Math.min(triple[i]!, triple[j]!)
+        const v = Math.max(triple[i]!, triple[j]!)
+        const key = `${u},${v}`
+        if (seen.includes(key)) continue
+        seen.push(key)
+        edges.push([u, v])
+      }
+    }
+  }
+  state.preview = {
+    n: result.n,
+    edges,
+    title: `2-截面：ex₃(${result.n}, ${HYPER_TURAN_LABELS[result.pattern].split('（')[0]})`,
+    subtitle: `${result.witness.length} 条超边 → ${edges.length} 条 2-截面边`,
+  }
+  state.previewSelection = null
+  state.previewNote = '把超边的每个三元组展开为三条普通边（同一对顶点只计一次）。'
+}
+
 export function setExtremalPattern(id: string): void {
   const state = hyperLab.extremal
   state.patternId = id
@@ -362,6 +524,10 @@ export function runExtremalSearch(): void {
     })
     state.result = result
     state.selectedExtremal = 0
+    state.galleryPage = 0
+    state.previewSelection = null
+    state.history = [{ id: extremalHistorySeq++, result }, ...state.history].slice(0, 8)
+    state.compareId = null
     if (result.extremal[0]) {
       showExtremalGraph(0)
     } else if (result.saturation?.examples[0]) {
@@ -383,6 +549,8 @@ export function showExtremalGraph(index: number): void {
   const graph = state.result?.extremal[index]
   if (!graph) return
   state.selectedExtremal = index
+  state.galleryPage = Math.floor(index / EXTREMAL_GALLERY_PAGE_SIZE)
+  state.previewSelection = null
   state.preview = {
     n: graph.n,
     edges: atlasEdgeList(graph),
@@ -407,6 +575,7 @@ export function showSaturationGraph(index: number): void {
   const state = hyperLab.extremal
   const graph = state.result?.saturation?.examples[index]
   if (!graph) return
+  state.previewSelection = null
   state.preview = {
     n: graph.n,
     edges: atlasEdgeList(graph),
@@ -420,6 +589,7 @@ export function runTuranConstruction(): void {
   const state = hyperLab.extremal
   const parts = Math.max(1, Math.min(state.n, state.turanParts))
   state.turanParts = parts
+  state.previewSelection = null
   const turan = turanGraph(state.n, parts)
   state.preview = {
     n: turan.graph.n,
@@ -443,6 +613,7 @@ export function runTriangleRamsey(): void {
   const state = hyperLab.extremal
   const result = triangleRamsey(state.ramseyN)
   state.ramsey = result
+  state.previewSelection = null
   if (result.colors) {
     const pairs = completeEdgePairs(result.n)
     state.preview = {

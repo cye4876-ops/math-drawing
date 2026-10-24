@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { asymptoticInfo, maximalityCertificate, saturationSearch, stabilityInfo } from './analysis'
+import {
+  asymptoticInfo,
+  graphInvariants,
+  maximalityCertificate,
+  saturationSearch,
+  stabilityInfo,
+} from './analysis'
 import type { AtlasGraph } from './atlas'
 import { areIsomorphic, graphDegrees, simpleGraphFromEdges } from './containment'
 import { DEFAULT_HOST_FILTERS, type HostFilters } from './filters'
-import { patternGraph, patternPreset, turanGraph } from './patterns'
+import { parseGraph6Pattern, patternGraph, patternPreset, turanGraph } from './patterns'
+import { extremalSearchMulti } from './search'
 
 function presetGraph(id: string) {
   return patternGraph(patternPreset(id))
@@ -123,6 +130,35 @@ describe('v3.7 稳定性与渐近信息', () => {
     ])
     expect(family.familyChromatic).toBe(2)
     expect(family.familyDensity).toBe(0)
+  })
+})
+
+describe('v3.8 极图不变量', () => {
+  it('C₅：χ=3、ω=2、α=2；K₄：χ=ω=4、α=1', () => {
+    expect(graphInvariants(C5)).toEqual({ chromatic: 3, clique: 2, independence: 2 })
+    expect(graphInvariants(presetGraph('K4'))).toEqual({
+      chromatic: 4,
+      clique: 4,
+      independence: 1,
+    })
+  })
+
+  it('T₂(6)：χ=2、ω=2、α=3', () => {
+    const turan = turanGraph(6, 2)
+    expect(graphInvariants(turan.graph)).toEqual({ chromatic: 2, clique: 2, independence: 3 })
+  })
+})
+
+describe('v3.8 全量极图', () => {
+  it('n=7、自定义 D]w 返回 8 个极图（画廊分页数据）', () => {
+    const result = extremalSearchMulti({
+      n: 7,
+      patterns: [{ graph: parseGraph6Pattern('D]w').graph, label: 'D]w' }],
+      mode: 'subgraph',
+    })
+    expect(result.maxEdges).toBe(12)
+    expect(result.extremal).toHaveLength(8)
+    expect(result.extremalCount).toBe(8)
   })
 })
 

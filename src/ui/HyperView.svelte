@@ -5,7 +5,7 @@
    * - 彩虹：边着色完全图（或导入的图）与选中彩虹副本高亮。
    */
   import { onMount } from 'svelte'
-  import { hyperLab, selectHyper } from '../state/hyper-state.svelte'
+  import { hyperLab, selectExtremalPreview, selectHyper } from '../state/hyper-state.svelte'
   import { analyzeHypergraphDoc } from '../hypergraph/analysis'
   import { memberIndices } from '../hypergraph/model'
 
@@ -471,6 +471,7 @@
   }
 
   function drawExtremal(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    hits = []
     const preview = hyperLab.extremal.preview
     if (!preview) {
       drawTitle(ctx, '极值计算台', '运行 ex(n,H)、构造 Turán 图或计算 Ramsey 证书以显示预览')
@@ -479,32 +480,43 @@
     const center: Point = { x: width / 2, y: height / 2 + 6 }
     const radius = Math.max(80, Math.min(width, height) * 0.32)
     const points = circleLayout(preview.n, center, radius)
+    const selection = hyperLab.extremal.previewSelection
     drawTitle(ctx, preview.title, preview.subtitle)
     preview.edges.forEach(([u, v], index) => {
       const from = points[u]
       const to = points[v]
       if (!from || !to) return
+      const selected = selection?.kind === 'edge' && selection.index === index
       ctx.beginPath()
       ctx.moveTo(from.x, from.y)
       ctx.lineTo(to.x, to.y)
-      ctx.strokeStyle = preview.colors?.[index] ?? '#7c8db5'
-      ctx.lineWidth = preview.colors ? 2.6 : 1.7
+      ctx.strokeStyle = selected ? SELECTED : (preview.colors?.[index] ?? '#7c8db5')
+      ctx.lineWidth = selected ? 4 : preview.colors ? 2.6 : 1.7
       ctx.stroke()
+      hits.push({
+        kind: 'edge',
+        index,
+        x: (from.x + to.x) / 2,
+        y: (from.y + to.y) / 2,
+        radius: 10,
+      })
     })
     for (let index = 0; index < preview.n; index++) {
       const point = points[index]!
+      const selected = selection?.kind === 'vertex' && selection.index === index
       ctx.beginPath()
       ctx.arc(point.x, point.y, 13, 0, Math.PI * 2)
       ctx.fillStyle = '#16203a'
       ctx.fill()
-      ctx.lineWidth = 1.6
-      ctx.strokeStyle = '#64748b'
+      ctx.lineWidth = selected ? 3.5 : 1.6
+      ctx.strokeStyle = selected ? SELECTED : '#64748b'
       ctx.stroke()
       ctx.fillStyle = '#dbeafe'
       ctx.font = '600 11px ui-monospace, Consolas, monospace'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillText(String(index), point.x, point.y)
+      hits.push({ kind: 'vertex', index, x: point.x, y: point.y, radius: 16 })
     }
     if (hyperLab.extremal.previewNote) {
       ctx.textAlign = 'left'
@@ -545,12 +557,9 @@
     else drawExtremal(context, width, height)
   }
 
-  function handlePointerDown(event: PointerEvent): void {
-    // 阻止舞台层的拖拽/缩放手势捕获指针（否则 click 会被重定向到 stage）
-    event.stopPropagation()
-    if (event.button !== 0 || hyperLab.tab !== 'hypergraph') return
+  function pickHit(event: PointerEvent | MouseEvent): Hit | null {
     const canvas = canvasEl
-    if (!canvas) return
+    if (!canvas) return null
     const rect = canvas.getBoundingClientRect()
     const x = event.clientX - rect.left
     const y = event.clientY - rect.top
@@ -565,7 +574,32 @@
         bestDistance = distance
       }
     }
+    return best
+  }
+
+  function handlePointerDown(event: PointerEvent): void {
+    // 阻止舞台层的拖拽/缩放手势捕获指针（否则 click 会被重定向到 stage）
+    event.stopPropagation()
+    if (event.button !== 0) return
+    if (hyperLab.tab === 'extremal') {
+      const hit = pickHit(event)
+      if (hit) selectExtremalPreview(hit.kind, hit.index)
+      return
+    }
+    if (hyperLab.tab !== 'hypergraph') return
+    const best = pickHit(event)
     if (best) selectHyper({ kind: best.kind, index: best.index })
+  }
+
+  function handlePointerMove(event: PointerEvent): void {
+    if (hyperLab.tab !== 'extremal') return
+    event.stopPropagation()
+    const hit = pickHit(event)
+    const current = hyperLab.extremal.previewSelection
+    if (!hit) return
+    if (!current || current.kind !== hit.kind || current.index !== hit.index) {
+      selectExtremalPreview(hit.kind, hit.index)
+    }
   }
 
   onMount(() => {
@@ -591,6 +625,7 @@
     void hyperLab.rainbow.anti
     void hyperLab.extremal.preview
     void hyperLab.extremal.previewNote
+    void hyperLab.extremal.previewSelection
     if (active) draw()
   })
 </script>
@@ -601,6 +636,7 @@
     class="hyper-canvas"
     data-testid="hyper-canvas"
     onpointerdown={handlePointerDown}
+    onpointermove={handlePointerMove}
     onwheel={(event) => event.stopPropagation()}
   ></canvas>
 </div>

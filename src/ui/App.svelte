@@ -661,7 +661,7 @@
       {:else if mode === 'hyper'}
         {#await hyperPanelLazy() then hyperPanelModule}
           {@const HyperPanel = hyperPanelModule.default}
-          <HyperPanel {store} />
+          <HyperPanel {store} onOpenGraph={openLabGraph} />
         {:catch}
           <div class="lazy-error">
             模块加载失败（页面版本可能已更新）。<button

@@ -60,7 +60,7 @@ export interface ExtremalSearchResult {
   freeCount: number
   maxEdges: number
   extremalCount: number
-  /** 展示用极图（最多 12 个） */
+  /** 全部极图（同构图集已按图集非重构组织） */
   extremal: ExtremalCandidate[]
   known: ReturnType<typeof knownExtremalValue>
   lowerBound: ReturnType<typeof turanLowerBoundForPatterns>
@@ -98,7 +98,7 @@ export function extremalSearchMulti(options: ExtremalSearchOptions): ExtremalSea
       extremalCount = 1
     } else if (graph.m === maxEdges) {
       extremalCount++
-      if (extremal.length < 12) extremal.push(graph)
+      extremal.push(graph)
     }
   }
 

@@ -1,31 +1,42 @@
 <script lang="ts">
   /**
-   * 超图与彩虹实验室面板（v3.4 / v3.5）：
+   * 超图、彩虹与极值实验室面板（v3.4 – v3.7）：
    * 超图族生成 / 四视图 / 精确不变量 / Property B / JSON 编辑 / 对偶；
-   * 彩虹子图搜索 / Gallai 检测 / 反拉姆齐小 n / 超图彩虹匹配。
+   * 彩虹子图搜索 / Gallai 检测 / 反拉姆齐小 n / 超图彩虹匹配；
+   * 极值计算台：ex 总表、全量极图画廊、历史对比、证书卡、分享链接。
    */
+  import { onMount } from 'svelte'
   import {
     hyperLab,
+    EXTREMAL_GALLERY_PAGE_SIZE,
+    applyExtremalDeepLink,
+    buildExtremalTable,
     clearExtraPatterns,
     clearHyperWitness,
+    extremalShareUrl,
     generateHyperDoc,
+    loadExtremalHistory,
     loadHyperTuranWitness,
     loadRamseyToRainbow,
+    previewHyperTuranTwoSection,
     regenerateRainbow,
     regenerateHyperSeed,
     replaceHyperDoc,
     resetExtremalFilters,
     runExtremalSearch,
+    runExtremalTableCell,
     runHyperTuran,
     runTriangleRamsey,
     runTuranConstruction,
     setCustomFormat,
     setExtremalComplement,
+    setExtremalCompare,
     setExtremalFilterBoolean,
     setExtremalMaxDegree,
     setExtremalMode,
     setExtremalN,
     setExtremalPattern,
+    setGalleryPage,
     setHyperTab,
     setHyperView,
     setRainbowGraph,
@@ -50,6 +61,8 @@
     formatHyperWitness,
   } from '../extremal/hyper-turan'
   import { PATTERN_PRESETS } from '../extremal/patterns'
+  import { atlasEdgeList } from '../extremal/atlas'
+  import { graphInvariants } from '../extremal/analysis'
   import {
     RAINBOW_PATTERNS,
     antiRamsey,
@@ -64,7 +77,13 @@
   import type { AppStore } from '../state/store'
   import { downloadText } from '../export/download'
 
-  let { store }: { store: AppStore } = $props()
+  let {
+    store,
+    onOpenGraph,
+  }: {
+    store: AppStore
+    onOpenGraph?: (payload: { name: string; n: number; edges: Array<[number, number]> }) => void
+  } = $props()
 
   const doc = $derived(hyperLab.doc)
   const analysis = $derived(analyzeHypergraphDoc(doc))
@@ -74,6 +93,42 @@
     PATTERN_PRESETS.filter((preset) => preset.id !== extremal.patternId),
   )
   const selectedCandidate = $derived(extremal.result?.extremal[extremal.selectedExtremal] ?? null)
+  const selectedInvariants = $derived(selectedCandidate ? graphInvariants(selectedCandidate) : null)
+  const galleryPageCount = $derived(
+    Math.max(1, Math.ceil((extremal.result?.extremal.length ?? 0) / EXTREMAL_GALLERY_PAGE_SIZE)),
+  )
+  const galleryPageStart = $derived(extremal.galleryPage * EXTREMAL_GALLERY_PAGE_SIZE)
+  const galleryCandidates = $derived(
+    extremal.result?.extremal.slice(
+      galleryPageStart,
+      galleryPageStart + EXTREMAL_GALLERY_PAGE_SIZE,
+    ) ?? [],
+  )
+  const compareEntry = $derived(
+    extremal.history.find((entry) => entry.id === extremal.compareId) ?? null,
+  )
+  const previewSelectionInfo = $derived.by(() => {
+    const preview = extremal.preview
+    const selection = extremal.previewSelection
+    if (!preview || !selection) return null
+    if (selection.kind === 'vertex') {
+      const incident = preview.edges
+        .map(([u, v], index) => ({ u, v, index }))
+        .filter((edge) => edge.u === selection.index || edge.v === selection.index)
+      return {
+        title: `顶点 ${selection.index}`,
+        lines: [
+          `度 = ${incident.length}`,
+          `关联边：${incident.map((edge) => `${edge.u}–${edge.v}`).join('、') || '无'}`,
+        ],
+      }
+    }
+    const edge = preview.edges[selection.index]
+    if (!edge) return null
+    return { title: `边 ${edge[0]}–${edge[1]}`, lines: [`在预览中的边下标 = ${selection.index}`] }
+  })
+  const shareUrl = $derived(extremalShareUrl())
+  let shareNotice = $state('')
   const pattern = $derived(rainbowPatternById(rainbow.patternId))
   const rainbowColorCount = $derived(new Set(rainbow.graph.edges.map((edge) => edge.color)).size)
   const canonicalJson = $derived(docToJson(hyperLab.doc))
@@ -257,10 +312,57 @@
   function edgeLabels(edgeIndices: number[]): string {
     return edgeIndices.map((index) => doc.edges[index]?.label ?? '?').join('、')
   }
+
+  onMount(() => {
+    applyExtremalDeepLink(location.search)
+  })
+
+  function csvCell(value: string): string {
+    return `"${value.replaceAll('"', '""')}"`
+  }
+
+  function exportTable(format: 'csv' | 'json'): void {
+    const table = extremal.table
+    if (!table) return
+    if (format === 'json') {
+      downloadText(JSON.stringify(table, null, 2), 'extremal-table.json', 'application/json')
+      return
+    }
+    const header = ['n', ...table.presetIds].map(csvCell).join(',')
+    const lines = table.rows.map((row) =>
+      [String(row.n), ...row.values.map(String)].map(csvCell).join(','),
+    )
+    downloadText([header, ...lines].join('\n'), 'extremal-table.csv', 'text/csv')
+  }
+
+  async function copyShareLink(): Promise<void> {
+    const url = extremalShareUrl()
+    try {
+      await navigator.clipboard.writeText(url)
+      shareNotice = '分享链接已复制到剪贴板。'
+    } catch {
+      shareNotice = '无法写入剪贴板；请手动复制下方链接。'
+    }
+  }
+
+  function loadSelectedToGraph(): void {
+    if (!selectedCandidate || !onOpenGraph) return
+    onOpenGraph({
+      name: `极值图 · ${extremal.result?.patternLabel ?? 'ex(n,F)'}`,
+      n: selectedCandidate.n,
+      edges: atlasEdgeList(selectedCandidate),
+    })
+  }
+
+  function heatStyle(value: number, n: number): string {
+    const maximum = Math.max(1, (n * (n - 1)) / 2)
+    const ratio = Math.max(0, Math.min(1, value / maximum))
+    return `background: rgba(76, 125, 255, ${(0.06 + 0.34 * ratio).toFixed(3)})`
+  }
 </script>
 
 <aside class="hyper-panel" data-testid="hyper-panel">
-  <div class="panel-header">超图、彩虹与极值（v3.4 – v3.7）</div>
+  <div class="panel-header">超图、彩虹与极值（v3.4 – v3.8）</div>
   <div class="tabs" role="tablist" aria-label="实验室子视图">
     <button
       type="button"
@@ -782,6 +884,43 @@
             {extremal.result.asymptotic.familyDensity.toFixed(3)}；{extremal.result.asymptotic.note}
           </div>
         {/if}
+        <div class="selection" data-testid="extremal-certificate">
+          <strong>证书卡片</strong>
+          {#if extremal.result.known}
+            <div>定理：{extremal.result.known.formula}</div>
+            <div>
+              {extremal.result.known.kind === 'mantel'
+                ? 'Mantel 证明思路：取一条边 uv，其余顶点不能同时邻接 u、v；按 d(u)+d(v) ≤ n 计数即可得上界，T₂(n) 达到。'
+                : 'Turán 证明思路：对 K_{k}-free 图按边数归纳，取最大团/非邻接关系，构造完全 (k−1) 部图达到上界。'}
+            </div>
+            <div>
+              精确搜索 {extremal.result.maxEdges} vs 公式 {extremal.result.known.value}：
+              {extremal.result.maxEdges === extremal.result.known.value
+                ? '一致'
+                : '不一致（请检查语义/结构约束）'}。
+            </div>
+          {:else if extremal.result.lowerBound}
+            <div>
+              Turán 构造下界：T{extremal.result.lowerBound.parts}(n) 有
+              {extremal.result.lowerBound.edges} 条边，且同时不含所有选中禁图。
+            </div>
+          {:else if extremal.result.patternCount > 1}
+            <div>多禁图没有单一 Turán 闭式；下面的下界只来自实际检查过的 Turán 构造。</div>
+          {:else}
+            <div>当前禁图没有内置闭式；精确值以图集穷举为准。</div>
+          {/if}
+          {#if selectedCandidate}
+            <div>
+              极图 #{extremal.selectedExtremal + 1}：
+              {selectedCandidate.maximality.maximal
+                ? `结构约束内极大，${selectedCandidate.maximality.addableEdges} 条可加入边全部产生禁图`
+                : `非极大，反例边 (${selectedCandidate.maximality.witnessEdge?.join(',') ?? '?'})`}。
+            </div>
+            {#if selectedCandidate.stability}
+              <div>与 Turán 构造：{selectedCandidate.stability.note}</div>
+            {/if}
+          {/if}
+        </div>
         {#if selectedCandidate}
           <div class="line" data-testid="extremal-maximality">
             {#if selectedCandidate.maximality.maximal}
@@ -803,9 +942,41 @@
           {/if}
         {/if}
         <div class="hint">{extremal.previewNote}</div>
+        <div class="hint" data-testid="extremal-preview-title">
+          当前预览：{extremal.preview?.title ?? '无'}
+        </div>
+        {#if previewSelectionInfo}
+          <div class="selection" data-testid="extremal-canvas-selection">
+            <strong>{previewSelectionInfo.title}</strong>
+            {#each previewSelectionInfo.lines as line (line)}
+              <div>{line}</div>
+            {/each}
+          </div>
+        {:else}
+          <div class="hint">悬停 / 点击画布上的顶点或边可查看局部信息。</div>
+        {/if}
         {#if extremal.result.extremal.length > 0}
           <div class="row wrap">
-            {#each extremal.result.extremal as graph, index (graph.graph6)}
+            <button
+              type="button"
+              data-testid="extremal-gallery-prev"
+              disabled={extremal.galleryPage <= 0}
+              onclick={() => setGalleryPage(extremal.galleryPage - 1)}>上一页</button
+            >
+            <span class="dim">
+              第 {extremal.galleryPage + 1} / {galleryPageCount} 页 · 共
+              {extremal.result.extremal.length} 个极图
+            </span>
+            <button
+              type="button"
+              data-testid="extremal-gallery-next"
+              disabled={extremal.galleryPage >= galleryPageCount - 1}
+              onclick={() => setGalleryPage(extremal.galleryPage + 1)}>下一页</button
+            >
+          </div>
+          <div class="row wrap">
+            {#each galleryCandidates as graph, offset (graph.graph6)}
+              {@const index = galleryPageStart + offset}
               <button
                 type="button"
                 class:active={extremal.selectedExtremal === index}
@@ -814,10 +985,27 @@
               >
             {/each}
           </div>
-          <div class="hint">
-            共 {extremal.result.extremalCount} 个极图；按钮最多展示前
-            {extremal.result.extremal.length} 个。
-          </div>
+          {#if selectedCandidate}
+            <div class="selection" data-testid="extremal-graph-info">
+              <strong>极图 #{extremal.selectedExtremal + 1}</strong>
+              <div>
+                n = {selectedCandidate.n} · m = {selectedCandidate.m} · graph6
+                <code>{selectedCandidate.graph6}</code>
+              </div>
+              <div>
+                度序列 [{selectedCandidate.degrees.join(', ')}] · χ =
+                {selectedInvariants?.chromatic ?? '—'} · ω =
+                {selectedInvariants?.clique ?? '—'} · α =
+                {selectedInvariants?.independence ?? '—'}
+              </div>
+            </div>
+            <button
+              type="button"
+              data-testid="extremal-load-graph"
+              disabled={!onOpenGraph}
+              onclick={loadSelectedToGraph}>载入图论画布</button
+            >
+          {/if}
         {/if}
         {#if extremal.result.saturation}
           <div class="line" data-testid="extremal-saturation">
@@ -844,6 +1032,130 @@
           {/if}
         {/if}
       {/if}
+    </div>
+
+    <div class="section">
+      <div class="section-title">ex 总表 / 热力图</div>
+      <div class="row wrap">
+        <button type="button" data-testid="extremal-table-build" onclick={buildExtremalTable}
+          >生成 / 刷新总表</button
+        >
+        {#if extremal.table}
+          <button type="button" data-testid="extremal-table-csv" onclick={() => exportTable('csv')}
+            >导出 CSV</button
+          >
+          <button
+            type="button"
+            data-testid="extremal-table-json"
+            onclick={() => exportTable('json')}>导出 JSON</button
+          >
+        {/if}
+      </div>
+      {#if extremal.table}
+        <div class="table-wrap" data-testid="extremal-table">
+          <table>
+            <thead>
+              <tr>
+                <th>n</th>
+                {#each extremal.table.presetIds as presetId (presetId)}
+                  <th title={presetId}>{presetId}</th>
+                {/each}
+              </tr>
+            </thead>
+            <tbody>
+              {#each extremal.table.rows as row (row.n)}
+                <tr>
+                  <th>{row.n}</th>
+                  {#each row.values as value, index (extremal.table.presetIds[index])}
+                    {@const presetId = extremal.table.presetIds[index]!}
+                    <td>
+                      <button
+                        type="button"
+                        class:active={extremal.n === row.n && extremal.patternId === presetId}
+                        style={heatStyle(value, row.n)}
+                        data-testid={`extremal-table-cell-${row.n}-${presetId}`}
+                        onclick={() => runExtremalTableCell(row.n, presetId)}
+                        >{value >= 0 ? value : '—'}</button
+                      >
+                    </td>
+                  {/each}
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+        <div class="hint">颜色越深表示边数越接近 Kₙ；点击单元格会切换到该 n / 禁图并重新计算。</div>
+      {/if}
+    </div>
+
+    {#if extremal.history.length > 0}
+      <div class="section">
+        <div class="section-title">搜索历史 / 结果对比</div>
+        <div class="copy-list">
+          {#each extremal.history as entry (entry.id)}
+            <div class="history-row">
+              <button
+                type="button"
+                class="copy-row"
+                data-testid={`extremal-history-${entry.id}`}
+                onclick={() => loadExtremalHistory(entry.id)}
+              >
+                n{entry.result.n} · {entry.result.patternLabel} · ex =
+                {entry.result.maxEdges} · {entry.result.mode === 'subgraph' ? '子图' : '诱导'}
+              </button>
+              <button
+                type="button"
+                data-testid={`extremal-history-compare-${entry.id}`}
+                onclick={() => setExtremalCompare(entry.id)}>对比</button
+              >
+            </div>
+          {/each}
+        </div>
+        {#if compareEntry && extremal.result}
+          <div class="compare-grid" data-testid="extremal-compare">
+            <div class="compare-card">
+              <strong>当前</strong>
+              <div>n{extremal.result.n} · {extremal.result.patternLabel}</div>
+              <div>
+                ex = {extremal.result.maxEdges} · sat = {extremal.result.saturation?.value ?? '—'}
+              </div>
+            </div>
+            <div class="compare-card">
+              <strong>对比</strong>
+              <div>n{compareEntry.result.n} · {compareEntry.result.patternLabel}</div>
+              <div>
+                ex = {compareEntry.result.maxEdges} · sat =
+                {compareEntry.result.saturation?.value ?? '—'}
+              </div>
+            </div>
+          </div>
+          <div class="hint" data-testid="extremal-compare-delta">
+            当前 ex − 对比 ex = {extremal.result.maxEdges - compareEntry.result.maxEdges}
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    <div class="section">
+      <div class="section-title">分享 / 复现</div>
+      <div class="row wrap">
+        <button type="button" data-testid="extremal-share-copy" onclick={copyShareLink}
+          >复制分享链接</button
+        >
+        <input
+          class="grow"
+          readonly
+          data-testid="extremal-share-url"
+          value={shareUrl}
+          onfocus={(event) => (event.currentTarget as HTMLInputElement).select()}
+        />
+      </div>
+      {#if shareNotice}
+        <div class="hint" data-testid="extremal-share-note">{shareNotice}</div>
+      {/if}
+      <div class="hint">
+        链接会恢复 n、禁图、附加禁图、补图、子图语义和结构约束，并自动运行一次。
+      </div>
     </div>
 
     <div class="section">
@@ -960,6 +1272,13 @@
         <div class="hint">
           极值超边：{formatHyperWitness(extremal.hyperResult.witness)}
         </div>
+        <div class="row wrap">
+          <button
+            type="button"
+            data-testid="hyperex-preview-section"
+            onclick={previewHyperTuranTwoSection}>在极值画布显示 2-截面</button
+          >
+        </div>
       {/if}
     </div>
   {/if}
@@ -1054,6 +1373,71 @@
   .grow {
     flex: 1;
     min-width: 180px;
+  }
+  .table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .table-wrap table {
+    border-collapse: collapse;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .table-wrap th,
+  .table-wrap td {
+    padding: 2px 4px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+  .table-wrap th {
+    color: var(--text-dim);
+    font-weight: 600;
+    background: var(--bg);
+  }
+  .table-wrap td button {
+    width: 100%;
+    min-width: 24px;
+    font-size: 10px;
+    padding: 2px 3px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+  }
+  .table-wrap td button.active {
+    border-color: #4c7dff;
+    color: #fff;
+    font-weight: 700;
+  }
+  .history-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .history-row .copy-row {
+    flex: 1;
+  }
+  .history-row button:not(.copy-row) {
+    font-size: 10px;
+    padding: 2px 5px;
+  }
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .compare-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 7px;
+    font-size: 11px;
+    line-height: 1.6;
+    background: var(--bg);
+  }
+  .compare-card strong {
+    display: block;
+    color: var(--text-dim);
+    margin-bottom: 2px;
   }
   .dim {
     font-size: 11px;

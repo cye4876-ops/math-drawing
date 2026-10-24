@@ -51,6 +51,76 @@ export interface AsymptoticInfo {
   note: string
 }
 
+export interface GraphInvariants {
+  chromatic: number
+  clique: number
+  independence: number
+}
+
+function popcount(mask: number): number {
+  let value = mask
+  let count = 0
+  while (value !== 0) {
+    value &= value - 1
+    count++
+  }
+  return count
+}
+
+/** 团数 ω：n ≤ 7 的位掩码枚举即可 */
+export function cliqueNumber(graph: SimpleGraph): number {
+  let best = 0
+  const total = 1 << graph.n
+  for (let mask = 1; mask < total; mask++) {
+    const size = popcount(mask)
+    if (size <= best) continue
+    let ok = true
+    for (let u = 0; u < graph.n && ok; u++) {
+      if (((mask >> u) & 1) === 0) continue
+      for (let v = u + 1; v < graph.n; v++) {
+        if (((mask >> v) & 1) === 0) continue
+        if (((graph.adj[u]! >> v) & 1) === 0) {
+          ok = false
+          break
+        }
+      }
+    }
+    if (ok) best = size
+  }
+  return best
+}
+
+/** 独立数 α：位掩码枚举最大无边子集 */
+export function independenceNumber(graph: SimpleGraph): number {
+  let best = 0
+  const total = 1 << graph.n
+  for (let mask = 1; mask < total; mask++) {
+    const size = popcount(mask)
+    if (size <= best) continue
+    let ok = true
+    for (let u = 0; u < graph.n && ok; u++) {
+      if (((mask >> u) & 1) === 0) continue
+      for (let v = u + 1; v < graph.n; v++) {
+        if (((mask >> v) & 1) === 0) continue
+        if (((graph.adj[u]! >> v) & 1) === 1) {
+          ok = false
+          break
+        }
+      }
+    }
+    if (ok) best = size
+  }
+  return best
+}
+
+export function graphInvariants(graph: SimpleGraph): GraphInvariants {
+  return {
+    chromatic: chromaticNumber(graph),
+    clique: cliqueNumber(graph),
+    independence: independenceNumber(graph),
+  }
+}
+
 function addEdge(graph: SimpleGraph, u: number, v: number): SimpleGraph {
   const adj = [...graph.adj]
   adj[u]! |= 1 << v
