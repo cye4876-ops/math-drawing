@@ -470,6 +470,51 @@
     }
   }
 
+  function drawExtremal(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    const preview = hyperLab.extremal.preview
+    if (!preview) {
+      drawTitle(ctx, '极值计算台', '运行 ex(n,H)、构造 Turán 图或计算 Ramsey 证书以显示预览')
+      return
+    }
+    const center: Point = { x: width / 2, y: height / 2 + 6 }
+    const radius = Math.max(80, Math.min(width, height) * 0.32)
+    const points = circleLayout(preview.n, center, radius)
+    drawTitle(ctx, preview.title, preview.subtitle)
+    preview.edges.forEach(([u, v], index) => {
+      const from = points[u]
+      const to = points[v]
+      if (!from || !to) return
+      ctx.beginPath()
+      ctx.moveTo(from.x, from.y)
+      ctx.lineTo(to.x, to.y)
+      ctx.strokeStyle = preview.colors?.[index] ?? '#7c8db5'
+      ctx.lineWidth = preview.colors ? 2.6 : 1.7
+      ctx.stroke()
+    })
+    for (let index = 0; index < preview.n; index++) {
+      const point = points[index]!
+      ctx.beginPath()
+      ctx.arc(point.x, point.y, 13, 0, Math.PI * 2)
+      ctx.fillStyle = '#16203a'
+      ctx.fill()
+      ctx.lineWidth = 1.6
+      ctx.strokeStyle = '#64748b'
+      ctx.stroke()
+      ctx.fillStyle = '#dbeafe'
+      ctx.font = '600 11px ui-monospace, Consolas, monospace'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(String(index), point.x, point.y)
+    }
+    if (hyperLab.extremal.previewNote) {
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'bottom'
+      ctx.font = '11px ui-sans-serif, system-ui, sans-serif'
+      ctx.fillStyle = '#8fa3c7'
+      ctx.fillText(hyperLab.extremal.previewNote, 18, height - 16)
+    }
+  }
+
   function draw(): void {
     const canvas = canvasEl
     const container = containerEl
@@ -496,7 +541,8 @@
       }
     }
     if (hyperLab.tab === 'hypergraph') drawHypergraph(context, width, height)
-    else drawRainbow(context, width, height)
+    else if (hyperLab.tab === 'rainbow') drawRainbow(context, width, height)
+    else drawExtremal(context, width, height)
   }
 
   function handlePointerDown(event: PointerEvent): void {
@@ -543,6 +589,7 @@
     void hyperLab.rainbow.copies
     void hyperLab.rainbow.selectedCopy
     void hyperLab.rainbow.anti
+    void hyperLab.extremal.preview
     if (active) draw()
   })
 </script>

@@ -1,0 +1,54 @@
+{
+  "version": "v3.6",
+  "graph6AtlasCounts": {
+    "1": 1,
+    "2": 2,
+    "3": 4,
+    "4": 11,
+    "5": 34,
+    "6": 156,
+    "7": 1044
+  },
+  "ex6": {
+    "K3": 9,
+    "C4": 7,
+    "P4": 6,
+    "K4": 12,
+    "2K2": 5,
+    "C5": 9,
+    "K13": 6,
+    "diamond": 9,
+    "C6": 11
+  },
+  "exInduced6": {
+    "C4": 15
+  },
+  "hyperTuran": {
+    "K4_3": {
+      "5": {
+        "maxEdges": 7,
+        "instances": 5
+      },
+      "6": {
+        "maxEdges": 14,
+        "instances": 15
+      }
+    },
+    "loose_triangle": {
+      "5": {
+        "maxEdges": 10,
+        "instances": 0
+      },
+      "6": {
+        "maxEdges": 10,
+        "instances": 120
+      }
+    }
+  },
+  "ramseyCanonical": {
+    "3": 3,
+    "4": 9,
+    "5": 6,
+    "6": 0
+  }
+}

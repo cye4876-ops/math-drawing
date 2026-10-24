@@ -8,13 +8,22 @@
     hyperLab,
     clearHyperWitness,
     generateHyperDoc,
+    loadHyperTuranWitness,
+    loadRamseyToRainbow,
     regenerateRainbow,
     regenerateHyperSeed,
     replaceHyperDoc,
+    runExtremalSearch,
+    runHyperTuran,
+    runTriangleRamsey,
+    runTuranConstruction,
+    setExtremalN,
     setHyperTab,
     setHyperView,
     setRainbowGraph,
     setRainbowN,
+    setTuranParts,
+    showExtremalGraph,
   } from '../state/hyper-state.svelte'
   import { analyzeHypergraphDoc } from '../hypergraph/analysis'
   import {
@@ -25,6 +34,12 @@
   } from '../hypergraph/model'
   import { HYPER_PRESETS } from '../hypergraph/presets'
   import { findRainbowHyperMatching, maxRainbowHyperMatching } from '../hypergraph/rainbow'
+  import {
+    HYPER_TURAN_LABELS,
+    HYPER_TURAN_PATTERNS,
+    formatHyperWitness,
+  } from '../extremal/hyper-turan'
+  import { PATTERN_PRESETS } from '../extremal/patterns'
   import {
     RAINBOW_PATTERNS,
     antiRamsey,
@@ -44,6 +59,7 @@
   const doc = $derived(hyperLab.doc)
   const analysis = $derived(analyzeHypergraphDoc(doc))
   const rainbow = $derived(hyperLab.rainbow)
+  const extremal = $derived(hyperLab.extremal)
   const pattern = $derived(rainbowPatternById(rainbow.patternId))
   const rainbowColorCount = $derived(new Set(rainbow.graph.edges.map((edge) => edge.color)).size)
   const canonicalJson = $derived(docToJson(hyperLab.doc))
@@ -230,7 +246,7 @@
 </script>
 
 <aside class="hyper-panel" data-testid="hyper-panel">
-  <div class="panel-header">超图与彩虹（v3.4 / v3.5）</div>
+  <div class="panel-header">超图、彩虹与极值（v3.4 – v3.6）</div>
   <div class="tabs" role="tablist" aria-label="实验室子视图">
     <button
       type="button"
@@ -243,6 +259,12 @@
       class:active={hyperLab.tab === 'rainbow'}
       data-testid="hyper-tab-rainbow"
       onclick={() => setHyperTab('rainbow')}>彩虹 / 反拉姆齐</button
+    >
+    <button
+      type="button"
+      class:active={hyperLab.tab === 'extremal'}
+      data-testid="hyper-tab-extremal"
+      onclick={() => setHyperTab('extremal')}>极值计算台</button
     >
   </div>
 
@@ -393,7 +415,7 @@
       {/if}
       <div class="hint">支持 {'{n, edges}'} 紧凑格式，或含 vertices/成员 id 的完整文档。</div>
     </div>
-  {:else}
+  {:else if hyperLab.tab === 'rainbow'}
     <div class="section">
       <div class="section-title">着色完全图 Kₙ</div>
       <div class="row wrap">
@@ -550,6 +572,211 @@
           {/if}
         </div>
         <div class="hint">{rainbow.hyperResult.note}</div>
+      {/if}
+    </div>
+  {:else}
+    <div class="section">
+      <div class="section-title">ex(n,H) 精确搜索（n ≤ 7 图集）</div>
+      <div class="row wrap">
+        <span class="dim">n</span>
+        <input
+          class="num"
+          type="number"
+          min="1"
+          max="7"
+          data-testid="extremal-n"
+          value={extremal.n}
+          oninput={(event) => setExtremalN(Number((event.currentTarget as HTMLInputElement).value))}
+        />
+        <select
+          data-testid="extremal-pattern"
+          value={extremal.patternId}
+          onchange={(event) => {
+            extremal.patternId = (event.currentTarget as HTMLSelectElement).value
+            extremal.result = null
+            extremal.customError = ''
+          }}
+        >
+          {#each PATTERN_PRESETS as preset (preset.id)}
+            <option value={preset.id}>{preset.label}</option>
+          {/each}
+          <option value="custom">自定义禁图…</option>
+        </select>
+        <select
+          data-testid="extremal-mode"
+          value={extremal.mode}
+          onchange={(event) =>
+            (extremal.mode = (event.currentTarget as HTMLSelectElement)
+              .value as typeof extremal.mode)}
+        >
+          <option value="subgraph">普通子图</option>
+          <option value="induced">诱导子图</option>
+        </select>
+        <button type="button" data-testid="extremal-run" onclick={runExtremalSearch}>计算 ex</button
+        >
+      </div>
+      {#if extremal.patternId === 'custom'}
+        <input
+          data-testid="extremal-custom"
+          placeholder="0-1, 1-2, 2-0"
+          value={extremal.customEdges}
+          oninput={(event) =>
+            (extremal.customEdges = (event.currentTarget as HTMLInputElement).value)}
+        />
+      {/if}
+      {#if extremal.customError}
+        <div class="error" data-testid="extremal-error">{extremal.customError}</div>
+      {/if}
+      {#if extremal.result}
+        <div class="line" data-testid="extremal-result">
+          ex({extremal.result.n}, {extremal.result.patternLabel}) =
+          <b>{extremal.result.maxEdges}</b>
+          · {extremal.result.mode === 'subgraph' ? '普通子图' : '诱导子图'} · 扫描
+          {extremal.result.scanned} 个非同构图（{extremal.result.freeCount} 个不含禁图）
+        </div>
+        <div class="hint">{extremal.result.note}</div>
+        {#if extremal.result.known}
+          <div class="hint" data-testid="extremal-formula">{extremal.result.known.formula}</div>
+        {:else if extremal.result.lowerBound}
+          <div class="hint" data-testid="extremal-formula">
+            Turán 下界：χ = {extremal.result.lowerBound.chromatic}，t{extremal.result.lowerBound
+              .parts}(n) = {extremal.result.lowerBound.edges}
+          </div>
+        {/if}
+        <div class="hint">{extremal.previewNote}</div>
+        {#if extremal.result.extremal.length > 0}
+          <div class="row wrap">
+            {#each extremal.result.extremal as graph, index (graph.graph6)}
+              <button
+                type="button"
+                class:active={extremal.selectedExtremal === index}
+                data-testid={`extremal-graph-${index}`}
+                onclick={() => showExtremalGraph(index)}>极图 #{index + 1}</button
+              >
+            {/each}
+          </div>
+          <div class="hint">
+            共 {extremal.result.extremalCount} 个极图；按钮最多展示前
+            {extremal.result.extremal.length} 个。
+          </div>
+        {/if}
+      {/if}
+    </div>
+
+    <div class="section">
+      <div class="section-title">Turán 构造对照</div>
+      <div class="row wrap">
+        <span class="dim">部数 r</span>
+        <input
+          class="num"
+          type="number"
+          min="1"
+          max="7"
+          data-testid="extremal-turan-r"
+          value={extremal.turanParts}
+          oninput={(event) =>
+            setTuranParts(Number((event.currentTarget as HTMLInputElement).value))}
+        />
+        <button type="button" data-testid="extremal-turan" onclick={runTuranConstruction}
+          >构造 T_r(n)</button
+        >
+      </div>
+      {#if extremal.turanMessage}
+        <div class="line" data-testid="extremal-turan-result">{extremal.turanMessage}</div>
+      {/if}
+      <div class="hint">
+        平衡完全 r 部图给出 Turán 定理的上界；切换“普通子图”并禁 K{extremal.turanParts + 1} 可核对精确搜索是否达到该构造。
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Ramsey R(3,3) 小证书</div>
+      <div class="row wrap">
+        <span class="dim">n</span>
+        <input
+          class="num"
+          type="number"
+          min="3"
+          max="6"
+          data-testid="ramsey-n"
+          value={extremal.ramseyN}
+          oninput={(event) =>
+            (extremal.ramseyN = Math.max(
+              3,
+              Math.min(6, Number((event.currentTarget as HTMLInputElement).value) || 3),
+            ))}
+        />
+        <button type="button" data-testid="ramsey-run" onclick={runTriangleRamsey}
+          >穷举 2-着色</button
+        >
+        <button
+          type="button"
+          data-testid="ramsey-load"
+          disabled={!extremal.ramsey?.colors}
+          onclick={loadRamseyToRainbow}>载入彩虹画布</button
+        >
+      </div>
+      {#if extremal.ramsey}
+        <div class="line" data-testid="ramsey-result">
+          K{extremal.ramsey.n}：
+          {#if extremal.ramsey.exists}
+            存在 <b>{extremal.ramsey.canonicalCount}</b> 个首边固定的无单色三角形 2-着色（颜色互换后
+            {extremal.ramsey.totalCount} 个）
+          {:else}
+            <b>不存在</b>无单色三角形的 2-着色
+          {/if}
+        </div>
+        <div class="hint">{extremal.ramsey.note}</div>
+        <div class="hint">{extremal.previewNote}</div>
+      {/if}
+    </div>
+
+    <div class="section">
+      <div class="section-title">3-一致超图 Turán（禁 K₄³ / 松三角形）</div>
+      <div class="row wrap">
+        <span class="dim">n</span>
+        <input
+          class="num"
+          type="number"
+          min="4"
+          max="6"
+          data-testid="hyperex-n"
+          value={extremal.hyperN}
+          oninput={(event) =>
+            (extremal.hyperN = Math.max(
+              4,
+              Math.min(6, Number((event.currentTarget as HTMLInputElement).value) || 4),
+            ))}
+        />
+        <select
+          data-testid="hyperex-pattern"
+          value={extremal.hyperPattern}
+          onchange={(event) =>
+            (extremal.hyperPattern = (event.currentTarget as HTMLSelectElement)
+              .value as typeof extremal.hyperPattern)}
+        >
+          {#each HYPER_TURAN_PATTERNS as patternId (patternId)}
+            <option value={patternId}>{HYPER_TURAN_LABELS[patternId]}</option>
+          {/each}
+        </select>
+        <button type="button" data-testid="hyperex-run" onclick={runHyperTuran}>搜索极值</button>
+        <button
+          type="button"
+          data-testid="hyperex-load"
+          disabled={!extremal.hyperResult?.witness.length}
+          onclick={loadHyperTuranWitness}>载入超图实验室</button
+        >
+      </div>
+      {#if extremal.hyperResult}
+        <div class="line" data-testid="hyperex-result">
+          ex₃({extremal.hyperResult.n}, {HYPER_TURAN_LABELS[extremal.hyperResult.pattern]}) =
+          <b>{extremal.hyperResult.maxEdges}</b>
+          · 禁例 {extremal.hyperResult.instances} 个 · {extremal.hyperResult.nodes} 个搜索节点
+        </div>
+        <div class="hint">{extremal.hyperResult.note}</div>
+        <div class="hint">
+          极值超边：{formatHyperWitness(extremal.hyperResult.witness)}
+        </div>
       {/if}
     </div>
   {/if}
