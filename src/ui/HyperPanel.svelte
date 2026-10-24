@@ -1220,7 +1220,7 @@
     </div>
 
     <div class="section">
-      <div class="section-title">Ramsey R(3,3) 小证书</div>
+      <div class="section-title">Ramsey 小证书（任意小 H）</div>
       <div class="row wrap">
         <span class="dim">n</span>
         <input
@@ -1260,10 +1260,11 @@
         <div class="line" data-testid="ramsey-result">
           K{extremal.ramsey.n}：
           {#if extremal.ramsey.exists}
-            存在 <b>{extremal.ramsey.canonicalCount}</b> 个首边固定的无单色三角形 2-着色（颜色互换后
+            存在 <b>{extremal.ramsey.canonicalCount}</b> 个首边固定的无单色
+            {extremal.ramsey.patternLabel} 2-着色（颜色互换后
             {extremal.ramsey.totalCount} 个）
           {:else}
-            <b>不存在</b>无单色三角形的 2-着色
+            <b>不存在</b>无单色 {extremal.ramsey.patternLabel} 的 2-着色
           {/if}
         </div>
         <div class="hint">{extremal.ramsey.note}</div>
