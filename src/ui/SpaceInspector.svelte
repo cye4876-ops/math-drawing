@@ -125,10 +125,7 @@
     }
   }
 
-  const colorbar = $derived.by(() => {
-    if (view.shading === 'solid') {
-      return selected && 'color' in selected ? selected.color : '#334155'
-    }
+  const colormapGradient = $derived.by(() => {
     const stops: string[] = []
     for (let i = 0; i <= 8; i++) {
       const [r, g, b] = sampleColormap(view.colormap, i / 8)
@@ -137,13 +134,25 @@
     return `linear-gradient(90deg, ${stops.join(', ')})`
   })
 
-  const colorbarLabel = $derived(
-    view.shading === 'solid'
-      ? '单色'
-      : view.shading === 'normal'
-        ? '法向 → RGB'
-        : '低 → 高（高度 z）',
-  )
+  const objectColor = $derived(selected && 'color' in selected ? selected.color : '#334155')
+
+  const colorbar = $derived.by(() => {
+    // 向量场按 colorMode 独立着色，不受曲面 shading 影响
+    if (field) return field.colorMode === 'none' ? objectColor : colormapGradient
+    return view.shading === 'solid' ? objectColor : colormapGradient
+  })
+
+  const colorbarLabel = $derived.by(() => {
+    if (field) {
+      if (field.colorMode === 'magnitude') return '低 → 高（|F|）'
+      if (field.colorMode === 'divergence') return '低 → 高（∇·F）'
+      if (field.colorMode === 'curl') return '低 → 高（|∇×F|）'
+      return '单色'
+    }
+    if (view.shading === 'solid') return '单色'
+    if (view.shading === 'normal') return '法向 → RGB'
+    return '低 → 高（高度 z）'
+  })
 
   const tangentInfo = $derived.by(() => {
     void getSpaceRevision()

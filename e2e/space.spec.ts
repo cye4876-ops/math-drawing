@@ -374,6 +374,18 @@ test.describe('v0.8 3D 与场（第四模式）', () => {
     await expect.poll(() => countScenePixels(page), { timeout: 15000 }).toBeGreaterThan(500)
   })
 
+  test('3D 检查器：向量场色标随着色模式切换', async ({ page }) => {
+    await page.goto('/?mode=space')
+    await page.getByTestId('space-add-kind').selectOption('field')
+    await page.getByTestId('space-add').click()
+    await page.getByTestId('space-inspect-field-colormode').selectOption('magnitude')
+    await expect(page.getByTestId('space-colorbar')).toContainText('低 → 高（|F|）')
+    await page.getByTestId('space-inspect-field-colormode').selectOption('divergence')
+    await expect(page.getByTestId('space-colorbar')).toContainText('∇·F')
+    await page.getByTestId('space-inspect-field-colormode').selectOption('none')
+    await expect(page.getByTestId('space-colorbar')).toContainText('单色')
+  })
+
   test('二重积分：∬(x²+y²) 在 [-1,1]² 上计算（≈8/3）并显示区域与采样数', async ({ page }) => {
     await page.goto('/?mode=space')
     await page.getByTestId('integral-f').fill('x^2 + y^2')
