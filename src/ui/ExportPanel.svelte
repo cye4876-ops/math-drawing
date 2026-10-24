@@ -561,20 +561,45 @@
 
 <style>
   .export-panel {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 8px;
-    z-index: 30;
+    position: fixed;
+    top: auto;
+    right: 308px;
+    bottom: 46px;
+    z-index: 60;
     width: 430px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding: 10px 12px;
     border: 1px solid var(--border);
     border-radius: 8px;
-    background: var(--panel);
+    background: var(--bg-panel);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     font-size: 13px;
+  }
+
+  @media (max-width: 1280px) {
+    .export-panel {
+      right: 280px;
+    }
+  }
+
+  @media (max-width: 1100px) {
+    .export-panel {
+      right: 250px;
+    }
+  }
+
+  @media (max-width: 920px) {
+    .export-panel {
+      left: 12px;
+      right: 12px;
+      bottom: 42px;
+      width: auto;
+      max-height: 68vh;
+    }
   }
 
   .plugin-export {

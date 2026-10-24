@@ -34,6 +34,12 @@
 }
 
 /* 深色主题（保留，v2.0 设计系统）：html[data-theme='dark'] 覆盖令牌 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html[data-theme='dark'] {
   --text: #f1f5f9;
   --text-dim: #94a3b8;
@@ -122,8 +128,20 @@ body {
   position: relative;
 }
 
-/* 侧栏收起（v2.4 工作台改版）：画布获得完整宽度 */
+/* v3.10 三栏工作台：工作区轨 / 编辑栏 / 画布 / 检查器 */
+.workspace-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* 侧栏收起：画布与检查器保留，编辑栏隐藏 */
 .main.sidebar-collapsed .side-column {
+  display: none;
+}
+
+.main.inspector-collapsed .inspector {
   display: none;
 }
 
@@ -283,95 +301,72 @@ body {
   font-size: 13px;
 }
 
-/* 窄窗口（v2.4/v2.6）：画布在上、编辑面板在下（回到常规文档流） */
+/* 窄窗口（v3.10）：工作区轨横排，画布在上、编辑栏与检查器在下 */
 @media (max-width: 920px) {
-  .main {
+  .main,
+  .workspace-body {
     flex-direction: column;
   }
-  .stage {
-    min-height: 52%;
+  .workspace-body {
+    overflow-y: auto;
   }
 }
 
-/* 侧栏（v2.6 画布优先）：浮动玻璃卡片覆盖在画布上；收起时画布全宽 */
+/* 编辑栏（v3.10）：固定工作流栏，不再覆盖画布 */
 .side-column {
-  position: absolute;
-  left: 16px;
-  top: 12px;
-  bottom: 96px;
-  z-index: 10;
+  position: relative;
+  flex: 0 0 344px;
+  width: 344px;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  width: 344px;
-  min-height: 0;
-  background: var(--card);
-  backdrop-filter: blur(14px);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-pop);
+  order: -1;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
   overflow: hidden;
 }
 
-/* 浮动卡片内的面板容器去掉各自的底与边框（由卡片统一提供） */
+@media (max-width: 1280px) {
+  .side-column {
+    flex-basis: 320px;
+    width: 320px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .side-column {
+    flex-basis: 300px;
+    width: 300px;
+  }
+}
+
+/* 编辑栏内部的面板不再自带边框与卡片背景 */
 .side-column > * {
   background: transparent;
   border: none;
 }
 
-/* 窄窗口：浮动卡片回到常规文档流（画布在上、面板在下） */
+/* 窄窗口：编辑栏回到文档流，画布在上 */
 @media (max-width: 920px) {
   .side-column {
-    position: static;
-    left: auto;
-    top: auto;
-    bottom: auto;
-    width: auto;
-    max-height: 46%;
-    /* 预留两行工具坞高度（工具坞换行后高约 114px + 底部 12px 偏移） */
-    margin-bottom: 132px;
+    order: 2;
+    flex: 0 0 auto;
+    width: 100%;
+    max-height: none;
+    border-right: none;
     border-top: 1px solid var(--border);
-    border-radius: 0;
-    background: var(--bg-panel);
-    backdrop-filter: none;
-    box-shadow: none;
   }
 }
 
-/* 更窄（手机）：工具坞换行到三行及以上，再加大预留 */
-@media (max-width: 560px) {
-  .side-column {
-    margin-bottom: 196px;
-  }
-}
-
-/* 数学专题·代数实验区（舞台内的绝对定位详情层）：向右避让左侧浮动卡片 */
+/* 数学专题·代数实验区：舞台内绝对定位层不再避让浮动卡片 */
 .main .stage .algebra-area {
-  left: 372px;
-}
-
-.main.sidebar-collapsed .stage .algebra-area {
   left: 0;
 }
 
-@media (max-width: 920px) {
-  .main .stage .algebra-area {
-    left: 0;
-  }
-}
-
-/* 图论实验台（v2.7）：滚动内容整体避让左侧浮动卡片（折叠/窄屏恢复全宽） */
+/* 图论实验台：滚动内容直接使用舞台内边距 */
 .main .stage .lab-view {
-  padding-left: 372px;
-}
-
-.main.sidebar-collapsed .stage .lab-view {
   padding-left: 16px;
-}
-
-@media (max-width: 920px) {
-  .main .stage .lab-view {
-    padding-left: 16px;
-  }
 }
 
 .stage {
@@ -383,6 +378,19 @@ body {
   cursor: grab;
   user-select: none;
   touch-action: none;
+}
+
+/* 窄窗口：画布固定为上半屏，编辑栏与检查器在下方滚动 */
+@media (max-width: 920px) {
+  .stage {
+    order: 1;
+    flex: 0 0 52vh;
+    height: 52vh;
+    min-height: 320px;
+  }
+  .inspector {
+    order: 3;
+  }
 }
 
 /* 3D 模式：隐藏 2D 画布层（SpaceView 覆盖其上） */
@@ -413,78 +421,48 @@ body {
 
 /* 工具栏（v2.6）：样式迁移到 Toolbar.svelte（顶部玻璃拦 + 底部浮动工具坞） */
 
-/* 状态栏（v2.6）：底部浮动胶囊（左：保存状态；右：光标与缩放） */
+/* 状态栏（v3.10）：常规文档流底栏，不再悬浮遮挡画布 */
 .status-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
   z-index: 30;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 14px 16px;
-  background: transparent;
-  border: none;
-  font-size: 12.5px;
+  gap: 16px;
+  min-height: 30px;
+  padding: 0 14px;
+  background: var(--bg-chrome);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
-  pointer-events: none;
 }
 
 .status-bar > span {
-  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  background: var(--card);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.05),
-    0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
-/* 视觉顺序：左“保存状态”，中右“光标”，最右“缩放” */
+/* 视觉顺序：左“保存状态”，中“光标”，右“缩放” */
 .status-bar > span:nth-child(1) {
   order: 2;
-  margin-left: auto;
 }
 .status-bar > span:nth-child(2) {
   order: 1;
 }
 .status-bar > span:nth-child(3) {
   order: 3;
+  margin-left: auto;
 }
 
-/* 中等宽度：状态胶囊与浮动卡片上移，避免与工具坞/胶囊重叠 */
-@media (max-width: 1439px) {
-  .status-bar {
-    bottom: 74px;
-  }
-  .side-column {
-    bottom: 118px;
-  }
-}
-
-/* 窄窗口：工具坞可能换行成两行；状态胶囊移到顶部（避开面板与工具坞） */
-@media (max-width: 920px) {
-  .status-bar {
-    top: 100px;
-    bottom: auto;
-    padding: 0 12px;
-  }
-}
-
-/* 更窄：顶栏自身换行为两行（高约 119px），胶囊继续下移保持不遮挡 */
 @media (max-width: 680px) {
   .status-bar {
-    top: 132px;
+    gap: 8px;
+    font-size: 11px;
+    padding: 0 8px;
   }
 }
+
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
@@ -500,16 +478,14 @@ body {
 }
 
 /* 演示模式（v1.0）：全屏投影——隐藏编辑 UI、放大字号 */
-body.presentation-mode .side-column {
+body.presentation-mode .side-column,
+body.presentation-mode .workspace-rail,
+body.presentation-mode .inspector {
   display: none;
 }
 
 body.presentation-mode .stage {
   font-size: 18px;
-}
-
-body.presentation-mode .dock {
-  opacity: 0.92;
 }
 
 body.presentation-mode .status-bar {

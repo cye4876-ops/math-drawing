@@ -30,8 +30,9 @@
   import MarkerLayer from './MarkerLayer.svelte'
   import StatusBar from './StatusBar.svelte'
   import MarkerList from './MarkerList.svelte'
-  import Toolbar from './Toolbar.svelte'
-  import ToolsPanel from './ToolsPanel.svelte'
+  import TopBar from './TopBar.svelte'
+  import WorkspaceRail from './WorkspaceRail.svelte'
+  import InspectorPanel from './InspectorPanel.svelte'
   import type { SceneHighlight } from '../render/element-registry'
   import { clearSampleCache } from '../render/curve-renderer'
   import { decodeSharedState, SHARE_PARAM } from '../export/url-state'
@@ -321,6 +322,24 @@
     }
   }
 
+  /** 检查器收起（v3.10）：状态持久化，默认展开 */
+  function initialInspectorCollapsed(): boolean {
+    try {
+      return localStorage.getItem('md.inspector-collapsed') === '1'
+    } catch {
+      return false
+    }
+  }
+  let inspectorCollapsed = $state(initialInspectorCollapsed())
+  function toggleInspector(): void {
+    inspectorCollapsed = !inspectorCollapsed
+    try {
+      localStorage.setItem('md.inspector-collapsed', inspectorCollapsed ? '1' : '0')
+    } catch {
+      // 忽略存储失败
+    }
+  }
+
   /** 首屏引导（v2.4）：函数绘图模式无曲线时显示三个入口 */
   let plotCurveCount = $state(0)
   $effect(() => {
@@ -524,166 +543,177 @@
 </script>
 
 <div class="app">
-  <Toolbar
+  <TopBar
     {store}
     {canUndo}
     {canRedo}
-    {registry}
     {mode}
-    onModeChange={setMode}
     {sidebarCollapsed}
     onToggleSidebar={toggleSidebar}
+    {inspectorCollapsed}
+    onToggleInspector={toggleInspector}
     onOpenExamples={() => (examplesOpen = true)}
     onOpenShortcuts={() => (shortcutsOpen = true)}
-    getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
   />
-  <div class="main" class:sidebar-collapsed={sidebarCollapsed}>
-    <div
-      class="stage"
-      bind:this={stageElement}
-      class:hidden2d={mode === 'space' ||
-        mode === 'advanced' ||
-        mode === 'matrix' ||
-        mode === 'notebook' ||
-        mode === 'lab' ||
-        mode === 'hyper'}
-    >
-      {#if spaceMounted}
-        {#await spaceViewLazy() then spaceModule}
-          {@const SpaceView = spaceModule.default}
-          <SpaceView {store} active={mode === 'space'} />
-        {/await}
-      {/if}
-      {#if advancedMounted}
-        {#await advancedViewLazy() then advancedModule}
-          {@const AdvancedView = advancedModule.default}
-          <AdvancedView active={mode === 'advanced'} />
-        {/await}
-      {/if}
-      {#if matrixMounted}
-        {#await matrixViewLazy() then matrixModule}
-          {@const MatrixView = matrixModule.default}
-          <MatrixView active={mode === 'matrix'} />
-        {/await}
-      {/if}
-      {#if notebookMounted}
-        {#await notebookViewLazy() then notebookModule}
-          {@const NotebookView = notebookModule.default}
-          <NotebookView active={mode === 'notebook'} {store} onOpenMode={setMode} />
-        {/await}
-      {/if}
-      {#if labMounted}
-        {#await labViewLazy() then labModule}
-          {@const LabView = labModule.default}
-          <LabView active={mode === 'lab'} onOpenGraph={openLabGraph} />
-        {/await}
-      {/if}
-      {#if hyperMounted}
-        {#await hyperViewLazy() then hyperModule}
-          {@const HyperView = hyperModule.default}
-          <HyperView active={mode === 'hyper'} />
-        {/await}
-      {/if}
-      {#if mode === 'plot' && plotCurveCount === 0}
-        <WelcomeOverlay
-          onDrawFunction={welcomeDrawFunction}
-          onParamDemo={welcomeParamDemo}
-          onOpenExample={welcomeOpenExample}
-        />
-      {/if}
-    </div>
-    <div class="side-column" data-testid="side-column">
-      {#if mode === 'plot'}
-        <CurveList {store} />
-        <MarkerList {store} />
-      {:else if mode === 'graph'}
-        <GraphPanel {store} onHighlight={handleGraphHighlight} />
-      {:else if mode === 'stats'}
-        <StatsPanel
-          {store}
-          getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
-          requestRender={() => canvasLayerRef?.requestRender()}
-        />
-      {:else if mode === 'space'}
-        {#await spacePanelLazy() then spacePanelModule}
-          {@const SpacePanel = spacePanelModule.default}
-          <SpacePanel {store} />
-        {:catch}
-          <div class="lazy-error">
-            模块加载失败（页面版本可能已更新）。<button
-              type="button"
-              onclick={() => window.location.reload()}>重新加载</button
-            >
-          </div>
-        {/await}
-      {:else if mode === 'notebook'}
-        {#await notebookPanelLazy() then notebookPanelModule}
-          {@const NotebookPanel = notebookPanelModule.default}
-          <NotebookPanel
-            {store}
-            {registry}
-            {mode}
-            onOpenMode={setMode}
-            onPluginsChanged={handlePluginsChanged}
+  <div
+    class="main"
+    class:sidebar-collapsed={sidebarCollapsed}
+    class:inspector-collapsed={inspectorCollapsed}
+  >
+    <WorkspaceRail {mode} onModeChange={setMode} />
+    <div class="workspace-body">
+      <div
+        class="stage"
+        bind:this={stageElement}
+        class:hidden2d={mode === 'space' ||
+          mode === 'advanced' ||
+          mode === 'matrix' ||
+          mode === 'notebook' ||
+          mode === 'lab' ||
+          mode === 'hyper'}
+      >
+        {#if spaceMounted}
+          {#await spaceViewLazy() then spaceModule}
+            {@const SpaceView = spaceModule.default}
+            <SpaceView {store} active={mode === 'space'} />
+          {/await}
+        {/if}
+        {#if advancedMounted}
+          {#await advancedViewLazy() then advancedModule}
+            {@const AdvancedView = advancedModule.default}
+            <AdvancedView active={mode === 'advanced'} />
+          {/await}
+        {/if}
+        {#if matrixMounted}
+          {#await matrixViewLazy() then matrixModule}
+            {@const MatrixView = matrixModule.default}
+            <MatrixView active={mode === 'matrix'} />
+          {/await}
+        {/if}
+        {#if notebookMounted}
+          {#await notebookViewLazy() then notebookModule}
+            {@const NotebookView = notebookModule.default}
+            <NotebookView active={mode === 'notebook'} {store} onOpenMode={setMode} />
+          {/await}
+        {/if}
+        {#if labMounted}
+          {#await labViewLazy() then labModule}
+            {@const LabView = labModule.default}
+            <LabView active={mode === 'lab'} onOpenGraph={openLabGraph} />
+          {/await}
+        {/if}
+        {#if hyperMounted}
+          {#await hyperViewLazy() then hyperModule}
+            {@const HyperView = hyperModule.default}
+            <HyperView active={mode === 'hyper'} />
+          {/await}
+        {/if}
+        {#if mode === 'plot' && plotCurveCount === 0}
+          <WelcomeOverlay
+            onDrawFunction={welcomeDrawFunction}
+            onParamDemo={welcomeParamDemo}
+            onOpenExample={welcomeOpenExample}
           />
-        {:catch}
-          <div class="lazy-error">
-            模块加载失败（页面版本可能已更新）。<button
-              type="button"
-              onclick={() => window.location.reload()}>重新加载</button
-            >
-          </div>
-        {/await}
-      {:else if mode === 'matrix'}
-        {#await matrixPanelLazy() then matrixPanelModule}
-          {@const MatrixPanel = matrixPanelModule.default}
-          <MatrixPanel />
-        {:catch}
-          <div class="lazy-error">
-            模块加载失败（页面版本可能已更新）。<button
-              type="button"
-              onclick={() => window.location.reload()}>重新加载</button
-            >
-          </div>
-        {/await}
-      {:else if mode === 'lab'}
-        {#await labPanelLazy() then labPanelModule}
-          {@const LabPanel = labPanelModule.default}
-          <LabPanel {store} />
-        {:catch}
-          <div class="lazy-error">
-            模块加载失败（页面版本可能已更新）。<button
-              type="button"
-              onclick={() => window.location.reload()}>重新加载</button
-            >
-          </div>
-        {/await}
-      {:else if mode === 'hyper'}
-        {#await hyperPanelLazy() then hyperPanelModule}
-          {@const HyperPanel = hyperPanelModule.default}
-          <HyperPanel {store} onOpenGraph={openLabGraph} />
-        {:catch}
-          <div class="lazy-error">
-            模块加载失败（页面版本可能已更新）。<button
-              type="button"
-              onclick={() => window.location.reload()}>重新加载</button
-            >
-          </div>
-        {/await}
-      {:else}
-        {#await advancedPanelLazy() then advancedPanelModule}
-          {@const AdvancedPanel = advancedPanelModule.default}
-          <AdvancedPanel />
-        {:catch}
-          <div class="lazy-error">
-            模块加载失败（页面版本可能已更新）。<button
-              type="button"
-              onclick={() => window.location.reload()}>重新加载</button
-            >
-          </div>
-        {/await}
-      {/if}
-      <ToolsPanel {registry} />
+        {/if}
+      </div>
+      <div class="side-column" data-testid="side-column">
+        {#if mode === 'plot'}
+          <CurveList {store} />
+          <MarkerList {store} />
+        {:else if mode === 'graph'}
+          <GraphPanel {store} onHighlight={handleGraphHighlight} />
+        {:else if mode === 'stats'}
+          <StatsPanel
+            {store}
+            getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
+            requestRender={() => canvasLayerRef?.requestRender()}
+          />
+        {:else if mode === 'space'}
+          {#await spacePanelLazy() then spacePanelModule}
+            {@const SpacePanel = spacePanelModule.default}
+            <SpacePanel {store} />
+          {:catch}
+            <div class="lazy-error">
+              模块加载失败（页面版本可能已更新）。<button
+                type="button"
+                onclick={() => window.location.reload()}>重新加载</button
+              >
+            </div>
+          {/await}
+        {:else if mode === 'notebook'}
+          {#await notebookPanelLazy() then notebookPanelModule}
+            {@const NotebookPanel = notebookPanelModule.default}
+            <NotebookPanel
+              {store}
+              {registry}
+              {mode}
+              onOpenMode={setMode}
+              onPluginsChanged={handlePluginsChanged}
+            />
+          {:catch}
+            <div class="lazy-error">
+              模块加载失败（页面版本可能已更新）。<button
+                type="button"
+                onclick={() => window.location.reload()}>重新加载</button
+              >
+            </div>
+          {/await}
+        {:else if mode === 'matrix'}
+          {#await matrixPanelLazy() then matrixPanelModule}
+            {@const MatrixPanel = matrixPanelModule.default}
+            <MatrixPanel />
+          {:catch}
+            <div class="lazy-error">
+              模块加载失败（页面版本可能已更新）。<button
+                type="button"
+                onclick={() => window.location.reload()}>重新加载</button
+              >
+            </div>
+          {/await}
+        {:else if mode === 'lab'}
+          {#await labPanelLazy() then labPanelModule}
+            {@const LabPanel = labPanelModule.default}
+            <LabPanel {store} />
+          {:catch}
+            <div class="lazy-error">
+              模块加载失败（页面版本可能已更新）。<button
+                type="button"
+                onclick={() => window.location.reload()}>重新加载</button
+              >
+            </div>
+          {/await}
+        {:else if mode === 'hyper'}
+          {#await hyperPanelLazy() then hyperPanelModule}
+            {@const HyperPanel = hyperPanelModule.default}
+            <HyperPanel {store} onOpenGraph={openLabGraph} />
+          {:catch}
+            <div class="lazy-error">
+              模块加载失败（页面版本可能已更新）。<button
+                type="button"
+                onclick={() => window.location.reload()}>重新加载</button
+              >
+            </div>
+          {/await}
+        {:else}
+          {#await advancedPanelLazy() then advancedPanelModule}
+            {@const AdvancedPanel = advancedPanelModule.default}
+            <AdvancedPanel />
+          {:catch}
+            <div class="lazy-error">
+              模块加载失败（页面版本可能已更新）。<button
+                type="button"
+                onclick={() => window.location.reload()}>重新加载</button
+              >
+            </div>
+          {/await}
+        {/if}
+      </div>
+      <InspectorPanel
+        {store}
+        {registry}
+        {mode}
+        getStageSize={() => canvasLayerRef?.getSize() ?? { width: 0, height: 0 }}
+      />
     </div>
   </div>
   <StatusBar {cursor} {scale} {coordType} />

@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Math Drawing 界面优化对标与方案</title>
+    <style>
+      :root {
+        --ink: #172033;
+        --muted: #667085;
+        --line: #e4e7ec;
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --accent: #4f46e5;
+        --accent-soft: #eef2ff;
+        --green: #067647;
+        --green-soft: #ecfdf3;
+        --amber: #b54708;
+        --amber-soft: #fffaeb;
+        --dark: #111827;
+        --canvas: #f8fafc;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+        line-height: 1.65;
+      }
+      a { color: var(--accent); }
+      .wrap { width: min(1440px, calc(100% - 48px)); margin: 0 auto; padding: 48px 0 72px; }
+      header.hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.75fr);
+        gap: 28px;
+        align-items: end;
+        margin-bottom: 28px;
+      }
+      h1 { margin: 0 0 10px; font-size: clamp(30px, 4vw, 52px); line-height: 1.12; letter-spacing: -0.03em; }
+      .eyebrow { color: var(--accent); font-weight: 700; letter-spacing: .12em; font-size: 12px; text-transform: uppercase; }
+      .sub { color: var(--muted); font-size: 16px; max-width: 72ch; margin: 0; }
+      .recommend {
+        background: var(--dark);
+        color: #e5e7eb;
+        border-radius: 18px;
+        padding: 22px 24px;
+      }
+      .recommend strong { display: block; color: #fff; font-size: 17px; margin-bottom: 4px; }
+      .recommend span { color: #cbd5e1; font-size: 14px; }
+      section { margin-top: 44px; }
+      h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: -0.02em; }
+      .section-note { color: var(--muted); margin: 0 0 20px; max-width: 90ch; }
+      .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 8px 28px rgba(16, 24, 40, .04);
+      }
+      .shot { display: block; background: #e5e7eb; }
+      .shot img { display: block; width: 100%; height: auto; }
+      .card-body { padding: 18px 20px 20px; }
+      .card h3 { margin: 0 0 6px; font-size: 18px; }
+      .tag-row { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0 12px; }
+      .tag { display: inline-flex; align-items: center; border-radius: 999px; font-size: 12px; font-weight: 600; padding: 3px 9px; background: #f2f4f7; color: #344054; }
+      .tag.good { background: var(--green-soft); color: var(--green); }
+      .tag.warn { background: var(--amber-soft); color: var(--amber); }
+      .tag.accent { background: var(--accent-soft); color: var(--accent); }
+      .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+      .cols h4 { margin: 0 0 6px; font-size: 13px; }
+      .cols ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+      .cols li + li { margin-top: 3px; }
+      .issue-list { margin: 14px 0 0; padding-left: 20px; color: var(--muted); font-size: 14px; }
+      .issue-list li + li { margin-top: 6px; }
+      .issue-list b { color: var(--ink); }
+      .options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+      .option-card { display: flex; flex-direction: column; }
+      .option-card.recommended { border: 2px solid var(--accent); box-shadow: 0 10px 34px rgba(79, 70, 229, .12); }
+      .option-head { padding: 18px 20px 4px; }
+      .option-head h3 { margin: 0; font-size: 19px; }
+      .option-head p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+      .wire {
+        margin: 14px 20px 6px;
+        border: 1px solid #d0d5dd;
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--canvas);
+        font-size: 10px;
+        color: #475467;
+        min-height: 240px;
+        display: flex;
+        flex-direction: column;
+      }
+      .wire .bar { background: #fff; border-bottom: 1px solid #d0d5dd; padding: 7px 9px; display: flex; align-items: center; gap: 7px; }
+      .dot { width: 7px; height: 7px; border-radius: 50%; background: #cbd5e1; }
+      .wire .bar .tabs { display: flex; gap: 4px; margin-left: 4px; }
+      .wire .bar .tabs i { display: block; width: 34px; height: 6px; border-radius: 3px; background: #e4e7ec; }
+      .wire .body { flex: 1; display: flex; min-height: 0; }
+      .wire .rail { width: 26px; background: #fff; border-right: 1px solid #d0d5dd; display: flex; flex-direction: column; gap: 7px; align-items: center; padding-top: 9px; }
+      .rail i { width: 12px; height: 12px; border-radius: 4px; background: #e4e7ec; display: block; }
+      .wire .panel { width: 25%; background: #fff; border-right: 1px solid #d0d5dd; padding: 9px; }
+      .wire .panel i, .wire .right i { display: block; height: 6px; border-radius: 3px; background: #e4e7ec; margin-bottom: 7px; }
+      .wire .panel i:nth-child(2n), .wire .right i:nth-child(2n) { width: 70%; }
+      .wire .canvasbox { flex: 1; padding: 10px; display: grid; place-items: center; background-image: linear-gradient(#eef2f6 1px, transparent 1px), linear-gradient(90deg, #eef2f6 1px, transparent 1px); background-size: 18px 18px; }
+      .wire .canvasbox b { font-size: 11px; font-weight: 600; color: #667085; background: rgba(255,255,255,.9); border: 1px solid #d0d5dd; border-radius: 6px; padding: 3px 8px; }
+      .wire .right { width: 24%; background: #fff; border-left: 1px solid #d0d5dd; padding: 9px; }
+      .wire .bottom { border-top: 1px solid #d0d5dd; background: #fff; padding: 7px 9px; display: flex; gap: 6px; align-items: center; }
+      .wire .bottom i { display: block; height: 9px; flex: 1; border-radius: 4px; background: #e4e7ec; }
+      .wire .floatdock { position: relative; }
+      .w-caption { font-size: 11px; color: #667085; text-align: center; margin: 0 0 4px; }
+      .mini-notes { padding: 8px 20px 0; color: var(--muted); font-size: 13px; }
+      .mini-notes b { color: var(--ink); }
+      .pros { padding: 10px 20px 20px; font-size: 13px; }
+      .pros .row { display: grid; grid-template-columns: 60px 1fr; gap: 8px; padding: 7px 0; border-top: 1px solid #f2f4f7; }
+      .pros .row:first-child { border-top: 0; }
+      .pros .k { color: var(--muted); }
+      .pros .v { color: #344054; }
+      .recommend-banner {
+        display: grid;
+        grid-template-columns: 1.2fr .8fr;
+        gap: 20px;
+        background: linear-gradient(135deg, #111827, #1f2937);
+        color: #e5e7eb;
+        border-radius: 20px;
+        padding: 28px 30px;
+        margin-top: 24px;
+      }
+      .recommend-banner h3 { margin: 0 0 8px; color: #fff; font-size: 22px; }
+      .recommend-banner p { margin: 0; color: #cbd5e1; font-size: 15px; }
+      .steps { counter-reset: step; display: grid; gap: 10px; }
+      .steps div { counter-increment: step; display: grid; grid-template-columns: 26px 1fr; gap: 10px; color: #e5e7eb; font-size: 14px; }
+      .steps div::before { content: counter(step); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #4f46e5; color: white; font-weight: 700; font-size: 12px; }
+      .footer { margin-top: 38px; color: #98a2b3; font-size: 12px; }
+      .footer a { color: #98a2b3; }
+      @media (max-width: 1100px) {
+        .grid-2, .options { grid-template-columns: 1fr; }
+        header.hero, .recommend-banner { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 700px) {
+        .wrap { width: min(100% - 24px, 1440px); padding-top: 24px; }
+        .cols { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="hero">
+        <div>
+          <div class="eyebrow">UI Review · 2026-10</div>
+          <h1>界面优化对标<br />与三套可选方向</h1>
+          <p class="sub">先看成熟数学工具和图分析工作台的设计取舍，再选择适合 Math Drawing 的整体壳。当前需求不是“换配色”，而是让 9 个工作区、画布和计算面板形成稳定的信息层级。</p>
+        </div>
+        <div class="recommend">
+          <strong>我的初步判断</strong>
+          <span>推荐以“三栏分析工作台”为主，吸收 Desmos 的画布优先、Gephi Lite 的手风琴分组和 Quiver 的上下文工具条；教学演示模式保留“舞台式”布局。</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>01 · 当前界面：优点与主要问题</h2>
+        <p class="section-note">现有界面已经有清晰的浅色视觉体系、浮层和深色画布；问题主要是“功能都露在外面”，画布被多个浮层同时切割，高级功能在垂直方向上无限堆叠。</p>
+        <div class="grid-2">
+          <article class="card">
+            <a class="shot" href="refs/current-plot.png" target="_blank"><img src="refs/current-plot.png" alt="当前函数绘图界面" /></a>
+            <div class="card-body">
+              <h3>函数绘图：画布优先，但浮层过多</h3>
+              <div class="tag-row"><span class="tag good">视觉克制</span><span class="tag good">表达式快捷输入</span><span class="tag warn">左栏留白过大</span></div>
+              <ul class="issue-list">
+                <li><b>三个浮层</b>同时压在画布上：左侧曲线卡、底部工具 dock、底部开始绘图卡。</li>
+                <li>左侧“曲线”输入区与底部“标记点”之间出现大片空白，信息密度失衡。</li>
+                <li>底部 13 个工具全部常驻，图标为主、文字很小，初学者难以扫读；画布有效面积被压缩。</li>
+                <li>右上角全局图标没有文字标签，功能发现性弱。</li>
+              </ul>
+            </div>
+          </article>
+          <article class="card">
+            <a class="shot" href="refs/current-extremal.png" target="_blank"><img src="refs/current-extremal.png" alt="当前极值计算台界面" /></a>
+            <div class="card-body">
+              <h3>极值计算台：功能完整，但像“控件清单”</h3>
+              <div class="tag-row"><span class="tag good">深色画布 / 结果可视化</span><span class="tag warn">单列超长滚动</span><span class="tag warn">结果与操作分离</span></div>
+              <ul class="issue-list">
+                <li>精确搜索、附加禁图、结构约束、总表、分享、启发式、Turán、Ramsey、超图 Turán 全部纵向堆叠。</li>
+                <li>一次只做一件事的用户要滚很远；无法判断“下一步该做什么”。</li>
+                <li>结果在画布底部/状态栏，操作在左栏，视线来回跳。</li>
+                <li>深色画布与白色面板对比强，适合专注，但面板缺少层级和锚点。</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>02 · 参考项目：值得借鉴什么</h2>
+        <p class="section-note">下面 4 个参考覆盖两类产品：数学绘图工具（Desmos、GeoGebra）和图/关系分析工作台（Gephi Lite、Quiver）。截图仅用于内部设计对标，来源见页面底部。</p>
+        <div class="grid-2">
+          <article class="card">
+            <a class="shot" href="refs/desmos.png" target="_blank"><img src="refs/desmos.png" alt="Desmos 计算器界面" /></a>
+            <div class="card-body">
+              <h3>Desmos · 极简双栏（非开源，UX 标杆）</h3>
+              <div class="tag-row"><span class="tag accent">画布优先</span><span class="tag accent">表达式即对象</span><span class="tag accent">颜色联动</span></div>
+              <div class="cols">
+                <div><h4>优点</h4><ul><li>只保留输入列表和画布，其他功能在需要时出现。</li><li>表达式、颜色、曲线一一对应，编辑反馈非常直接。</li><li>左侧可收起，画布始终是主角。</li></ul></div>
+                <div><h4>不要照搬</h4><ul><li>高级分析几乎全部隐藏，不适合极值/超图工作台。</li><li>对 9 个工作区的导航没有参考价值。</li></ul></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <a class="shot" href="refs/geogebra.png" target="_blank"><img src="refs/geogebra.png" alt="GeoGebra 图形计算器界面" /></a>
+            <div class="card-body">
+              <h3>GeoGebra · 图标导航 + 可切换视图</h3>
+              <div class="tag-row"><span class="tag accent">工具分组</span><span class="tag accent">视图切换</span><span class="tag accent">触屏输入</span></div>
+              <div class="cols">
+                <div><h4>优点</h4><ul><li>左侧窄图标栏统管“代数区 / 工具 / 表格 / 数据”，内容面板随视图切换。</li><li>图形区占据绝对主位，底部键盘可收起。</li><li>“分发/分享”是明确的主操作。</li></ul></div>
+                <div><h4>不要照搬</h4><ul><li>图标密度高、部分图标语义弱，学习成本高。</li><li>视觉风格偏老，面板层级依赖大量小图标。</li></ul></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <a class="shot" href="refs/gephi-lite-loaded.png" target="_blank"><img src="refs/gephi-lite-loaded.png" alt="Gephi Lite 加载示例图后的工作台" /></a>
+            <div class="card-body">
+              <h3>Gephi Lite · 图分析工作台（开源）</h3>
+              <div class="tag-row"><span class="tag accent">手风琴工作流</span><span class="tag accent">Graph / Data 顶层切换</span><span class="tag accent">画布内图例</span></div>
+              <div class="cols">
+                <div><h4>优点</h4><ul><li>Layout / Appearance / Filters / Metrics 一次只展开一个，渐进披露做得很好。</li><li>左侧固定工作流，右侧浮动工具条，画布保持最大面积。</li><li>图例与统计浮在画布内，结果离图很近。</li></ul></div>
+                <div><h4>不要照搬</h4><ul><li>一次只开一个面板，频繁切换时效率一般。</li><li>部分控件偏小，中文长标签需要重新设计。</li></ul></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <a class="shot" href="refs/quiver.png" target="_blank"><img src="refs/quiver.png" alt="quiver 交换图编辑器界面" /></a>
+            <div class="card-body">
+              <h3>quiver · 全屏画布 + 上下文工具条（开源）</h3>
+              <div class="tag-row"><span class="tag accent">全屏画布</span><span class="tag accent">悬浮紧凑工具条</span><span class="tag accent">快捷键优先</span></div>
+              <div class="cols">
+                <div><h4>优点</h4><ul><li>画布几乎占满全屏，工具条悬浮且分组清晰。</li><li>顶部“保存/撤销/选择/变换”和底部“导入/导出”分离，符合任务阶段。</li><li>选中对象后出现上下文操作，界面不预先堆满。</li></ul></div>
+                <div><h4>不要照搬</h4><ul><li>对新手过于“空白”，没有引导和状态解释。</li><li>深色单主题、强快捷键依赖，不适合宽用户群。</li></ul></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>03 · 三套可选方向</h2>
+        <p class="section-note">不是三套配色，而是三种信息架构。选择一套作为主壳，其他两套可以作为“课堂演示模式”或局部交互吸收。</p>
+        <div class="options">
+          <article class="card option-card">
+            <div class="option-head">
+              <div class="tag-row"><span class="tag">改动小</span><span class="tag">收益中</span></div>
+              <h3>A · 极简双栏</h3>
+              <p>Desmos / quiver 路线：画布最大，编辑面板可收起，工具只在选中时出现。</p>
+            </div>
+            <div class="wire">
+              <div class="bar"><span class="dot"></span><span class="dot"></span><div class="tabs"><i></i><i></i><i></i></div></div>
+              <div class="body">
+                <aside class="panel"><i></i><i></i><i></i><i></i><i></i></aside>
+                <div class="canvasbox"><b>主画布</b></div>
+              </div>
+              <div class="bottom"><i></i><i></i><i></i><i></i></div>
+            </div>
+            <div class="pros">
+              <div class="row"><span class="k">适合</span><span class="v">函数绘图、图论绘图、课堂演示</span></div>
+              <div class="row"><span class="k">优点</span><span class="v">认知负担最低，画布最完整，视觉最现代</span></div>
+              <div class="row"><span class="k">代价</span><span class="v">高级功能难发现；极值/超图工作流需要深度改造</span></div>
+            </div>
+          </article>
+
+          <article class="card option-card recommended">
+            <div class="option-head">
+              <div class="tag-row"><span class="tag accent">推荐</span><span class="tag">改动大</span><span class="tag">收益高</span></div>
+              <h3>B · 三栏分析工作台</h3>
+              <p>GeoGebra + Gephi Lite 路线：左侧工作流、中央画布、右侧检查器、底部结果抽屉。</p>
+            </div>
+            <div class="wire">
+              <div class="bar"><span class="dot"></span><span class="dot"></span><div class="tabs"><i></i><i></i><i></i></div></div>
+              <div class="body">
+                <aside class="rail"><i></i><i></i><i></i><i></i><i></i></aside>
+                <aside class="panel"><i></i><i></i><i></i><i></i><i></i></aside>
+                <div class="canvasbox"><b>主画布</b></div>
+                <aside class="right"><i></i><i></i><i></i><i></i></aside>
+              </div>
+              <div class="bottom"><i></i><i></i><i></i></div>
+            </div>
+            <div class="pros">
+              <div class="row"><span class="k">适合</span><span class="v">整套工具，尤其是极值、超图、统计和 3D</span></div>
+              <div class="row"><span class="k">优点</span><span class="v">功能有层级、结果离画布近、可扩展到 9 个工作区</span></div>
+              <div class="row"><span class="k">代价</span><span class="v">需要重排现有面板；窄屏要改成抽屉；实现量最大</span></div>
+            </div>
+          </article>
+
+          <article class="card option-card">
+            <div class="option-head">
+              <div class="tag-row"><span class="tag">课堂优先</span><span class="tag">收益高</span></div>
+              <h3>C · 教学舞台</h3>
+              <p>画布全屏，底部 3–4 步引导条，结果以大卡片浮层出现，面板按需召唤。</p>
+            </div>
+            <div class="wire">
+              <div class="bar"><span class="dot"></span><span class="dot"></span><div class="tabs"><i></i><i></i><i></i></div></div>
+              <div class="body">
+                <div class="canvasbox"><b>全屏画布</b></div>
+              </div>
+              <div class="bottom"><i></i><i></i><i></i><i></i></div>
+            </div>
+            <div class="pros">
+              <div class="row"><span class="k">适合</span><span class="v">课堂演示、新手引导、单次探究任务</span></div>
+              <div class="row"><span class="k">优点</span><span class="v">步骤清晰、干扰最少、投影效果最好</span></div>
+              <div class="row"><span class="k">代价</span><span class="v">高级用户重复操作变慢；不适合作为唯一主界面</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="recommend-banner">
+          <div>
+            <h3>建议：B 作为主壳，A 和 C 作为两种模式</h3>
+            <p>Math Drawing 不是单一函数绘图器，而是 9 个工作区。全局壳必须能承载“输入 → 操作 → 画布 → 结果”的完整链路。B 的三栏结构最稳；A 用于函数/图论绘图的专注模式，C 用于课堂演示模式。</p>
+          </div>
+          <div class="steps">
+            <div>全局导航改为“工作区切换 + 当前工作区工具轨”，不再平铺 9 个标签。</div>
+            <div>所有右侧面板按“输入 / 约束 / 输出”手风琴分组，一次只展开一组。</div>
+            <div>结果进入右侧检查器或底部抽屉，并在画布内给轻量高亮/图例。</div>
+            <div>先做极值台和函数绘图的壳，验证后再推广到其余工作区。</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>04 · 已落地：B 三栏工作台</h2>
+        <p class="section-note">全局壳已按 B 方案落地，并用同一套结构覆盖全部 9 个工作区。左侧工作区轨负责切换，编辑栏固定在工作流侧，画布保持独立，右侧检查器集中工具、视图与项目操作；原先覆盖画布的底部工具坞已移除。窄屏改为横向工作区轨 + 上半屏画布 + 下方编辑栏/检查器滚动。</p>
+        <div class="grid-2">
+          <article class="card">
+            <a class="shot" href="live-plot.png" target="_blank"><img src="live-plot.png" alt="三栏工作台：函数绘图" /></a>
+            <div class="card-body">
+              <h3>函数绘图</h3>
+              <ul class="issue-list">
+                <li>左侧曲线输入、中央画布、右侧分析与视图控制三段分离。</li>
+                <li>首屏引导保留在画布底部，不再与工具坞叠加。</li>
+                <li>工具栏只保留项目级操作，模式切换移入左侧工作区轨。</li>
+              </ul>
+            </div>
+          </article>
+          <article class="card">
+            <a class="shot" href="live-graph.png" target="_blank"><img src="live-graph.png" alt="三栏工作台：图论绘图" /></a>
+            <div class="card-body">
+              <h3>图论绘图</h3>
+              <ul class="issue-list">
+                <li>图族、DSL、性质、谱与算法仍在左侧工作流，滚动范围独立。</li>
+                <li>图编辑工具与读数进入右侧检查器，不再占用画布底部。</li>
+                <li>画布始终完整可见，适合点选与拖拽。</li>
+              </ul>
+            </div>
+          </article>
+          <article class="card">
+            <a class="shot" href="live-hyper.png" target="_blank"><img src="live-hyper.png" alt="三栏工作台：超图与极值" /></a>
+            <div class="card-body">
+              <h3>超图、彩虹与极值</h3>
+              <ul class="issue-list">
+                <li>左侧长工作流拥有独立滚动区，不遮住深色画布。</li>
+                <li>右侧检查器显示当前工作区提示、视图与项目操作。</li>
+                <li>极值搜索、总表、证书等原有功能与 testid 保持不变。</li>
+              </ul>
+            </div>
+          </article>
+          <article class="card">
+            <a class="shot" href="live-mobile.png" target="_blank"><img src="live-mobile.png" alt="窄屏三栏工作台" /></a>
+            <div class="card-body">
+              <h3>窄屏适配</h3>
+              <ul class="issue-list">
+                <li>工作区轨变为横向可滚动条，画布固定在上半屏。</li>
+                <li>编辑栏与检查器在画布下方依次排列，整体可滚动。</li>
+                <li>状态栏回到文档流底部，不再浮动遮挡操作。</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+        <div class="recommend-banner">
+          <div>
+            <h3>验收结果</h3>
+            <p>三栏壳、检查器、工作区轨与窄屏适配已完成；保留全部既有功能与 testid，并新增三栏顺序、检查器收起与九工作区切换的 e2e 覆盖。</p>
+          </div>
+          <div class="steps">
+            <div>类型检查 0 errors / 0 warnings。</div>
+            <div>单元测试 1,629 passed / 2 skipped。</div>
+            <div>端到端测试 259 passed。</div>
+            <div>构建、CI 与 GitHub Pages 部署通过。</div>
+          </div>
+        </div>
+      </section>
+
+      <p class="footer">参考来源：<a href="https://www.desmos.com/calculator" target="_blank">Desmos</a>（非开源，仅 UX 对标） · <a href="https://www.geogebra.org/graphing" target="_blank">GeoGebra</a> · <a href="https://lite.gephi.org/" target="_blank">Gephi Lite</a> · <a href="https://q.uiver.app/" target="_blank">quiver</a>。截图仅作界面设计研究使用。生成于 Math Drawing 工作区 <code>docs/ui-review/</code>。</p>
+    </main>
+  </body>
+</html>

@@ -70,6 +70,47 @@ test.describe('v2.4 工作台改版（布局 / 首屏引导 / 命名）', () => 
     await expect(page.getByTestId('side-column')).toBeVisible()
   })
 
+  test('三栏工作台：工作区轨、编辑栏、画布、检查器从左到右排列', async ({ page }) => {
+    await page.goto('/?mode=plot')
+    const rail = await page.getByTestId('workspace-rail').boundingBox()
+    const side = await page.getByTestId('side-column').boundingBox()
+    const canvas = await page.getByTestId('stage-canvas').boundingBox()
+    const inspector = await page.getByTestId('inspector-panel').boundingBox()
+    expect(rail).not.toBeNull()
+    expect(side).not.toBeNull()
+    expect(canvas).not.toBeNull()
+    expect(inspector).not.toBeNull()
+    expect(rail!.x + rail!.width).toBeLessThanOrEqual(side!.x + 1)
+    expect(side!.x + side!.width).toBeLessThanOrEqual(canvas!.x + 1)
+    expect(canvas!.x + canvas!.width).toBeLessThanOrEqual(inspector!.x + 1)
+    await expect(page.getByTestId('current-workspace')).toContainText('函数绘图')
+
+    await page.getByTestId('toggle-inspector').click()
+    await expect(page.getByTestId('inspector-panel')).toBeHidden()
+    await page.getByTestId('toggle-inspector').click()
+    await expect(page.getByTestId('inspector-panel')).toBeVisible()
+  })
+
+  test('九个工作区均可从左侧工作区轨切换', async ({ page }) => {
+    await page.goto('/?mode=plot')
+    const modes = [
+      ['graph', '图论绘图'],
+      ['lab', '图论实验'],
+      ['hyper', '超图与彩虹'],
+      ['stats', '统计与数据'],
+      ['space', '3D 与场'],
+      ['advanced', '数学专题'],
+      ['matrix', '矩阵'],
+      ['notebook', '笔记本'],
+      ['plot', '函数绘图'],
+    ] as const
+    for (const [id, label] of modes) {
+      await page.getByTestId(`mode-${id}`).click()
+      await expect(page.getByTestId(`mode-${id}`)).toHaveAttribute('aria-selected', 'true')
+      await expect(page.getByTestId('current-workspace')).toContainText(label)
+    }
+  })
+
   test('命名更直观：保存/打开项目、数学专题、笔记本', async ({ page }) => {
     await page.goto('/?mode=plot')
     await expect(page.getByTestId('export-json')).toHaveText('保存项目')

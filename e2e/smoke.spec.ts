@@ -86,8 +86,10 @@ test.describe('v0.1 冒烟测试', () => {
     await page.goto('/')
     const readout = page.getByTestId('scale-readout')
     const before = await readout.textContent()
+    const canvas = await page.getByTestId('stage-canvas').boundingBox()
+    expect(canvas).not.toBeNull()
 
-    await page.mouse.move(400, 300)
+    await page.mouse.move(canvas!.x + canvas!.width / 2, canvas!.y + canvas!.height / 2)
     await page.mouse.wheel(0, -400)
     await expect(readout).not.toHaveText(before ?? '')
   })

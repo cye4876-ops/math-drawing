@@ -111,13 +111,11 @@
 <style>
   .tool-panel {
     flex: 0 0 auto;
-    max-height: 46%;
-    overflow-y: auto;
     background: var(--bg);
-    border-left: 1px solid var(--border);
-    border-top: 1px solid var(--border);
-    padding: 10px 12px;
-    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 11px;
+    font-size: 12px;
     box-sizing: border-box;
   }
 

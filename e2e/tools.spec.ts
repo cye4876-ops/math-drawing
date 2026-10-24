@@ -351,39 +351,42 @@ test.describe('v0.4 交互分析工具', () => {
     expect(values.at(-1)).toBe('1/6')
   })
 
-  test('工具面板悬浮在左侧卡片（画布优先布局）', async ({ page }) => {
+  test('工具读数进入右侧检查器，编辑栏收起后画布扩展', async ({ page }) => {
     await page.goto('/?curves=sin(x)')
     await activateTool(page, 'tangent')
 
-    const viewport = page.viewportSize()
-    const vw = viewport?.width ?? 0
-    // 浮动卡片在左侧（画布优先：面板覆盖在画布上）
+    // 三栏工作台：编辑栏在左，检查器在右，画布居中
     const side = await page.getByTestId('side-column').boundingBox()
+    const inspector = await page.getByTestId('inspector-panel').boundingBox()
+    const canvasBefore = await page.getByTestId('stage-canvas').boundingBox()
     expect(side).not.toBeNull()
-    expect(side!.x).toBeLessThan(vw / 2)
-    expect(side!.x).toBeGreaterThanOrEqual(0)
-    expect(side!.x + side!.width).toBeLessThanOrEqual(vw + 1)
+    expect(inspector).not.toBeNull()
+    expect(canvasBefore).not.toBeNull()
+    expect(side!.x + side!.width).toBeLessThanOrEqual(canvasBefore!.x + 1)
+    expect(canvasBefore!.x + canvasBefore!.width).toBeLessThanOrEqual(inspector!.x + 1)
 
-    // 读数与输入框完整落在卡片内（内容不被裁切）
+    // 工具读数与输入框完整落在检查器内
     const box = await page.getByTestId('tools-readout').boundingBox()
     expect(box).not.toBeNull()
-    expect(box!.x).toBeGreaterThanOrEqual(side!.x)
-    expect(box!.x + box!.width).toBeLessThanOrEqual(side!.x + side!.width + 1)
+    expect(box!.x).toBeGreaterThanOrEqual(inspector!.x)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(inspector!.x + inspector!.width + 1)
     const inputBox = await page.getByTestId('tool-control-x').boundingBox()
     expect(inputBox).not.toBeNull()
-    expect(inputBox!.x).toBeGreaterThanOrEqual(side!.x)
-    expect(inputBox!.x + inputBox!.width).toBeLessThanOrEqual(side!.x + side!.width + 1)
-    // 曲线列表输入框同样完整可见
+    expect(inputBox!.x).toBeGreaterThanOrEqual(inspector!.x)
+    expect(inputBox!.x + inputBox!.width).toBeLessThanOrEqual(inspector!.x + inspector!.width + 1)
+    // 曲线列表输入框完整落在编辑栏内
     const curveInput = await page.getByTestId('curve-expr-input').boundingBox()
     expect(curveInput).not.toBeNull()
+    expect(curveInput!.x).toBeGreaterThanOrEqual(side!.x)
     expect(curveInput!.x + curveInput!.width).toBeLessThanOrEqual(side!.x + side!.width + 1)
 
-    // 收起面板：卡片隐藏、画布回到全宽
+    // 收起编辑栏：画布明显扩展，检查器仍在
     await page.getByTestId('toggle-sidebar').click()
     await expect(page.getByTestId('side-column')).toBeHidden()
-    const canvas = await page.getByTestId('stage-canvas').boundingBox()
-    expect(canvas).not.toBeNull()
-    expect(canvas!.width).toBeGreaterThanOrEqual(vw - 2)
+    await expect(page.getByTestId('inspector-panel')).toBeVisible()
+    const canvasAfter = await page.getByTestId('stage-canvas').boundingBox()
+    expect(canvasAfter).not.toBeNull()
+    expect(canvasAfter!.width).toBeGreaterThan(canvasBefore!.width + 250)
     await page.getByTestId('toggle-sidebar').click()
     await expect(page.getByTestId('side-column')).toBeVisible()
   })
