@@ -6,7 +6,7 @@ async function openExtremal(page: import('@playwright/test').Page): Promise<void
   await expect(page.getByTestId('extremal-run')).toBeVisible()
 }
 
-test.describe('v3.8 极值界面与结果优化', () => {
+test.describe('v3.9 极值性能与工程优化', () => {
   test('ex 总表热力图：生成、单元格运行与 CSV/JSON 导出', async ({ page }) => {
     await openExtremal(page)
     await page.getByTestId('extremal-table-build').click()
@@ -63,6 +63,34 @@ test.describe('v3.8 极值界面与结果优化', () => {
     await expect(page.getByTestId('hyper-tab-extremal')).toHaveClass(/active/)
     await expect(page.getByTestId('extremal-result')).toContainText('= 9')
     await expect(page.getByTestId('extremal-share-url')).toHaveValue(/extremal=6/)
+  })
+
+  test('n=8 按需图集与 Worker：ex(8,K₃)=16', async ({ page }) => {
+    await openExtremal(page)
+    await page.getByTestId('extremal-n').fill('8')
+    await page.getByTestId('extremal-run').click()
+    await expect(page.getByTestId('extremal-result')).toContainText('= 16', { timeout: 20_000 })
+    await expect(page.getByTestId('extremal-result')).toContainText('12346')
+  })
+
+  test('n>8 启发式下界与自定义 3-一致超图', async ({ page }) => {
+    await openExtremal(page)
+    await page.getByTestId('extremal-heuristic-n').fill('9')
+    await page.getByTestId('extremal-heuristic-run').click()
+    await expect(page.getByTestId('extremal-heuristic-result')).toContainText('≥ 20')
+
+    await page.getByTestId('hyperex-custom-run').click()
+    await expect(page.getByTestId('hyperex-result')).toContainText('= 10')
+    await expect(page.getByTestId('hyperex-result')).toContainText('禁例 120 个')
+  })
+
+  test('Ramsey 任意小禁图：选择 K₄ 仍给出证书/不存在结论', async ({ page }) => {
+    await openExtremal(page)
+    await page.getByTestId('ramsey-n').fill('6')
+    await page.getByTestId('ramsey-pattern').selectOption('K4')
+    await page.getByTestId('ramsey-run').click()
+    await expect(page.getByTestId('ramsey-result')).toContainText('K6')
+    await expect(page.getByTestId('ramsey-known')).toContainText('R(3,3)=6')
   })
 
   test('画布顶点点击信息与 2-截面预览', async ({ page }) => {

@@ -18,6 +18,7 @@ export interface AtlasGraph {
 
 const DATA = raw as Record<string, string[]>
 const cache = new Map<number, AtlasGraph[]>()
+let loading8: Promise<void> | null = null
 
 function popcount(value: number): number {
   let x = value
@@ -33,15 +34,35 @@ export function atlasGraphs(n: number): AtlasGraph[] {
   const key = Math.round(n)
   const cached = cache.get(key)
   if (cached) return cached
+  if (key === 8) {
+    throw new Error('n=8 图集尚未加载；请先 await loadAtlas8()')
+  }
   const list = DATA[String(key)] ?? []
-  const graphs: AtlasGraph[] = list.map((graph6) => {
+  const graphs = parseAtlasList(list)
+  cache.set(key, graphs)
+  return graphs
+}
+
+function parseAtlasList(list: string[]): AtlasGraph[] {
+  return list.map((graph6) => {
     const lab = parseGraph6(graph6, 31)
     const degrees = lab.adj.map((mask) => popcount(mask))
     const m = degrees.reduce((sum, value) => sum + value, 0) / 2
     return { n: lab.n, m, adj: [...lab.adj], degrees, graph6 }
   })
-  cache.set(key, graphs)
-  return graphs
+}
+
+/** 按需加载 n=8 的 12,346 个非同构图（约 120 KB graph6；Vite 单独分包） */
+export async function loadAtlas8(): Promise<void> {
+  if (cache.has(8)) return
+  if (!loading8) {
+    loading8 = import('./atlas-data-8.json').then((module) => {
+      const imported = module as unknown as string[] | { default: string[] }
+      const list = Array.isArray(imported) ? imported : imported.default
+      cache.set(8, parseAtlasList(list))
+    })
+  }
+  await loading8
 }
 
 export const ATLAS_COUNTS: Readonly<Record<number, number>> = Object.freeze({
@@ -55,6 +76,9 @@ export const ATLAS_COUNTS: Readonly<Record<number, number>> = Object.freeze({
 })
 
 export const ATLAS_MAX_N = 7
+/** 支持的全部精确阶数（n=8 为按需加载） */
+export const EXTREMAL_MAX_N = 8
+export const ATLAS_COUNT_8 = 12346
 
 export function atlasEdgeList(graph: AtlasGraph): Array<[number, number]> {
   const edges: Array<[number, number]> = []

@@ -15,8 +15,9 @@ import type { HyperRainbowResult } from '../hypergraph/rainbow'
 import { atlasEdgeList } from '../extremal/atlas'
 import { DEFAULT_HOST_FILTERS, type HostFilters } from '../extremal/filters'
 import { decodeExtremalLink, encodeExtremalLink } from '../extremal/link'
+import { heuristicLowerBound, type HeuristicResult } from '../extremal/heuristic'
 import type { HyperTuranPattern, HyperTuranResult } from '../extremal/hyper-turan'
-import { HYPER_TURAN_LABELS, ex3Uniform } from '../extremal/hyper-turan'
+import { ex3Uniform, ex3UniformCustom, parseHyperPattern } from '../extremal/hyper-turan'
 import {
   complementSimpleGraph,
   parsePatternInput,
@@ -30,12 +31,14 @@ import {
   type PatternInputFormat,
   type ParsedPattern,
 } from '../extremal/patterns'
-import { triangleRamsey, type RamseyResult } from '../extremal/ramsey'
+import { ramseyCertificate, type RamseyResult } from '../extremal/ramsey'
 import {
   extremalSearchMulti,
+  extremalSearchMultiAsync,
   type ExtremalSearchResult,
   type PatternMode,
 } from '../extremal/search'
+import { extremalSearchInWorker } from '../extremal/worker-client'
 
 export type HyperTab = 'hypergraph' | 'rainbow' | 'extremal'
 export type HyperViewMode = 'set' | 'bipartite' | 'section' | 'line'
@@ -100,10 +103,15 @@ export interface ExtremalState {
   turanParts: number
   turanMessage: string
   ramseyN: number
+  ramseyPatternId: string
   ramsey: RamseyResult | null
   hyperN: number
   hyperPattern: HyperTuranPattern
+  hyperCustomEdges: string
+  hyperCustomError: string
   hyperResult: HyperTuranResult | null
+  heuristicN: number
+  heuristicResult: HeuristicResult | null
 }
 
 export const EXTREMAL_GALLERY_PAGE_SIZE = 6
@@ -184,10 +192,15 @@ export const hyperLab = $state({
     turanParts: 2,
     turanMessage: '',
     ramseyN: 5,
+    ramseyPatternId: 'K3',
     ramsey: null,
     hyperN: 6,
     hyperPattern: 'K4_3' as HyperTuranPattern,
+    hyperCustomEdges: '0-1-2, 2-3-4, 4-5-0',
+    hyperCustomError: '',
     hyperResult: null,
+    heuristicN: 9,
+    heuristicResult: null,
   } as ExtremalState,
 })
 
@@ -279,7 +292,7 @@ export function setRainbowGraph(graph: ColoredGraph, preset?: RainbowPreset): vo
 const RAMSEY_COLORS = ['#ef4444', '#3b82f6'] as const
 
 export function setExtremalN(n: number): void {
-  hyperLab.extremal.n = Math.max(1, Math.min(7, Math.round(n) || 1))
+  hyperLab.extremal.n = Math.max(1, Math.min(8, Math.round(n) || 1))
   hyperLab.extremal.result = null
 }
 
@@ -318,7 +331,7 @@ export function runExtremalTableCell(n: number, presetId: string): void {
   state.filters = { ...DEFAULT_HOST_FILTERS }
   state.mode = 'subgraph'
   state.result = null
-  runExtremalSearch()
+  void runExtremalSearch()
 }
 
 export function setGalleryPage(page: number): void {
@@ -372,7 +385,7 @@ export function applyExtremalDeepLink(search: string): boolean {
   const config = decodeExtremalLink(search)
   if (!config) return false
   const state = hyperLab.extremal
-  state.n = Math.max(1, Math.min(7, Math.round(config.n) || 1))
+  state.n = Math.max(1, Math.min(8, Math.round(config.n) || 1))
   state.patternId =
     config.patternId === 'custom' ||
     PATTERN_PRESETS.some((preset) => preset.id === config.patternId)
@@ -390,7 +403,7 @@ export function applyExtremalDeepLink(search: string): boolean {
     maxDegree: Math.max(0, Math.min(7, Math.round(config.filters.maxDegree) || 0)),
   }
   setHyperTab('extremal')
-  runExtremalSearch()
+  void runExtremalSearch()
   return true
 }
 
@@ -416,7 +429,7 @@ export function previewHyperTuranTwoSection(): void {
   state.preview = {
     n: result.n,
     edges,
-    title: `2-截面：ex₃(${result.n}, ${HYPER_TURAN_LABELS[result.pattern].split('（')[0]})`,
+    title: `2-截面：ex₃(${result.n}, ${result.patternLabel.split('（')[0]})`,
     subtitle: `${result.witness.length} 条超边 → ${edges.length} 条 2-截面边`,
   }
   state.previewSelection = null
@@ -509,19 +522,21 @@ function selectedPatterns(state: ExtremalState): ParsedPattern[] {
   return result
 }
 
-export function runExtremalSearch(): void {
+export async function runExtremalSearch(): Promise<void> {
   const state = hyperLab.extremal
   state.customError = ''
   try {
     const patterns = selectedPatterns(state)
-    const result = extremalSearchMulti({
+    const options = {
       n: state.n,
       patterns,
       mode: state.mode,
       filters: state.filters,
       analyses: true,
       allowKnownFormula: patterns.length === 1,
-    })
+    }
+    const result =
+      state.n >= 8 ? await extremalSearchInWorker(options) : await extremalSearchMultiAsync(options)
     state.result = result
     state.selectedExtremal = 0
     state.galleryPage = 0
@@ -571,6 +586,28 @@ export function showExtremalGraph(index: number): void {
   }`
 }
 
+export function runHeuristicSearch(): void {
+  const state = hyperLab.extremal
+  try {
+    const result = heuristicLowerBound({
+      n: state.heuristicN,
+      patterns: selectedPatterns(state),
+    })
+    state.heuristicResult = result
+    state.previewSelection = null
+    state.preview = {
+      n: result.n,
+      edges: result.edges,
+      title: `启发式下界 n=${result.n}`,
+      subtitle: `${result.edges.length} 条边 · ${result.steps} 次检查 · 非最优证明`,
+    }
+    state.previewNote = result.note
+  } catch (error) {
+    state.heuristicResult = null
+    state.previewNote = error instanceof Error ? error.message : '启发式搜索失败'
+  }
+}
+
 export function showSaturationGraph(index: number): void {
   const state = hyperLab.extremal
   const graph = state.result?.saturation?.examples[index]
@@ -611,7 +648,8 @@ export function runTuranConstruction(): void {
 
 export function runTriangleRamsey(): void {
   const state = hyperLab.extremal
-  const result = triangleRamsey(state.ramseyN)
+  const preset = patternPreset(state.ramseyPatternId)
+  const result = ramseyCertificate(state.ramseyN, patternGraph(preset), preset.label)
   state.ramsey = result
   state.previewSelection = null
   if (result.colors) {
@@ -620,7 +658,7 @@ export function runTriangleRamsey(): void {
       n: result.n,
       edges: pairs,
       colors: result.colors.map((color) => RAMSEY_COLORS[color] ?? RAMSEY_COLORS[0]),
-      title: `K${result.n} 的无单色三角形 2-着色`,
+      title: `K${result.n} 的无单色 ${result.patternLabel} 2-着色`,
       subtitle: `${pairs.length} 条边 · 红/蓝两色 · 首边固定为红`,
     }
     state.previewNote = '见证已显示在画布；可载入彩虹实验室继续做彩虹子图搜索。'
@@ -643,12 +681,24 @@ export function runHyperTuran(): void {
   state.hyperResult = ex3Uniform(state.hyperN, state.hyperPattern)
 }
 
+export function runHyperCustomTuran(): void {
+  const state = hyperLab.extremal
+  state.hyperCustomError = ''
+  try {
+    const parsed = parseHyperPattern(state.hyperCustomEdges)
+    state.hyperResult = ex3UniformCustom(state.hyperN, parsed.label, parsed.edges)
+  } catch (error) {
+    state.hyperResult = null
+    state.hyperCustomError = error instanceof Error ? error.message : '自定义禁超图解析失败'
+  }
+}
+
 export function loadHyperTuranWitness(): void {
   const state = hyperLab.extremal
   const result = state.hyperResult
   if (!result || result.witness.length === 0) return
   const doc = docFromEdgeSets(
-    `ex₃(${result.n}, ${HYPER_TURAN_LABELS[result.pattern].split('（')[0]}) 极值见证`,
+    `ex₃(${result.n}, ${result.patternLabel.split('（')[0]}) 极值见证`,
     result.n,
     result.witness,
   )

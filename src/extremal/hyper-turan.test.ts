@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HYPER_TURAN_LABELS, ex3Uniform } from './hyper-turan'
+import { HYPER_TURAN_LABELS, ex3Uniform, ex3UniformCustom, parseHyperPattern } from './hyper-turan'
 
 function triples(n: number): number[][] {
   const list: number[][] = []
@@ -94,5 +94,16 @@ describe('v3.6 3-一致超图 Turán（禁 K₄³ / 松三角形）', () => {
       expect(universe.has(keyOf(edge))).toBe(true)
     }
     expect(HYPER_TURAN_LABELS.K4_3).toContain('K₄³')
+  })
+
+  it('任意 3-一致禁图：松三角形边表与预设一致', () => {
+    const parsed = parseHyperPattern('0-1-2, 2-3-4, 4-5-0')
+    expect(parsed.edges).toHaveLength(3)
+    const custom = ex3UniformCustom(6, parsed.label, parsed.edges)
+    expect(custom.pattern).toBe('custom')
+    expect(custom.patternLabel).toContain('自定义')
+    expect(custom.maxEdges).toBe(10)
+    expect(custom.instances).toBe(120)
+    expect(hasLooseTriangle(custom.witness)).toBe(false)
   })
 })

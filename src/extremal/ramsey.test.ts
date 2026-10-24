@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { completeEdgePairs } from '../graph/rainbow'
-import { triangleRamsey } from './ramsey'
+import { triangleRamsey, ramseyCertificate } from './ramsey'
+import { patternGraph, patternPreset } from './patterns'
 
 function monoTriangle(n: number, colors: number[]): boolean {
   const pairs = completeEdgePairs(n)
@@ -42,5 +43,13 @@ describe('v3.6 Ramsey R(3,3) 小证书', () => {
     expect(result.canonicalCount).toBe(0)
     expect(result.note).toContain('R(3,3) ≤ 6')
     expect(result.complete).toBe(true)
+  })
+
+  it('通用证书：任意小禁图与 K₃ 包装结果一致', () => {
+    const k3 = patternGraph(patternPreset('K3'))
+    const generic = ramseyCertificate(5, k3, 'K₃')
+    expect(generic.canonicalCount).toBe(6)
+    expect(generic.patternLabel).toBe('K₃')
+    expect(generic.colors).toEqual(triangleRamsey(5).colors)
   })
 })

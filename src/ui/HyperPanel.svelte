@@ -25,6 +25,8 @@
     resetExtremalFilters,
     runExtremalSearch,
     runExtremalTableCell,
+    runHeuristicSearch,
+    runHyperCustomTuran,
     runHyperTuran,
     runTriangleRamsey,
     runTuranConstruction,
@@ -362,7 +364,7 @@
 </script>
 
 <aside class="hyper-panel" data-testid="hyper-panel">
-  <div class="panel-header">超图、彩虹与极值（v3.4 – v3.8）</div>
+  <div class="panel-header">超图、彩虹与极值（v3.4 – v3.9）</div>
   <div class="tabs" role="tablist" aria-label="实验室子视图">
     <button
       type="button"
@@ -692,14 +694,14 @@
     </div>
   {:else}
     <div class="section">
-      <div class="section-title">ex(n,F) 精确搜索（n ≤ 7 图集）</div>
+      <div class="section-title">ex(n,F) 精确搜索（n ≤ 8；n=8 懒加载）</div>
       <div class="row wrap">
         <span class="dim">n</span>
         <input
           class="num"
           type="number"
           min="1"
-          max="7"
+          max="8"
           data-testid="extremal-n"
           value={extremal.n}
           oninput={(event) => setExtremalN(Number((event.currentTarget as HTMLInputElement).value))}
@@ -1159,6 +1161,39 @@
     </div>
 
     <div class="section">
+      <div class="section-title">n > 8 启发式下界</div>
+      <div class="row wrap">
+        <span class="dim">n</span>
+        <input
+          class="num"
+          type="number"
+          min="8"
+          max="12"
+          data-testid="extremal-heuristic-n"
+          value={extremal.heuristicN}
+          oninput={(event) =>
+            (extremal.heuristicN = Math.max(
+              8,
+              Math.min(12, Number((event.currentTarget as HTMLInputElement).value) || 8),
+            ))}
+        />
+        <button type="button" data-testid="extremal-heuristic-run" onclick={runHeuristicSearch}
+          >运行下界搜索</button
+        >
+      </div>
+      {#if extremal.heuristicResult}
+        <div class="line" data-testid="extremal-heuristic-result">
+          下界：ex({extremal.heuristicResult.n}, F) ≥ <b>{extremal.heuristicResult.maxEdges}</b> ·
+          {extremal.heuristicResult.steps} 次禁图检查（非最优证明）
+        </div>
+        <div class="hint">{extremal.heuristicResult.note}</div>
+      {/if}
+      <div class="hint">
+        图集只到 n = 8；更大 n 用 Turán 种子 + 随机贪心增边给出无禁图见证，结果仅为下界。
+      </div>
+    </div>
+
+    <div class="section">
       <div class="section-title">Turán 构造对照</div>
       <div class="row wrap">
         <span class="dim">部数 r</span>
@@ -1201,6 +1236,16 @@
               Math.min(6, Number((event.currentTarget as HTMLInputElement).value) || 3),
             ))}
         />
+        <select
+          data-testid="ramsey-pattern"
+          value={extremal.ramseyPatternId}
+          onchange={(event) =>
+            (extremal.ramseyPatternId = (event.currentTarget as HTMLSelectElement).value)}
+        >
+          {#each PATTERN_PRESETS.filter((preset) => preset.n <= 6) as preset (preset.id)}
+            <option value={preset.id}>{preset.label}</option>
+          {/each}
+        </select>
         <button type="button" data-testid="ramsey-run" onclick={runTriangleRamsey}
           >穷举 2-着色</button
         >
@@ -1224,6 +1269,9 @@
         <div class="hint">{extremal.ramsey.note}</div>
         <div class="hint">{extremal.previewNote}</div>
       {/if}
+      <div class="hint" data-testid="ramsey-known">
+        已知小 Ramsey 数：R(3,3)=6、R(3,4)=9、R(4,4)=18；本工具只做小 n 证书搜索。
+      </div>
     </div>
 
     <div class="section">
@@ -1262,9 +1310,25 @@
           onclick={loadHyperTuranWitness}>载入超图实验室</button
         >
       </div>
+      <div class="row wrap">
+        <input
+          class="grow"
+          data-testid="hyperex-custom-input"
+          placeholder="0-1-2, 2-3-4（自定义 3-一致禁图）"
+          value={extremal.hyperCustomEdges}
+          oninput={(event) =>
+            (extremal.hyperCustomEdges = (event.currentTarget as HTMLInputElement).value)}
+        />
+        <button type="button" data-testid="hyperex-custom-run" onclick={runHyperCustomTuran}
+          >自定义搜索</button
+        >
+      </div>
+      {#if extremal.hyperCustomError}
+        <div class="error" data-testid="hyperex-custom-error">{extremal.hyperCustomError}</div>
+      {/if}
       {#if extremal.hyperResult}
         <div class="line" data-testid="hyperex-result">
-          ex₃({extremal.hyperResult.n}, {HYPER_TURAN_LABELS[extremal.hyperResult.pattern]}) =
+          ex₃({extremal.hyperResult.n}, {extremal.hyperResult.patternLabel}) =
           <b>{extremal.hyperResult.maxEdges}</b>
           · 禁例 {extremal.hyperResult.instances} 个 · {extremal.hyperResult.nodes} 个搜索节点
         </div>

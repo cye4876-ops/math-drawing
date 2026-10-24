@@ -2,7 +2,7 @@
  * ex(n,F) 小 n 精确搜索（v3.6 / v3.7）：
  * 支持多禁图集合、宿主结构约束、极大性证书、饱和数、稳定性与渐近信息。
  */
-import { ATLAS_MAX_N, atlasGraphs, type AtlasGraph } from './atlas'
+import { atlasGraphs, loadAtlas8, type AtlasGraph } from './atlas'
 import {
   asymptoticInfo,
   maximalityCertificate,
@@ -13,7 +13,7 @@ import {
   type SaturationResult,
   type StabilityInfo,
 } from './analysis'
-import { containsPattern, type SimpleGraph } from './containment'
+import { containsPrepared, graphDegrees, preparePattern, type SimpleGraph } from './containment'
 import {
   DEFAULT_HOST_FILTERS,
   describeHostFilters,
@@ -21,7 +21,12 @@ import {
   passesHostFilters,
   type HostFilters,
 } from './filters'
-import { formatPatternLabel, knownExtremalValue, turanLowerBoundForPatterns } from './patterns'
+import {
+  formatPatternLabel,
+  knownExtremalValue,
+  patternKey,
+  turanLowerBoundForPatterns,
+} from './patterns'
 
 export type PatternMode = 'subgraph' | 'induced'
 
@@ -70,26 +75,55 @@ export interface ExtremalSearchResult {
   note: string
 }
 
+const searchCache = new Map<string, ExtremalSearchResult>()
+
+export function clearExtremalSearchCache(): void {
+  searchCache.clear()
+}
+
+/** 异步入口：n=8 时按需加载 12346 个图后再同步扫描 */
+export async function extremalSearchMultiAsync(
+  options: ExtremalSearchOptions,
+): Promise<ExtremalSearchResult> {
+  if (Math.round(options.n) >= 8) await loadAtlas8()
+  return extremalSearchMulti(options)
+}
+
 export function extremalSearchMulti(options: ExtremalSearchOptions): ExtremalSearchResult {
   const size = Math.round(options.n)
-  if (size < 1 || size > ATLAS_MAX_N) {
-    throw new Error(`图集支持 n = 1..${ATLAS_MAX_N}（更大 n 请使用 Turán 构造）`)
+  if (size < 1 || size > 8) {
+    throw new Error('图集支持 n = 1..8（更大 n 请使用启发式下界）')
   }
   if (options.patterns.length === 0) throw new Error('请至少选择一张禁图')
   const filters = options.filters ?? DEFAULT_HOST_FILTERS
-  const patterns = options.patterns.map((item) => item.graph)
+  const patternSpecs = options.patterns
+  const cacheKey = [
+    size,
+    options.mode,
+    JSON.stringify(filters),
+    patternSpecs.map((item) => `${item.label}:${patternKey(item.graph)}`).join(';'),
+    options.analyses ? '1' : '0',
+    options.allowKnownFormula === false ? '0' : '1',
+  ].join('|')
+  const cached = searchCache.get(cacheKey)
+  if (cached) return cached
+  const patterns = patternSpecs.map((item) => item.graph)
+  const prepared = patterns.map((pattern) => preparePattern(pattern))
   const induced = options.mode === 'induced'
   const started = performance.now()
   const graphs = atlasGraphs(size)
   let maxEdges = -1
   let extremalCount = 0
   let freeCount = 0
-  let eligible = 0
   const extremal: AtlasGraph[] = []
-  for (const graph of graphs) {
-    if (!passesHostFilters(graph, filters)) continue
-    eligible++
-    if (isForbidden(graph)) continue
+  const eligibleGraphs = graphs.filter((graph) => passesHostFilters(graph, filters))
+  const eligible = eligibleGraphs.length
+  const ordered = [...eligibleGraphs].sort((a, b) => b.m - a.m)
+  for (const graph of ordered) {
+    // 已找到可行层后，更低边数的图不可能产生更大的 ex 值
+    if (maxEdges >= 0 && graph.m < maxEdges) break
+    const hostDegrees = graphDegrees(graph)
+    if (prepared.some((probe) => containsPrepared(graph, probe, induced, hostDegrees))) continue
     freeCount++
     if (graph.m > maxEdges) {
       maxEdges = graph.m
@@ -102,12 +136,8 @@ export function extremalSearchMulti(options: ExtremalSearchOptions): ExtremalSea
     }
   }
 
-  function isForbidden(graph: SimpleGraph): boolean {
-    return patterns.some((pattern) => containsPattern(graph, pattern, induced))
-  }
-
-  const singlePattern = options.patterns.length === 1 ? patterns[0]! : null
-  const singleLabel = options.patterns.length === 1 ? options.patterns[0]!.label : null
+  const singlePattern = patternSpecs.length === 1 ? patterns[0]! : null
+  const singleLabel = patternSpecs.length === 1 ? patternSpecs[0]!.label : null
   const stabilityPattern = singlePattern && options.mode === 'subgraph' ? singlePattern : null
   const candidates: ExtremalCandidate[] = extremal.map((graph) => ({
     ...graph,
@@ -125,24 +155,24 @@ export function extremalSearchMulti(options: ExtremalSearchOptions): ExtremalSea
     options.mode === 'subgraph' && !hasActiveHostFilters(filters)
       ? turanLowerBoundForPatterns(patterns, size)
       : null
-  const asymptotic = asymptoticInfo(options.patterns)
+  const asymptotic = asymptoticInfo(patternSpecs)
   const saturation = options.analyses ? saturationSearch(size, patterns, induced, filters) : null
   const readMs = performance.now() - started
   const filterLabel = describeHostFilters(filters)
-  const patternLabels = options.patterns.map((item) => item.label)
+  const patternLabels = patternSpecs.map((item) => item.label)
   const patternLabel = formatPatternLabel(patternLabels)
   const note =
     maxEdges < 0
       ? `扫描 ${graphs.length} 个非同构图，但没有满足结构约束的 H-free 图。`
       : `扫描 ${graphs.length} 个非同构图（结构约束筛去 ${graphs.length - eligible} 个，${freeCount} 个不含禁图，${readMs.toFixed(
           1,
-        )} ms）。`
-  return {
+        )} ms；按边数降序早停）。`
+  const result: ExtremalSearchResult = {
     n: size,
     mode: options.mode,
     patternLabel,
     patternLabels,
-    patternCount: options.patterns.length,
+    patternCount: patternSpecs.length,
     filters,
     filterLabel,
     scanned: graphs.length,
@@ -159,6 +189,12 @@ export function extremalSearchMulti(options: ExtremalSearchOptions): ExtremalSea
     readMs,
     note: singleLabel ? note : `${note}禁图集合：${patternLabel}。`,
   }
+  if (searchCache.size >= 24) {
+    const oldest = searchCache.keys().next().value
+    if (oldest !== undefined) searchCache.delete(oldest)
+  }
+  searchCache.set(cacheKey, result)
+  return result
 }
 
 /** 兼容 v3.6 单禁图调用 */

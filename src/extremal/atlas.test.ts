@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { ATLAS_COUNTS, ATLAS_MAX_N, atlasEdgeList, atlasGraphs } from './atlas'
+import {
+  ATLAS_COUNTS,
+  ATLAS_MAX_N,
+  atlasEdgeList,
+  atlasGraphs,
+  loadAtlas8,
+  EXTREMAL_MAX_N,
+} from './atlas'
 import { containsPattern, edgeCountOf, graphDegrees, simpleGraphFromEdges } from './containment'
 import {
   PATTERN_PRESETS,
@@ -14,6 +21,7 @@ import {
 describe('v3.6 图集与禁图判定', () => {
   it('图集规模与 nauty 计数一致（1,2,4,11,34,156,1044）', () => {
     expect(ATLAS_MAX_N).toBe(7)
+    expect(EXTREMAL_MAX_N).toBe(8)
     expect(ATLAS_COUNTS).toEqual({ 1: 1, 2: 2, 3: 4, 4: 11, 5: 34, 6: 156, 7: 1044 })
     for (const n of [1, 2, 3, 4, 5, 6, 7]) {
       const graphs = atlasGraphs(n)
@@ -26,6 +34,13 @@ describe('v3.6 图集与禁图判定', () => {
       }
     }
     expect(atlasGraphs(6).some((graph) => graph.m === 15)).toBe(true)
+  })
+
+  it('n=8 图集按需加载：12346 个非同构图', async () => {
+    await loadAtlas8()
+    const graphs = atlasGraphs(8)
+    expect(graphs).toHaveLength(12346)
+    expect(graphs.every((graph) => graph.n === 8)).toBe(true)
   })
 
   it('子图 / 诱导子图判定：K₃、C₄、2K₂', () => {

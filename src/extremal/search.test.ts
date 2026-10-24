@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_HOST_FILTERS, type HostFilters } from './filters'
 import { patternGraph, patternPreset, parseCustomPattern } from './patterns'
-import { extremalSearch, extremalSearchMulti } from './search'
+import { extremalSearch, extremalSearchMulti, extremalSearchMultiAsync } from './search'
 
 const SUBGRAPH_TABLE: Record<string, number[]> = {
   K3: [2, 4, 6, 9, 12],
@@ -56,7 +56,7 @@ describe('v3.6 ex(n,H) 图集精确搜索（与独立 Python 图集一致）', (
   })
 
   it('n 超出图集范围时抛错', () => {
-    expect(() => extremalSearch(8, patternGraph(patternPreset('K3')), 'subgraph', 'K₃')).toThrow(
+    expect(() => extremalSearch(9, patternGraph(patternPreset('K3')), 'subgraph', 'K₃')).toThrow(
       /图集支持/,
     )
   })
@@ -168,5 +168,17 @@ describe('v3.7 多禁图与结构约束', () => {
     expect(result.maxEdges).toBe(6)
     expect(result.eligible).toBe(35)
     expect(result.lowerBound).toBeNull()
+  })
+})
+
+describe('v3.9 n=8 / 性能入口', () => {
+  it('n=8 懒加载：ex(8,K₃)=16，并命中 LRU 缓存', async () => {
+    const options = { n: 8, patterns: [spec('K3')], mode: 'subgraph' as const }
+    const first = await extremalSearchMultiAsync(options)
+    const second = await extremalSearchMultiAsync(options)
+    expect(first.maxEdges).toBe(16)
+    expect(first.scanned).toBe(12346)
+    expect(first.note).toContain('早停')
+    expect(second).toBe(first)
   })
 })
