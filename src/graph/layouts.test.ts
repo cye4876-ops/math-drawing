@@ -136,6 +136,12 @@ describe('graph/layouts: 分层重心最小化（v3.3）', () => {
     const l1 = nodes.find((node) => node.label === 'L1')!
     expect(Math.abs(root.y - l1.y)).toBeCloseTo(3, 9)
   })
+
+  it('同层边不参与交叉统计：K4 分层后相邻层交叉为 0', () => {
+    const graph = makeGraph('A-B, A-C, A-D, B-C, B-D, C-D')
+    const nodes = layoutLayered(graph)
+    expect(crossingsOfPositions(nodes, layeredEdgePairs(graph))).toBe(0)
+  })
 })
 
 describe('graph/layouts: 力导向（FA2）', () => {

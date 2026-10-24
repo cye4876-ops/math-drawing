@@ -198,8 +198,10 @@ export function layoutLayered(
     let total = 0
     for (let i = 0; i < pairs.length; i++) {
       const [ua, va] = pairs[i]!
+      if (Math.abs(layer[ua]! - layer[va]!) !== 1) continue
       for (let j = i + 1; j < pairs.length; j++) {
         const [ub, vb] = pairs[j]!
+        if (Math.abs(layer[ub]! - layer[vb]!) !== 1) continue
         const ra = rank.get(ua)!
         const rb = rank.get(ub)!
         const ca = rank.get(va)!
@@ -269,8 +271,11 @@ export function crossingsOfPositions(
   let total = 0
   for (let i = 0; i < pairs.length; i++) {
     const [ua, va] = pairs[i]!
+    // 只有跨相邻层的边参与交叉统计（同层边/长边不产生 Sugiyama 意义下的交叉）
+    if (Math.abs(layerOf[ua]! - layerOf[va]!) !== 1) continue
     for (let j = i + 1; j < pairs.length; j++) {
       const [ub, vb] = pairs[j]!
+      if (Math.abs(layerOf[ub]! - layerOf[vb]!) !== 1) continue
       if (layerOf[ua] !== layerOf[ub] || layerOf[va] !== layerOf[vb]) continue
       if ((rank.get(ua)! - rank.get(ub)!) * (rank.get(va)! - rank.get(vb)!) < 0) total++
     }
