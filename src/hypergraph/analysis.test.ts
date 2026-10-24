@@ -85,6 +85,16 @@ describe('v3.4 超图模型', () => {
     )
     expect(iso.isomorphic).toBe(true)
 
+    // 对偶的平行边合并：两条不交三元边 → 2 个对偶顶点、2 条单点对偶边（重数 3）
+    const dualTwo = dualHypergraph(
+      docFromEdgeSets('两条', 6, [
+        [0, 1, 2],
+        [3, 4, 5],
+      ]),
+    )
+    expect(memberIndices(dualTwo)).toEqual([[0], [1]])
+    expect(dualTwo.edges.map((edge) => edge.weight)).toEqual([3, 3])
+
     const a = buildHypergraphPreset('random', 6, 3, 42)
     const b = buildHypergraphPreset('random', 6, 3, 42)
     expect(memberIndices(a)).toEqual(memberIndices(b))

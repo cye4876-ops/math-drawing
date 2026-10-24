@@ -235,19 +235,28 @@ export function dualHypergraph(doc: HypergraphDoc): HypergraphDoc {
     color: edge.color,
   }))
   const dualIdOf = new Map(doc.edges.map((edge, index) => [edge.id, `d${index}`]))
-  const edges: HyperEdge[] = []
+  // 简单超图语义：相同成员集合的平行对偶边合并为一条，weight 记录重数
+  const grouped = new Map<string, { members: string[]; labels: string[]; color: string }>()
   doc.vertices.forEach((vertex, index) => {
     if (incident[index]!.length === 0) return
-    const members = incident[index]!.map((edgeId) => dualIdOf.get(edgeId)).filter(
-      (id): id is string => id !== undefined,
-    )
-    edges.push({
-      id: `de${index}`,
-      label: vertex.label,
-      members,
-      color: vertex.color,
-      weight: 1,
-    })
+    const members = incident[index]!.map((edgeId) => dualIdOf.get(edgeId))
+      .filter((id): id is string => id !== undefined)
+      .sort()
+    if (members.length === 0) return
+    const key = members.join(',')
+    const existing = grouped.get(key)
+    if (existing) {
+      existing.labels.push(vertex.label)
+      return
+    }
+    grouped.set(key, { members, labels: [vertex.label], color: vertex.color })
   })
+  const edges: HyperEdge[] = [...grouped.values()].map((group, index) => ({
+    id: `de${index}`,
+    label: group.labels.join('+'),
+    members: group.members,
+    color: group.color,
+    weight: group.labels.length,
+  }))
   return { name: `${doc.name} 的对偶`, vertices, edges }
 }
