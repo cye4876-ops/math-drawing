@@ -35,14 +35,15 @@ export const SPACE_OBJECT_TYPES = ['surface3d', 'curve3d', 'field3d', 'ode2d'] a
 /** 按模式过滤画布对象（与 App 的可见性规则一致） */
 export function objectsOfMode(
   doc: DocState,
-  mode: 'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+  mode: 'plot' | 'graph' | 'lab' | 'hyper' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
 ): SceneObject[] {
   if (
     mode === 'space' ||
     mode === 'advanced' ||
     mode === 'matrix' ||
     mode === 'notebook' ||
-    mode === 'lab'
+    mode === 'lab' ||
+    mode === 'hyper'
   )
     return []
   return doc.objects.filter((object) => {
@@ -131,7 +132,7 @@ export interface FrameRenderOptions {
 export function renderFrame(
   ctx: CanvasRenderingContext2D,
   doc: DocState,
-  mode: 'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+  mode: 'plot' | 'graph' | 'lab' | 'hyper' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
   view: ViewTransform,
   size: Size,
   options: FrameRenderOptions,

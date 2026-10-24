@@ -1,0 +1,69 @@
+{
+  "generatedBy": "tools/lab-oracle/gen-v34-oracles.py",
+  "hypergraphs": [
+    {
+      "name": "K5^3",
+      "n": 5,
+      "m": 10,
+      "degrees": [6, 6, 6, 6, 6],
+      "minDegree": 6,
+      "maxDegree": 6,
+      "maxCodegree": 3,
+      "linear": false,
+      "regular": true,
+      "connected": true,
+      "nu": 1,
+      "tau": 3,
+      "alpha": 2,
+      "propertyB": false
+    },
+    {
+      "name": "Fano",
+      "n": 7,
+      "m": 7,
+      "degrees": [3, 3, 3, 3, 3, 3, 3],
+      "minDegree": 3,
+      "maxDegree": 3,
+      "maxCodegree": 1,
+      "linear": true,
+      "regular": true,
+      "connected": true,
+      "nu": 1,
+      "tau": 3,
+      "alpha": 4,
+      "propertyB": false
+    },
+    {
+      "name": "loose_triangle",
+      "n": 6,
+      "m": 3,
+      "degrees": [2, 1, 2, 1, 2, 1],
+      "minDegree": 1,
+      "maxDegree": 2,
+      "maxCodegree": 1,
+      "linear": true,
+      "regular": false,
+      "connected": true,
+      "nu": 1,
+      "tau": 2,
+      "alpha": 4,
+      "propertyB": true
+    }
+  ],
+  "antiRamsey": {
+    "n4:clique3": 3,
+    "n4:clique4": 5,
+    "n4:path3": 1,
+    "n4:path4": 3,
+    "n4:cycle3": 3,
+    "n4:cycle4": 4,
+    "n4:matching2": 3,
+    "n5:clique3": 4,
+    "n5:clique4": 7,
+    "n5:path3": 1,
+    "n5:path4": 2,
+    "n5:cycle3": 4,
+    "n5:cycle4": 5,
+    "n5:matching2": 1
+  }
+}

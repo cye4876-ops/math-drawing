@@ -60,6 +60,8 @@
   const matrixPanelLazy = lazy(() => import('./MatrixPanel.svelte'))
   const labViewLazy = lazy(() => import('./lab/LabView.svelte'))
   const labPanelLazy = lazy(() => import('./lab/LabPanel.svelte'))
+  const hyperViewLazy = lazy(() => import('./HyperView.svelte'))
+  const hyperPanelLazy = lazy(() => import('./HyperPanel.svelte'))
 
   // 重视图常驻语义：一旦进入过就保持挂载（WebGL 上下文/组件状态不丢）
   let spaceMounted = $state(false)
@@ -67,12 +69,14 @@
   let notebookMounted = $state(false)
   let matrixMounted = $state(false)
   let labMounted = $state(false)
+  let hyperMounted = $state(false)
   $effect(() => {
     if (mode === 'space') spaceMounted = true
     if (mode === 'advanced') advancedMounted = true
     if (mode === 'notebook') notebookMounted = true
     if (mode === 'matrix') matrixMounted = true
     if (mode === 'lab') labMounted = true
+    if (mode === 'hyper') hyperMounted = true
   })
 
   // 演示模式（v1.0）：侧栏整体隐藏，浮动退出按钮保证随时可退出（含全屏被拒场景）
@@ -155,7 +159,16 @@
   }
 
   let sharedPreloadMode:
-    'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' | null = null
+    | 'plot'
+    | 'graph'
+    | 'lab'
+    | 'hyper'
+    | 'stats'
+    | 'space'
+    | 'advanced'
+    | 'notebook'
+    | 'matrix'
+    | null = null
 
   function preloadFromUrl(target: AppStore): ViewRangeInput | null {
     if (typeof location === 'undefined') return null
@@ -249,11 +262,12 @@
 
   /** 界面模式（工具条左上角切换）：plot / graph / lab / stats / space / advanced / matrix / notebook；?mode= 可指定 */
   function initialModeFromUrl():
-    'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' {
+    'plot' | 'graph' | 'lab' | 'hyper' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' {
     if (typeof location === 'undefined') return 'plot'
     const modeParam = readRawParam(location.search, 'mode')
     if (modeParam === 'graph') return 'graph'
     if (modeParam === 'lab') return 'lab'
+    if (modeParam === 'hyper') return 'hyper'
     if (modeParam === 'stats') return 'stats'
     if (modeParam === 'space') return 'space'
     if (modeParam === 'advanced') return 'advanced'
@@ -263,11 +277,11 @@
     return 'plot'
   }
   const initialMode:
-    'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' =
+    'plot' | 'graph' | 'lab' | 'hyper' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix' =
     sharedPreloadMode ?? initialModeFromUrl()
 
   let mode = $state<
-    'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
+    'plot' | 'graph' | 'lab' | 'hyper' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
   >(initialMode)
 
   /**
@@ -275,12 +289,13 @@
    * 页面初始视图归属于初始模式；未访问过的模式回落到标准默认视图。
    */
   const savedViews: Record<
-    'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+    'plot' | 'graph' | 'lab' | 'hyper' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
     ViewTransform | null
   > = {
     plot: initialMode === 'plot' ? { ...store.getView() } : null,
     graph: initialMode === 'graph' ? { ...store.getView() } : null,
     lab: initialMode === 'lab' ? { ...store.getView() } : null,
+    hyper: initialMode === 'hyper' ? { ...store.getView() } : null,
     stats: initialMode === 'stats' ? { ...store.getView() } : null,
     space: initialMode === 'space' ? { ...store.getView() } : null,
     advanced: initialMode === 'advanced' ? { ...store.getView() } : null,
@@ -356,7 +371,8 @@
       mode === 'advanced' ||
       mode === 'matrix' ||
       mode === 'notebook' ||
-      mode === 'lab'
+      mode === 'lab' ||
+      mode === 'hyper'
     )
       return []
     return state.doc.objects.filter((object) => {
@@ -371,7 +387,8 @@
   }
 
   function setMode(
-    next: 'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+    next:
+      'plot' | 'graph' | 'lab' | 'hyper' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
   ): void {
     if (mode === next) return
     savedViews[mode] = store.getView()
@@ -418,8 +435,8 @@
       const state = store.getState()
       // 统一清屏（图论模式不绘制网格背景，必须显式清除上一帧，否则残留旧像素）
       ctx.clearRect(0, 0, size.width, size.height)
-      // 网格与坐标轴仅函数绘图/统计模式（图论模式隐藏）
-      if (mode !== 'graph') drawGrid(ctx, state.view, size, dpr)
+      // 网格与坐标轴仅函数绘图/统计模式（图论与超图模式隐藏）
+      if (mode !== 'graph' && mode !== 'hyper') drawGrid(ctx, state.view, size, dpr)
       scene.draw(
         ctx,
         visibleObjectsOf(state),
@@ -528,7 +545,8 @@
         mode === 'advanced' ||
         mode === 'matrix' ||
         mode === 'notebook' ||
-        mode === 'lab'}
+        mode === 'lab' ||
+        mode === 'hyper'}
     >
       {#if spaceMounted}
         {#await spaceViewLazy() then spaceModule}
@@ -558,6 +576,12 @@
         {#await labViewLazy() then labModule}
           {@const LabView = labModule.default}
           <LabView active={mode === 'lab'} onOpenGraph={openLabGraph} />
+        {/await}
+      {/if}
+      {#if hyperMounted}
+        {#await hyperViewLazy() then hyperModule}
+          {@const HyperView = hyperModule.default}
+          <HyperView active={mode === 'hyper'} />
         {/await}
       {/if}
       {#if mode === 'plot' && plotCurveCount === 0}
@@ -626,6 +650,18 @@
         {#await labPanelLazy() then labPanelModule}
           {@const LabPanel = labPanelModule.default}
           <LabPanel {store} />
+        {:catch}
+          <div class="lazy-error">
+            模块加载失败（页面版本可能已更新）。<button
+              type="button"
+              onclick={() => window.location.reload()}>重新加载</button
+            >
+          </div>
+        {/await}
+      {:else if mode === 'hyper'}
+        {#await hyperPanelLazy() then hyperPanelModule}
+          {@const HyperPanel = hyperPanelModule.default}
+          <HyperPanel {store} />
         {:catch}
           <div class="lazy-error">
             模块加载失败（页面版本可能已更新）。<button

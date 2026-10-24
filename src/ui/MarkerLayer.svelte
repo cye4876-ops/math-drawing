@@ -9,7 +9,8 @@
   }: {
     store: AppStore
     /** 当前界面模式：标记点仅在函数绘图模式显示（图论模式隐藏） */
-    getMode: () => 'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
+    getMode: () =>
+      'plot' | 'graph' | 'lab' | 'hyper' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
   } = $props()
 
   let appState = $state<AppState | null>(null)

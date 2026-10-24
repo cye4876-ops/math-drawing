@@ -72,9 +72,11 @@
     canRedo: boolean
     getStageSize: () => Size
     registry: ToolRegistry
-    mode: 'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
+    mode:
+      'plot' | 'graph' | 'lab' | 'hyper' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix'
     onModeChange: (
-      mode: 'plot' | 'graph' | 'lab' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
+      mode:
+        'plot' | 'graph' | 'lab' | 'hyper' | 'stats' | 'space' | 'advanced' | 'notebook' | 'matrix',
     ) => void
     sidebarCollapsed: boolean
     onToggleSidebar: () => void
@@ -219,6 +221,14 @@
       aria-selected={mode === 'lab'}
       class:active={mode === 'lab'}
       onclick={() => onModeChange('lab')}>图论实验</button
+    >
+    <button
+      type="button"
+      role="tab"
+      data-testid="mode-hyper"
+      aria-selected={mode === 'hyper'}
+      class:active={mode === 'hyper'}
+      onclick={() => onModeChange('hyper')}>超图与彩虹</button
     >
     <button
       type="button"
@@ -429,6 +439,8 @@
     class="dock-tool file"
     data-testid="export-open"
     class:active={showExport}
+    disabled={mode === 'hyper'}
+    title={mode === 'hyper' ? '超图/彩虹为独立视图：请用面板 JSON 导出或截图' : '导出…'}
     onclick={() => (showExport = !showExport)}
     ><Upload size={16} /><span class="lbl">导出…</span></button
   >
@@ -493,6 +505,9 @@
   .mode-switch {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
+    min-width: 0;
+    max-width: 100%;
     gap: 2px;
     background: var(--bg);
     border: 1px solid var(--border);
