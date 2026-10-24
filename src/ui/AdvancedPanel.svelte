@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte'
   import {
     getModule,
     setModule,
@@ -95,6 +96,8 @@
   import { COLORMAP_NAMES } from '../render3d/colormaps'
   import { COUNTEREXAMPLE_CASES } from '../algebra/counterexamples'
   import { GROUPS } from '../algebra/groups'
+  import { MATH_KEYS, insertMathSnippet, previewLatex, type MathKey } from './math-input'
+  import { latexNode } from './latex-action'
 
   function numberFrom(event: Event): number {
     return Number((event.currentTarget as HTMLInputElement).value)
@@ -124,6 +127,22 @@
     id: group.id,
     short: group.name.split('（')[0] ?? group.name,
   }))
+
+  // v3.3：结构化数学输入（快捷键盘 + 实时 LaTeX 预览）
+  let symbolicInputEl = $state<HTMLInputElement>()
+  const symbolicPreview = $derived(previewLatex(getSymbolicInput()))
+
+  async function pressMathKey(key: MathKey): Promise<void> {
+    const element = symbolicInputEl
+    const value = getSymbolicInput()
+    const start = element?.selectionStart ?? value.length
+    const end = element?.selectionEnd ?? start
+    const result = insertMathSnippet(value, start, end, key.insert)
+    setSymbolicInput(result.value)
+    await tick()
+    element?.focus()
+    element?.setSelectionRange(result.caret, result.caret)
+  }
   /** 群作用 / Sylow 视图：全部群（含 S₄、A₅，不依赖子群扫描） */
   const ACTION_GROUPS = Object.values(GROUPS).map((group) => ({
     id: group.id,
@@ -589,6 +608,7 @@
         <input
           class="expr"
           data-testid="adv-symbolic-input"
+          bind:this={symbolicInputEl}
           value={getSymbolicInput()}
           oninput={(event) => setSymbolicInput(textFrom(event))}
           onkeydown={(event) => {
@@ -596,6 +616,28 @@
           }}
         />
       </div>
+      <div class="row wrap math-keypad" data-testid="adv-math-keypad">
+        {#each MATH_KEYS as key (key.id)}
+          <button
+            type="button"
+            class="math-key"
+            data-testid={`adv-math-key-${key.id}`}
+            title={`插入 ${key.insert.replace('@', '')}`}
+            onclick={() => pressMathKey(key)}
+          >
+            {key.label}
+          </button>
+        {/each}
+      </div>
+      <div
+        class="math-preview"
+        data-testid="adv-math-preview"
+        data-empty={symbolicPreview ? 'false' : 'true'}
+        use:latexNode={symbolicPreview ?? ''}
+      ></div>
+      {#if !symbolicPreview}
+        <div class="hint">输入可解析表达式后在此实时预览（支持 =、≤、≥、≠ 比较式）。</div>
+      {/if}
       <div class="row wrap">
         <button
           type="button"
@@ -962,5 +1004,25 @@
   .prime-row button.active {
     border-color: #4c7dff;
     background: rgba(76, 125, 255, 0.16);
+  }
+  .math-keypad {
+    gap: 4px;
+  }
+  .math-key {
+    min-width: 30px;
+    padding: 3px 7px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 12px;
+  }
+  .math-preview {
+    min-height: 28px;
+    padding: 4px 8px;
+    border: 1px dashed var(--border, #26324a);
+    border-radius: 6px;
+    font-size: 12px;
+    overflow-x: auto;
+  }
+  .math-preview[data-empty='true'] {
+    display: none;
   }
 </style>

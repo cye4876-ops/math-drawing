@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { graphObjectFromDsl } from './dsl-to-doc'
-import { layoutCircular, layoutForceAtlas, layoutGrid, layoutLayered } from './layouts'
+import {
+  crossingsOfPositions,
+  layeredEdgePairs,
+  layoutCircular,
+  layoutForceAtlas,
+  layoutGrid,
+  layoutLayered,
+} from './layouts'
 import type { GraphObject } from './model'
 
 function makeGraph(dsl: string): GraphObject {
@@ -92,6 +99,42 @@ describe('graph/layouts: 分层布局', () => {
       expect(Number.isFinite(node.x)).toBe(true)
       expect(Number.isFinite(node.y)).toBe(true)
     }
+  })
+})
+
+describe('graph/layouts: 分层重心最小化（v3.3）', () => {
+  it('乱序二分图 A1→B2、A2→B1：重心扫描把交叉从 1 降到 0', () => {
+    const graph = makeGraph('A1->B2, A2->B1')
+    const nodes = layoutLayered(graph)
+    expect(crossingsOfPositions(nodes, layeredEdgePairs(graph))).toBe(0)
+  })
+
+  it('参数生效：layerGap 决定层距、nodeGap 决定同层间距', () => {
+    const graph = makeGraph('R->L1, R->L2')
+    const nodes = layoutLayered(graph, { layerGap: 4, nodeGap: 2, sweeps: 2 })
+    const root = nodes.find((node) => node.label === 'R')!
+    const l1 = nodes.find((node) => node.label === 'L1')!
+    const l2 = nodes.find((node) => node.label === 'L2')!
+    expect(Math.abs(root.y - l1.y)).toBeCloseTo(4, 9)
+    expect(Math.abs(l1.x - l2.x)).toBeCloseTo(2, 9)
+    expect(l1.y).toBeCloseTo(l2.y, 9)
+  })
+
+  it('layeredEdgePairs：无向边双向、有向边单向、忽略自环', () => {
+    const undirected = makeGraph('A-B')
+    expect(layeredEdgePairs(undirected)).toHaveLength(2)
+    const directed = makeGraph('A->B')
+    expect(layeredEdgePairs(directed)).toHaveLength(1)
+    const loop = makeGraph('A-A')
+    expect(layeredEdgePairs(loop)).toHaveLength(0)
+  })
+
+  it('旧签名（数字间距）保持兼容：层距与层内距一致', () => {
+    const graph = makeGraph('R->L1, R->L2')
+    const nodes = layoutLayered(graph, 3)
+    const root = nodes.find((node) => node.label === 'R')!
+    const l1 = nodes.find((node) => node.label === 'L1')!
+    expect(Math.abs(root.y - l1.y)).toBeCloseTo(3, 9)
   })
 })
 

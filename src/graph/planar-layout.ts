@@ -1,6 +1,7 @@
 /**
- * 平面嵌入布局（v3.2）：LR 平面性检验得到组合嵌入，再以 Tutte 凸绘制给出无交叉坐标。
- * 适用：连通、2-连通、平面、顶点数 ≤ 31 的简单无向图；否则给出明确错误（建议用力导向）。
+ * 平面嵌入布局（v3.2 起）：LR 平面性检验得到组合嵌入，再以 Tutte 凸绘制给出无交叉坐标。
+ * v3.3 扩展：支持森林/树（二连通块按割点展开）与不连通图（分量装箱），顶点数 ≤ 31。
+ * 非平面图（K₅/K₃,₃ minor）仍明确报错。
  * 依赖：src/lab/planarity（LR 检验与 ordered 邻接顺序）。
  */
 import { lrInternals, type LrTables } from '../lab/planarity'
@@ -17,7 +18,6 @@ export type PlanarLayoutResult =
   { ok: true; positions: PlanarPosition[]; note: string } | { ok: false; error: string }
 
 const MAX_N = 31
-const OUTER_RADIUS = 3
 
 function buildLab(graph: GraphObject): { lab: LabGraph; ids: string[]; edgeCount: number } {
   const n = graph.nodes.length
@@ -43,51 +43,6 @@ function neighborsOf(lab: LabGraph, v: number): number[] {
     if ((mask >> i) & 1) result.push(i)
   }
   return result
-}
-
-function isConnected(lab: LabGraph): boolean {
-  if (lab.n === 0) return true
-  const seen = new Array<boolean>(lab.n).fill(false)
-  seen[0] = true
-  const queue = [0]
-  for (let head = 0; head < queue.length; head++) {
-    for (const v of neighborsOf(lab, queue[head]!)) {
-      if (!seen[v]) {
-        seen[v] = true
-        queue.push(v)
-      }
-    }
-  }
-  return seen.every(Boolean)
-}
-
-/** 2-连通性：去掉任一顶点仍连通（n ≤ 31 可直接试删） */
-function isBiconnected(lab: LabGraph): boolean {
-  for (let removed = 0; removed < lab.n; removed++) {
-    const seen = new Array<boolean>(lab.n).fill(false)
-    let start = -1
-    for (let v = 0; v < lab.n; v++) {
-      if (v !== removed) {
-        start = v
-        break
-      }
-    }
-    if (start === -1) continue
-    seen[start] = true
-    const queue = [start]
-    for (let head = 0; head < queue.length; head++) {
-      for (const v of neighborsOf(lab, queue[head]!)) {
-        if (v !== removed && !seen[v]) {
-          seen[v] = true
-          queue.push(v)
-        }
-      }
-    }
-    for (let v = 0; v < lab.n; v++) {
-      if (v !== removed && !seen[v]) return false
-    }
-  }
-  return true
 }
 
 /** 由 ordered 邻接表遍历面；失败返回 null（面数不符合欧拉公式） */
@@ -341,28 +296,137 @@ function smallEmbedding(lab: LabGraph): number[][] | null {
   return search(0) ? current : null
 }
 
-export function layoutPlanarGraph(graph: GraphObject): PlanarLayoutResult {
-  if (graph.nodes.length < 3) {
-    return { ok: false, error: '顶点数不足 3，无法做平面嵌入（建议使用环形/力导向布局）。' }
+// ---------------- v3.3：连通分量 / 二连通块装配 ----------------
+
+interface Block {
+  vertices: number[]
+  edges: Array<[number, number]>
+}
+
+function connectedComponents(lab: LabGraph): number[][] {
+  const seen = new Array<boolean>(lab.n).fill(false)
+  const components: number[][] = []
+  for (let start = 0; start < lab.n; start++) {
+    if (seen[start]) continue
+    const members: number[] = []
+    seen[start] = true
+    const queue = [start]
+    for (let head = 0; head < queue.length; head++) {
+      const u = queue[head]!
+      members.push(u)
+      for (const v of neighborsOf(lab, u)) {
+        if (!seen[v]) {
+          seen[v] = true
+          queue.push(v)
+        }
+      }
+    }
+    components.push(members)
   }
-  if (graph.nodes.length > MAX_N) {
-    return { ok: false, error: `平面嵌入布局支持最多 ${MAX_N} 个顶点（位掩码实现上限）。` }
+  return components
+}
+
+/** Tarjan 边栈求二连通块（含单边块）；图可含割点、可含孤立点 */
+function biconnectedBlocks(lab: LabGraph): Block[] {
+  const n = lab.n
+  const disc = new Array<number>(n).fill(-1)
+  const low = new Array<number>(n).fill(0)
+  const parent = new Array<number>(n).fill(-1)
+  const stack: Array<[number, number]> = []
+  const blocks: Block[] = []
+  let timer = 0
+  const emit = (u: number, v: number): void => {
+    const edges: Array<[number, number]> = []
+    const vertices = new Set<number>()
+    while (stack.length > 0) {
+      const [a, b] = stack.pop()!
+      edges.push([a, b])
+      vertices.add(a)
+      vertices.add(b)
+      if (a === u && b === v) break
+    }
+    blocks.push({ vertices: [...vertices], edges })
   }
-  const { lab, ids, edgeCount } = buildLab(graph)
-  if (!isConnected(lab))
-    return { ok: false, error: '图不连通，无法做平面嵌入（建议使用力导向布局）。' }
-  if (edgeCount < lab.n) {
-    return { ok: false, error: '图含割点或过稀（树/森林），没有可用的内部面（建议使用分层布局）。' }
+  const dfs = (u: number): void => {
+    disc[u] = timer
+    low[u] = timer
+    timer++
+    for (const v of neighborsOf(lab, u)) {
+      if (disc[v] === -1) {
+        stack.push([u, v])
+        parent[v] = u
+        dfs(v)
+        low[u] = Math.min(low[u]!, low[v]!)
+        if (low[v]! >= disc[u]!) emit(u, v)
+      } else if (v !== parent[u] && disc[v]! < disc[u]!) {
+        stack.push([u, v])
+        low[u] = Math.min(low[u]!, disc[v]!)
+      }
+    }
   }
-  if (!isBiconnected(lab)) {
-    return { ok: false, error: '图不是 2-连通的（存在割点），Tutte 布局不适用（建议力导向）。' }
+  for (let v = 0; v < n; v++) {
+    if (disc[v] === -1) dfs(v)
   }
-  const internals = lrInternals(lab)
+  // 防御：根节点残余边（正常情况应已清空）
+  while (stack.length > 0) {
+    const [a, b] = stack.pop()!
+    blocks.push({ vertices: [a, b], edges: [[a, b]] })
+  }
+  return blocks
+}
+
+interface BlockLayoutOk {
+  ok: true
+  positions: Map<number, { x: number; y: number }>
+  faceCount: number
+  outerLength: number
+}
+
+type BlockLayoutResult = BlockLayoutOk | { ok: false; error: string }
+
+/**
+ * 单个二连通块（或单边）的局部凸绘制：
+ * 顶点数 2 → 水平单边；≥3 → LR 组合嵌入 + Tutte（外表面半径 radius）。
+ * 局部坐标以块自身为参照，供块树装配时旋转/平移。
+ */
+function blockLayout(lab: LabGraph, vertices: number[], radius: number): BlockLayoutResult {
+  const count = vertices.length
+  if (count === 1) {
+    return {
+      ok: true,
+      positions: new Map([[vertices[0]!, { x: 0, y: 0 }]]),
+      faceCount: 0,
+      outerLength: 0,
+    }
+  }
+  if (count === 2) {
+    return {
+      ok: true,
+      positions: new Map([
+        [vertices[0]!, { x: -radius / 2, y: 0 }],
+        [vertices[1]!, { x: radius / 2, y: 0 }],
+      ]),
+      faceCount: 0,
+      outerLength: 0,
+    }
+  }
+  const localOf = new Map(vertices.map((v, i) => [v, i]))
+  const adj = new Array<number>(count).fill(0)
+  for (const v of vertices) {
+    const i = localOf.get(v)!
+    for (const u of neighborsOf(lab, v)) {
+      const j = localOf.get(u)
+      if (j !== undefined) adj[i]! |= 1 << j
+    }
+  }
+  const local: LabGraph = { n: count, adj }
+  const internals = lrInternals(local)
   if (!internals.planar)
     return { ok: false, error: '图非平面（含 K₅/K₃,₃ minor），无法无交叉绘制。' }
-  const ordered = lab.n <= 4 ? (smallEmbedding(lab) ?? []) : (buildEmbedding(lab, internals) ?? [])
+  const ordered =
+    count <= 4 ? (smallEmbedding(local) ?? []) : (buildEmbedding(local, internals) ?? [])
   if (ordered.length === 0) return { ok: false, error: '组合嵌入重建失败，请改用其他布局。' }
-  const faces = facesOf(lab, ordered, 1) ?? facesOf(lab, ordered, -1)
+  const faces = facesOf(local, ordered, 1) ?? facesOf(local, ordered, -1)
   if (!faces) return { ok: false, error: '组合嵌入重建失败，请改用其他布局。' }
   // 外表面取最长面（≥3）
   let outer = faces[0]!
@@ -372,16 +436,16 @@ export function layoutPlanarGraph(graph: GraphObject): PlanarLayoutResult {
   if (outer.length < 3) return { ok: false, error: '未能找到长度 ≥ 3 的外表面。' }
 
   const outerSet = new Set(outer)
-  const x = new Array<number>(lab.n).fill(0)
-  const y = new Array<number>(lab.n).fill(0)
+  const x = new Array<number>(count).fill(0)
+  const y = new Array<number>(count).fill(0)
   outer.forEach((v, i) => {
     const angle = (2 * Math.PI * i) / outer.length
-    x[v] = OUTER_RADIUS * Math.cos(angle)
-    y[v] = OUTER_RADIUS * Math.sin(angle)
+    x[v] = radius * Math.cos(angle)
+    y[v] = radius * Math.sin(angle)
   })
 
   const interior: number[] = []
-  for (let v = 0; v < lab.n; v++) if (!outerSet.has(v)) interior.push(v)
+  for (let v = 0; v < count; v++) if (!outerSet.has(v)) interior.push(v)
   if (interior.length > 0) {
     const positionOf = new Map(interior.map((v, i) => [v, i]))
     const size = interior.length
@@ -389,7 +453,7 @@ export function layoutPlanarGraph(graph: GraphObject): PlanarLayoutResult {
     const rhsX = new Array<number>(size).fill(0)
     const rhsY = new Array<number>(size).fill(0)
     interior.forEach((v, i) => {
-      const neighbors = neighborsOf(lab, v)
+      const neighbors = neighborsOf(local, v)
       matrix[i]![i] = neighbors.length
       for (const u of neighbors) {
         const j = positionOf.get(u)
@@ -412,9 +476,183 @@ export function layoutPlanarGraph(graph: GraphObject): PlanarLayoutResult {
     })
   }
 
+  const positions = new Map<number, { x: number; y: number }>()
+  vertices.forEach((v, i) => positions.set(v, { x: x[i]!, y: y[i]! }))
+  return { ok: true, positions, faceCount: faces.length, outerLength: outer.length }
+}
+
+const ROOT_RADIUS = 3
+const CHILD_RADIUS = 1.7
+
+interface PartLayout {
+  positions: Map<number, { x: number; y: number }>
+}
+
+/**
+ * 块树装配：以顶点数最多的块为根块，沿割点按角度扇出子块（子块旋转到背离父块质心的方向），
+ * 使树/森林/哑铃图等非 2-连通平面图也能无交叉展开。
+ */
+function assembleComponent(
+  lab: LabGraph,
+  vertices: number[],
+  blocks: Block[],
+  blockIds: number[],
+): PartLayout {
+  if (blockIds.length === 0) {
+    return { positions: new Map([[vertices[0]!, { x: 0, y: 0 }]]) }
+  }
+  let root = blockIds[0]!
+  for (const id of blockIds) {
+    if (blocks[id]!.vertices.length > blocks[root]!.vertices.length) root = id
+  }
+  const rootLayout = blockLayout(lab, blocks[root]!.vertices, ROOT_RADIUS)
+  if (!rootLayout.ok) throw new Error(rootLayout.error)
+  const positions = new Map(rootLayout.positions)
+  const placed = new Set<number>([root])
+  const queue = [root]
+  const blocksAt = new Map<number, number[]>()
+  for (const id of blockIds) {
+    for (const v of blocks[id]!.vertices) {
+      const list = blocksAt.get(v)
+      if (list) list.push(id)
+      else blocksAt.set(v, [id])
+    }
+  }
+  while (queue.length > 0) {
+    const parentId = queue.shift()!
+    const parent = blocks[parentId]!
+    let cx = 0
+    let cy = 0
+    for (const v of parent.vertices) {
+      const point = positions.get(v)!
+      cx += point.x
+      cy += point.y
+    }
+    cx /= parent.vertices.length
+    cy /= parent.vertices.length
+    for (const a of parent.vertices) {
+      const children = (blocksAt.get(a) ?? []).filter((id) => !placed.has(id))
+      if (children.length === 0) continue
+      const pivot = positions.get(a)!
+      const baseAngle = Math.atan2(pivot.y - cy, pivot.x - cx)
+      children.forEach((childId, k) => {
+        const child = blocks[childId]!
+        const layout = blockLayout(lab, child.vertices, CHILD_RADIUS)
+        if (!layout.ok) throw new Error(layout.error)
+        const anchor = layout.positions.get(a)!
+        let ccx = 0
+        let ccy = 0
+        for (const v of child.vertices) {
+          const point = layout.positions.get(v)!
+          ccx += point.x
+          ccy += point.y
+        }
+        ccx /= child.vertices.length
+        ccy /= child.vertices.length
+        const localAngle = Math.atan2(ccy - anchor.y, ccx - anchor.x)
+        const targetAngle = baseAngle + (k * 2 * Math.PI) / (children.length + 1)
+        const theta = targetAngle - localAngle
+        const cos = Math.cos(theta)
+        const sin = Math.sin(theta)
+        for (const [vertex, point] of layout.positions) {
+          const dx = point.x - anchor.x
+          const dy = point.y - anchor.y
+          positions.set(vertex, {
+            x: pivot.x + dx * cos - dy * sin,
+            y: pivot.y + dx * sin + dy * cos,
+          })
+        }
+        placed.add(childId)
+        queue.push(childId)
+      })
+    }
+  }
+  return { positions }
+}
+
+/** 多连通分量按行排布（单分量保持原坐标，不破坏既有半径语义） */
+function packParts(parts: PartLayout[]): void {
+  if (parts.length <= 1) return
+  const MAX_ROW = 9
+  let cursorX = 0
+  let cursorY = 0
+  let rowHeight = 0
+  for (const part of parts) {
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+    for (const point of part.positions.values()) {
+      minX = Math.min(minX, point.x)
+      maxX = Math.max(maxX, point.x)
+      minY = Math.min(minY, point.y)
+      maxY = Math.max(maxY, point.y)
+    }
+    const width = maxX - minX
+    const height = maxY - minY
+    if (cursorX > 0 && cursorX + width > MAX_ROW) {
+      cursorX = 0
+      cursorY -= rowHeight + 1.4
+      rowHeight = 0
+    }
+    const dx = cursorX - minX
+    const dy = cursorY - maxY
+    for (const [vertex, point] of part.positions) {
+      part.positions.set(vertex, { x: point.x + dx, y: point.y + dy })
+    }
+    cursorX += width + 1.4
+    rowHeight = Math.max(rowHeight, height)
+  }
+}
+
+export function layoutPlanarGraph(graph: GraphObject): PlanarLayoutResult {
+  if (graph.nodes.length < 3) {
+    return { ok: false, error: '顶点数不足 3，无法做平面嵌入（建议使用环形/力导向布局）。' }
+  }
+  if (graph.nodes.length > MAX_N) {
+    return { ok: false, error: `平面嵌入布局支持最多 ${MAX_N} 个顶点（位掩码实现上限）。` }
+  }
+  const { lab, ids } = buildLab(graph)
+  const components = connectedComponents(lab)
+  const blocks = biconnectedBlocks(lab)
+  const componentOf = new Array<number>(lab.n).fill(0)
+  components.forEach((members, index) => {
+    for (const v of members) componentOf[v] = index
+  })
+  const blockIdsOf: number[][] = components.map(() => [])
+  blocks.forEach((block, id) => {
+    const first = block.vertices[0]!
+    blockIdsOf[componentOf[first]!]!.push(id)
+  })
+  const parts: PartLayout[] = []
+  for (let index = 0; index < components.length; index++) {
+    try {
+      parts.push(assembleComponent(lab, components[index]!, blocks, blockIdsOf[index]!))
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : '平面嵌入失败，请改用其他布局。',
+      }
+    }
+  }
+  packParts(parts)
+  const x = new Array<number>(lab.n).fill(0)
+  const y = new Array<number>(lab.n).fill(0)
+  for (const part of parts) {
+    for (const [vertex, point] of part.positions) {
+      x[vertex] = point.x
+      y[vertex] = point.y
+    }
+  }
+  const componentText = components.length > 1 ? `${components.length} 个连通分量` : '连通图'
+  const edgeBlocks = blocks.filter((block) => block.vertices.length === 2).length
+  const blockText =
+    blocks.length > 0 && edgeBlocks === blocks.length
+      ? '树/森林（按割点展开）'
+      : `${blocks.length} 个二连通块装配`
   return {
     ok: true,
     positions: ids.map((id, i) => ({ id, x: x[i]!, y: y[i]! })),
-    note: `平面嵌入（LR 组合嵌入 + Tutte 凸绘制）：${faces.length} 个面，外表面 ${outer.length} 边。`,
+    note: `平面嵌入：${componentText} · ${blockText}；LR 组合嵌入 + Tutte 凸绘制。`,
   }
 }

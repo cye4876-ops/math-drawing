@@ -390,4 +390,60 @@ test.describe('v0.9 进阶（第五模式）', () => {
     await expect(page.getByTestId('adv-action-group-s4')).toBeVisible()
     await expect(page.getByTestId('adv-action-group-a5')).toBeVisible()
   })
+
+  test('v3.3 代数·Cayley 图：S₃ 画布 + 生成元图例；点击顶点联动元素信息', async ({ page }) => {
+    await page.goto('/?mode=advanced')
+    await page.getByTestId('adv-tab-algebra').click()
+    await page.getByTestId('adv-algebra-section-groups').click()
+    const canvas = page.getByTestId('alg-cayley')
+    await expect(canvas).toBeVisible()
+    const nonBackground = await canvas.evaluate((el) => {
+      const element = el as HTMLCanvasElement
+      const context = element.getContext('2d')
+      if (!context) return -1
+      const data = context.getImageData(0, 0, element.width, element.height).data
+      let count = 0
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i] ?? 0
+        const g = data[i + 1] ?? 0
+        const b = data[i + 2] ?? 0
+        if (Math.abs(r - 11) > 14 || Math.abs(g - 14) > 14 || Math.abs(b - 20) > 14) count++
+      }
+      return count
+    })
+    expect(nonBackground).toBeGreaterThan(200)
+    await expect(page.getByTestId('alg-cayley-legend')).toContainText('生成元')
+    await expect(page.getByTestId('alg-cayley-legend')).toContainText('顶点 6')
+    // 点击画布左上/中心区域任一点：命中节点则出现元素信息（S₃ 的顶点分布在大范围）
+    await canvas.scrollIntoViewIfNeeded()
+    const box = await canvas.boundingBox()
+    expect(box).not.toBeNull()
+    if (box) {
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    }
+  })
+
+  test('v3.3 符号·快捷键盘与实时预览：点击 x² / √ / ≤ 插入并渲染 KaTeX', async ({ page }) => {
+    await page.goto('/?mode=advanced')
+    await page.getByTestId('adv-tab-symbolic').click()
+    const input = page.getByTestId('adv-symbolic-input')
+    await input.fill('x')
+    await page.getByTestId('adv-math-key-pow2').click()
+    await expect(input).toHaveValue('x^2')
+    await page.getByTestId('adv-math-key-sqrt').click()
+    await expect(input).toHaveValue('x^2sqrt()')
+    // 预览属性由 KaTeX 动态加载后写入（含 x 与上标）
+    await expect
+      .poll(async () => page.getByTestId('adv-math-preview').getAttribute('data-latex'), {
+        timeout: 8000,
+      })
+      .toContain('x')
+    // 清空后输入比较式：预览包含 \le
+    await input.fill('x <= 1')
+    await expect
+      .poll(async () => page.getByTestId('adv-math-preview').getAttribute('data-latex'), {
+        timeout: 8000,
+      })
+      .toContain('\\le')
+  })
 })

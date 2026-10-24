@@ -57,6 +57,10 @@ function countCrossings(
   return crossings
 }
 
+function graphLabel(graph: GraphObject, id: string): string {
+  return graph.nodes.find((node) => node.id === id)?.label ?? ''
+}
+
 describe('v3.2 平面嵌入布局（Tutte）', () => {
   it('C4：正方形（四点在半径 3 的圆上），无交叉', () => {
     const c4 = makeGraph(
@@ -158,7 +162,7 @@ describe('v3.2 平面嵌入布局（Tutte）', () => {
     expect(k33Result.ok).toBe(false)
   })
 
-  it('树（P4）与不连通图：给出明确错误', () => {
+  it('v3.3：树（P4）按割点展开、无交叉；不连通图（两个 C4）装箱且无交叉', () => {
     const p4 = makeGraph(
       ['A', 'B', 'C', 'D'],
       [
@@ -168,17 +172,71 @@ describe('v3.2 平面嵌入布局（Tutte）', () => {
       ],
     )
     const tree = layoutPlanarGraph(p4)
-    expect(tree.ok).toBe(false)
-    if (!tree.ok) expect(tree.error).toMatch(/割点|树|连通/)
+    expect(tree.ok).toBe(true)
+    if (!tree.ok) return
+    expect(countCrossings(p4, tree.positions)).toBe(0)
 
     const disconnected = makeGraph(
-      ['A', 'B', 'C', 'D'],
+      ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
       [
         ['A', 'B'],
+        ['B', 'C'],
         ['C', 'D'],
+        ['D', 'A'],
+        ['E', 'F'],
+        ['F', 'G'],
+        ['G', 'H'],
+        ['H', 'E'],
       ],
     )
     const result = layoutPlanarGraph(disconnected)
-    expect(result.ok).toBe(false)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.note).toContain('连通分量')
+    expect(countCrossings(disconnected, result.positions)).toBe(0)
+    // 两个分量应明显分开（不共享坐标）
+    const c4A = new Set(['A', 'B', 'C', 'D'])
+    const positionsA = result.positions.filter((position) =>
+      c4A.has(graphLabel(disconnected, position.id)),
+    )
+    const positionsB = result.positions.filter(
+      (position) => !c4A.has(graphLabel(disconnected, position.id)),
+    )
+    for (const a of positionsA) {
+      for (const b of positionsB) {
+        expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(1)
+      }
+    }
+  })
+
+  it('v3.3：两个三角形共顶点（哑铃）与星图 K1,3 均无交叉', () => {
+    const dumbbell = makeGraph(
+      ['C', 'A', 'B', 'D', 'E'],
+      [
+        ['C', 'A'],
+        ['A', 'B'],
+        ['B', 'C'],
+        ['A', 'D'],
+        ['D', 'E'],
+        ['E', 'A'],
+      ],
+    )
+    const result = layoutPlanarGraph(dumbbell)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(countCrossings(dumbbell, result.positions)).toBe(0)
+
+    const star = makeGraph(
+      ['H', 'A', 'B', 'C'],
+      [
+        ['H', 'A'],
+        ['H', 'B'],
+        ['H', 'C'],
+      ],
+    )
+    const starResult = layoutPlanarGraph(star)
+    expect(starResult.ok).toBe(true)
+    if (!starResult.ok) return
+    expect(countCrossings(star, starResult.positions)).toBe(0)
   })
 })

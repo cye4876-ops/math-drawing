@@ -52,9 +52,44 @@ export function layoutForceAtlas(graph: GraphObject, iterations = 250): GraphNod
  * 分层布局（DAG 语义的「最长路径分层」）：
  * - 含**有向边**：沿箭头方向迭代松弛 layer[v] ≥ layer[u] + 1（无向边双向；至多 n 轮，环图亦有界）；
  * - 全**无向**图：退化为 BFS 分层（各连通分量自 0 起）；
- * 层 0 在顶部、层内水平均布，整体居中。适合树/DAG/流程图排布。
+ * 分层后用**重心法（barycenter）上下扫描**重排层内顺序以减少交叉，取扫描中交叉最少的一次；
+ * 层 0 在顶部、层内按 nodeGap 均布，垂直层距 layerGap，整体居中。
  */
-export function layoutLayered(graph: GraphObject, spacing = 1.6): GraphNodeData[] {
+export interface LayeredOptions {
+  /** 相邻层垂直距离 */
+  layerGap?: number
+  /** 同层相邻顶点水平距离 */
+  nodeGap?: number
+  /** 重心扫描轮数（下→上算一轮） */
+  sweeps?: number
+}
+
+/** 由图构造相邻层交叉统计用的顶点索引对（无向边双向；忽略自环） */
+export function layeredEdgePairs(graph: GraphObject): Array<[number, number]> {
+  const index = new Map(graph.nodes.map((node, i) => [node.id, i]))
+  const pairs: Array<[number, number]> = []
+  for (const edge of graph.edges) {
+    const i = index.get(edge.source)
+    const j = index.get(edge.target)
+    if (i === undefined || j === undefined || i === j) continue
+    pairs.push([i, j])
+    if (!edge.directed) pairs.push([j, i])
+  }
+  return pairs
+}
+
+export function layoutLayered(
+  graph: GraphObject,
+  options: number | LayeredOptions = {},
+): GraphNodeData[] {
+  const resolved: Required<LayeredOptions> =
+    typeof options === 'number'
+      ? { layerGap: options, nodeGap: options, sweeps: 8 }
+      : {
+          layerGap: options.layerGap ?? 1.8,
+          nodeGap: options.nodeGap ?? 1.8,
+          sweeps: Math.max(0, Math.min(50, options.sweeps ?? 8)),
+        }
   const n = graph.nodes.length
   if (n === 0) return []
   const index = new Map(graph.nodes.map((node, i) => [node.id, i]))
@@ -110,21 +145,135 @@ export function layoutLayered(graph: GraphObject, spacing = 1.6): GraphNodeData[
       if (!changed) break
     }
   }
-  const byLayer = new Map<number, number[]>()
-  layer.forEach((value, i) => {
-    const list = byLayer.get(value)
-    if (list) list.push(i)
-    else byLayer.set(value, [i])
-  })
   const maxLayer = Math.max(...layer)
+  // 层内顺序：初始按顶点顺序；重心法上下扫描取最优
+  const orders: number[][] = Array.from({ length: maxLayer + 1 }, () => [])
+  for (let i = 0; i < n; i++) orders[layer[i]!]!.push(i)
+  // 相邻层之间的边对（[上层顶点, 下层顶点]）
+  const pairs: Array<[number, number]> = []
+  const upNeighbors = new Map<number, number[]>()
+  const downNeighbors = new Map<number, number[]>()
+  const addPair = (u: number, v: number): void => {
+    pairs.push([u, v])
+    const up = downNeighbors.get(u)
+    if (up) up.push(v)
+    else downNeighbors.set(u, [v])
+    const down = upNeighbors.get(v)
+    if (down) down.push(u)
+    else upNeighbors.set(v, [u])
+  }
+  for (const edge of graph.edges) {
+    const i = index.get(edge.source)
+    const j = index.get(edge.target)
+    if (i === undefined || j === undefined || i === j) continue
+    addPair(i, j)
+    if (!edge.directed) addPair(j, i)
+  }
+
+  const positionMap = (order: number[][]): Map<number, number> => {
+    const map = new Map<number, number>()
+    order.forEach((members) => members.forEach((v, k) => map.set(v, k)))
+    return map
+  }
+
+  const sortLayer = (li: number, reference: Map<number, number>): number[] => {
+    const members = [...orders[li]!]
+    const key = new Map<number, number>()
+    members.forEach((v, k) => {
+      const neighbors = [...(upNeighbors.get(v) ?? []), ...(downNeighbors.get(v) ?? [])]
+        .map((u) => reference.get(u))
+        .filter((x): x is number => x !== undefined)
+      const sum = neighbors.reduce((acc, x) => acc + x, 0)
+      key.set(v, neighbors.length > 0 ? sum / neighbors.length : k)
+    })
+    members.sort((a, b) => key.get(a)! - key.get(b)! || a - b)
+    return members
+  }
+
+  const flatten = (order: number[][]): number[] => order.flat()
+  const crossingFor = (order: number[][]): number => {
+    const flat = flatten(order)
+    const rank = new Map<number, number>()
+    flat.forEach((v, k) => rank.set(v, k))
+    let total = 0
+    for (let i = 0; i < pairs.length; i++) {
+      const [ua, va] = pairs[i]!
+      for (let j = i + 1; j < pairs.length; j++) {
+        const [ub, vb] = pairs[j]!
+        const ra = rank.get(ua)!
+        const rb = rank.get(ub)!
+        const ca = rank.get(va)!
+        const cb = rank.get(vb)!
+        // 同层交叉只可能发生在同层之间，按层内次序与对层次序判断
+        if (layer[ua] === layer[ub] && layer[va] === layer[vb]) {
+          if ((ra - rb) * (ca - cb) < 0) total++
+        }
+      }
+    }
+    return total
+  }
+
+  let best = orders.map((members) => [...members])
+  let bestCrossings = crossingFor(best)
+  if (resolved.sweeps > 0 && pairs.length > 0) {
+    for (let sweep = 0; sweep < resolved.sweeps; sweep++) {
+      // 向下：按上层位置重排
+      for (let li = 1; li <= maxLayer; li++) {
+        const reference = positionMap(orders)
+        orders[li] = sortLayer(li, reference)
+      }
+      // 向上：按下层位置重排
+      for (let li = maxLayer - 1; li >= 0; li--) {
+        const reference = positionMap(orders)
+        orders[li] = sortLayer(li, reference)
+      }
+      const crossings = crossingFor(orders)
+      if (crossings < bestCrossings) {
+        bestCrossings = crossings
+        best = orders.map((members) => [...members])
+      }
+    }
+  }
+
   const result = graph.nodes.map((node) => ({ ...node }))
-  for (const [value, members] of byLayer) {
-    const width = (members.length - 1) * spacing
+  best.forEach((members, li) => {
+    const width = (members.length - 1) * resolved.nodeGap
     members.forEach((memberIndex, k) => {
       const node = result[memberIndex]!
-      node.x = k * spacing - width / 2
-      node.y = (maxLayer - value - maxLayer / 2) * spacing
+      node.x = k * resolved.nodeGap - width / 2
+      node.y = (maxLayer - li - maxLayer / 2) * resolved.layerGap
     })
-  }
+  })
   return result
+}
+
+/** 统计当前坐标下分层布局的相邻层交叉数（供 UI 显示；层按 y 四舍五入分辨） */
+export function crossingsOfPositions(
+  nodes: GraphNodeData[],
+  pairs: Array<[number, number]>,
+): number {
+  if (nodes.length === 0) return 0
+  const yValues = [...new Set(nodes.map((node) => Math.round(node.y * 1000) / 1000))].sort(
+    (a, b) => a - b,
+  )
+  const layerOf = nodes.map((node) => yValues.indexOf(Math.round(node.y * 1000) / 1000))
+  const order: number[][] = yValues.map(() => [])
+  nodes.forEach((node, i) => {
+    const layerIndex = layerOf[i]!
+    order[layerIndex]!.push(i)
+  })
+  // 层内按 x 排序（从大到小与坐标方向一致时无影响，保持稳定即可）
+  order.forEach((members) => members.sort((a, b) => nodes[a]!.x - nodes[b]!.x || a - b))
+  const rank = new Map<number, number>()
+  order.forEach((members) => members.forEach((v, k) => rank.set(v, k)))
+  let total = 0
+  for (let i = 0; i < pairs.length; i++) {
+    const [ua, va] = pairs[i]!
+    for (let j = i + 1; j < pairs.length; j++) {
+      const [ub, vb] = pairs[j]!
+      if (layerOf[ua] !== layerOf[ub] || layerOf[va] !== layerOf[vb]) continue
+      if ((rank.get(ua)! - rank.get(ub)!) * (rank.get(va)! - rank.get(vb)!) < 0) total++
+    }
+  }
+  return total
 }

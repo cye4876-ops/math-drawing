@@ -33,6 +33,7 @@
   import { isPresentationMode, togglePresentation } from '../teaching/presentation.svelte'
   import { TEACHING_PROBLEMS } from '../teaching/problems'
   import type { ToolRegistry } from '../tools/tool-registry'
+  import NotebookDependencyGraph from './NotebookDependencyGraph.svelte'
 
   let {
     store,
@@ -293,6 +294,11 @@
         {/each}
       </div>
     {/if}
+  </div>
+
+  <div class="section" data-testid="notebook-dependency-section">
+    <div class="section-title">依赖图（变量级）</div>
+    <NotebookDependencyGraph notebook={getNotebook()} />
   </div>
 
   <div class="section">

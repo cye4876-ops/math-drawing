@@ -3,8 +3,32 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 v0.x 系列为按路线图逐版交付的迭代版本；v1.0 起进入稳定 API 阶段。
 
-## v3.2 — 图论/代数算法能力（对齐 NetworkX · Gephi · Sage）（2026-10-23）
+## v3.3 — 六项体验与算法补齐（Gephi 统计过滤 · Cayley 图 · 依赖图 · 结构化输入 · 分层/平面边界）（2026-10-24）
 
+按用户确认的六步清单一次性交付，不改变任何既有 testid。
+
+### 图论
+
+- **统计与过滤（Gephi 式）**：图分析面板新增「统计与过滤」——顶点/边数、密度、平均/最大/最小度、孤立点数、连通分量数（`src/graph/stats.ts`，WeakMap 缓存邻接）；过滤支持**度数下限 / 社区编号 / 中心性前 k**（社区或中心性缺数据时自动先计算），命中集用深蓝、其余浅灰，仅覆盖画面填充色；
+- **分层布局交叉最小化**：`layoutLayered` 改为**最长路径分层 + 重心法上下扫描**（默认 8 轮，取交叉最少的一次），新增 `layerGap / nodeGap / sweeps` 参数（旧数字签名兼容）；面板提供「层距 / 层内距」输入并显示**相邻层交叉数**；导出 `crossingsOfPositions`、`layeredEdgePairs` 供测试与 UI 共用；
+- **平面嵌入边界处理**：`layoutPlanarGraph` 现支持**森林/树**（Tarjan 二连通块 + 割点扇出装配）、**非 2-连通图**（块树旋转/平移）与**不连通图**（分量按行装箱）；非平面图（K₅/K₃,₃）与 >31 顶点仍明确报错；C4/K4/网格既有半径语义保持不变。
+
+### 代数
+
+- **Cayley 图**（`src/algebra/cayley.ts`）：以群元素为顶点、右乘 `minimalGenerators` 为**分色有向边**（弧线 + 箭头，避免 reciprocal 重叠）；循环群单生成元用圆环、多生成元用 BFS 层行；群结构页新增画布与生成元图例（阶），**点击顶点选中元素**并与乘法表高亮联动；C4/V4/S3 单测核验边数与乘法表一致。
+
+### Notebook 与输入
+
+- **变量依赖图**（`src/notebook/dependency-graph.ts` + `NotebookDependencyGraph.svelte`）：单元格为节点、定义格 → 引用格为箭头，层号 = 最长依赖链；环上红框、阻塞虚线；面板「依赖图（变量级）」实时随 Notebook 更新；
+- **结构化数学输入**（`src/ui/math-input.ts`）：符号面板输入框下方新增**快捷键盘**（`/`、`x²`、`xⁿ`、`√`、`|x|`、sin/cos/tan/ln/exp/π、括号、`= ≤ ≥ ≠`），光标处插入/替换选区（`@` 标记落点）；**实时 KaTeX 预览**支持比较式（两侧分别解析），解析失败时降级不报错。
+
+### 验证
+
+- 新增单测：stats 6、layouts 4、planar 2（改写 1）、cayley 4、dependency 4、math-input 8；
+- 新增/更新 e2e：图分析 +3、代数 +2、Notebook +1；
+- 全量门禁：typecheck / lint / build 全过，单测与 e2e 全绿（结果见发布记录）。
+
+## v3.2 — 图论/代数算法能力（对齐 NetworkX · Gephi · Sage）（2026-10-23）
 按用户选定方案 B 实施：图论与代数从“教学工具”升级到“教学 + 研究”级；全部新增算法均经独立基准核验（WSL Sage 环境 + networkx，基准存档 `tools/lab-oracle/gen-v32-oracles.py` / `v32-oracles.json`）。
 
 ### 图论（`src/graph/`）

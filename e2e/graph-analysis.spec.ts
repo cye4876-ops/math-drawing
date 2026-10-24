@@ -58,4 +58,46 @@ test.describe('v3.2 图分析（NetworkX 对齐）', () => {
     await page.getByTestId('layout-planar').click()
     await expect(page.getByTestId('layout-error')).toContainText('非平面')
   })
+
+  test('v3.3 统计与过滤：K4 密度 1、平均度 3；度数过滤命中 4 个顶点', async ({ page }) => {
+    await page.goto(pageFor('A-B, A-C, A-D, B-C, B-D, C-D'))
+    await page.getByTestId('stats-run').click()
+    const stats = page.getByTestId('stats-result')
+    await expect(stats).toContainText('顶点 n')
+    await expect(stats).toContainText('1.0000')
+    await expect(stats).toContainText('3.000')
+    await page.getByTestId('filter-kind').selectOption('degree')
+    await page.getByTestId('filter-value').fill('3')
+    await page.getByTestId('filter-apply').click()
+    await expect(page.getByTestId('filter-info')).toContainText('4 个顶点')
+    await page.getByTestId('filter-clear').click()
+    await expect(page.getByTestId('filter-info')).toHaveCount(0)
+  })
+
+  test('v3.3 分层布局：参数生效并显示相邻层交叉数', async ({ page }) => {
+    await page.goto(pageFor('A->B, A->C, B->D, C->D'))
+    await page.getByTestId('layout-layer-gap').fill('2.4')
+    await page.getByTestId('layout-node-gap').fill('1.2')
+    await page.getByTestId('layout-layered').click()
+    const info = page.getByTestId('layered-info')
+    await expect(info).toContainText('层距 2.4')
+    await expect(info).toContainText('层内距 1.2')
+    await expect(info).toContainText('交叉 0')
+  })
+
+  test('v3.3 平面嵌入扩展：树 P4 与两个 C4 不连通图均可绘制（不再报割点/连通错误）', async ({
+    page,
+  }) => {
+    await page.goto(pageFor('A-B, B-C, C-D'))
+    await page.getByTestId('layout-planar').click()
+    await expect(page.getByTestId('layout-error')).toHaveCount(0)
+    // 星图 K1,3
+    await page.goto(pageFor('H-A, H-B, H-C'))
+    await page.getByTestId('layout-planar').click()
+    await expect(page.getByTestId('layout-error')).toHaveCount(0)
+    // 不连通：两个 C4
+    await page.goto(pageFor('A-B, B-C, C-D, D-A, E-F, F-G, G-H, H-E'))
+    await page.getByTestId('layout-planar').click()
+    await expect(page.getByTestId('layout-error')).toHaveCount(0)
+  })
 })

@@ -28,7 +28,13 @@
   } from '../graph/families'
   import { dslMatchesGraph, graphObjectFromDsl, graphToDsl } from '../graph/dsl-to-doc'
   import { parseGraphDsl, type DslError } from '../graph/dsl-parser'
-  import { layoutCircular, layoutGrid, layoutLayered } from '../graph/layouts'
+  import {
+    layoutCircular,
+    layoutGrid,
+    layoutLayered,
+    layeredEdgePairs,
+    crossingsOfPositions,
+  } from '../graph/layouts'
   import { layoutPlanarGraph } from '../graph/planar-layout'
   import type { LayoutWorkerResponse } from '../graph/layout-worker'
 
@@ -47,6 +53,9 @@
   let editing = $state(false)
   let layoutBusy = $state(false)
   let layoutError = $state('')
+  let layerGap = $state(1.8)
+  let nodeGap = $state(1.8)
+  let layeredInfo = $state('')
   let familyKind = $state<FamilyKind>('complete')
   let params = $state({
     n: DEFAULT_PARAMS.n,
@@ -289,7 +298,11 @@
 
   function runLayeredLayout(): void {
     const current = firstGraph(store.getState())
-    if (current) applyLayoutNodes(layoutLayered(current))
+    if (!current) return
+    const nodes = layoutLayered(current, { layerGap, nodeGap })
+    applyLayoutNodes(nodes)
+    const crossings = crossingsOfPositions(nodes, layeredEdgePairs(current))
+    layeredInfo = `分层布局：层距 ${layerGap} · 层内距 ${nodeGap} · 相邻层交叉 ${crossings}`
   }
 
   function runPlanarLayout(): void {
@@ -546,6 +559,31 @@
         >平面嵌入</button
       >
     </div>
+    <div class="row">
+      <span class="dim">层距</span>
+      <input
+        class="num"
+        type="number"
+        step="0.2"
+        min="0.4"
+        data-testid="layout-layer-gap"
+        value={layerGap}
+        oninput={(event) => (layerGap = Number((event.currentTarget as HTMLInputElement).value))}
+      />
+      <span class="dim">层内距</span>
+      <input
+        class="num"
+        type="number"
+        step="0.2"
+        min="0.4"
+        data-testid="layout-node-gap"
+        value={nodeGap}
+        oninput={(event) => (nodeGap = Number((event.currentTarget as HTMLInputElement).value))}
+      />
+    </div>
+    {#if layeredInfo}
+      <div class="hint" data-testid="layered-info">{layeredInfo}</div>
+    {/if}
     {#if layoutError}
       <div class="error" data-testid="layout-error">{layoutError}</div>
     {/if}
@@ -617,6 +655,20 @@
 
   .selection-card .row input {
     width: 120px;
+  }
+
+  .num {
+    width: 64px;
+  }
+
+  .hint {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .dim {
+    font-size: 12px;
+    color: var(--text-dim);
   }
 
   .panel-header {

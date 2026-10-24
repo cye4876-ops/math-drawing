@@ -62,6 +62,22 @@ test.describe('v1.0 Notebook：单元格与执行', () => {
     await expect(page.getByTestId('notebook-panel')).toBeVisible()
   })
 
+  test('v3.3 变量依赖图：默认 Notebook 渲染单元格节点与依赖区域', async ({ page }) => {
+    await page.goto('/?mode=notebook')
+    const section = page.getByTestId('notebook-dependency-section')
+    await expect(section).toBeVisible()
+    const graph = page.getByTestId('notebook-dependency-graph')
+    await expect(graph).toBeVisible()
+    await expect(page.getByTestId('dep-node-0')).toBeVisible()
+    await expect(page.getByTestId('dep-node-1')).toBeVisible()
+    // 默认 a = 2 无依赖 → 无连线
+    await expect(page.locator('[data-testid^="dep-edge-"]')).toHaveCount(0)
+    // 新增引用格 → 出现一条定义 → 引用边
+    await page.getByTestId('notebook-add-compute').click()
+    await page.getByTestId('nb-compute-2').fill('a + 1')
+    await expect(page.locator('[data-testid^="dep-edge-"]')).toHaveCount(1)
+  })
+
   test('常量名不可作变量名：给出明确报错', async ({ page }) => {
     await page.goto('/?mode=notebook')
     await page.getByTestId('nb-compute-1').fill('e = 5')
